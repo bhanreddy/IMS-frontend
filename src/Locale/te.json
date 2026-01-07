@@ -1,0 +1,184 @@
+{
+    "header": {
+        "english": "ఇంగ్లీష్",
+        "telugu": "తెలుగు"
+    },
+    "home": {
+        "regular_complaints": "సాధారణ ఫిర్యాదులు",
+        "attendance": "హాజరు",
+        "today": "ఈ రోజు",
+        "present": "హాజరు",
+        "class_teacher": "తరగతి ఉపాధ్యాయుడు",
+        "mobile": "మొబైల్ నం",
+        "free_class": "ఖాళీ సమయం"
+    },
+    "menu": {
+        "profile": "ప్రొఫైల్",
+        "bus_map": "బస్సు మ్యాప్",
+        "hostel": "హాస్టల్",
+        "id_card": "గుర్తింపు కార్డు",
+        "imp_messages": "ముఖ్యమైన సందేశాలు",
+        "life_values": "జీవన విలువల",
+        "science_projects": "సైన్స్ ప్రాజెక్టులు",
+        "weekend_test": "వారాంతపు పరీక్ష",
+        "results": "ఫలితాలు"
+    },
+    "fees": {
+        "sem_fee": "సెమిస్టర్ ఫీజు",
+        "exam_fee": "పరీక్షా రుసుము",
+        "fine": "జరిమానా",
+        "total_fee": "మొత్తం ఫీజు",
+        "due_date": "గడువు తేదీ",
+        "pay_now": "ఇప్పుడే చెల్లించండి",
+        "request_time": "సమయం అభ్యర్థించండి"
+    },
+    "timetable": {
+        "title": "కాల పట్టిక",
+        "interval": "విరామం",
+        "lunch": "భోజన విరామం"
+    },
+    "results": {
+        "slip_test": "సాధారణ స్లిప్ టెస్ట్",
+        "fa_results": "FA ఫలితాలు",
+        "sa_results": "SA ఫలితాలు",
+        "special": "ప్రత్యేక పోటీలు",
+        "weekend": "వారాంతపు పరీక్ష ఫలితం"
+    },
+    "index": {
+        "welcome": "స్వాగతం",
+        "futuristic": "భవిష్యత్",
+        "next_gen": "అత్యాధునిక",
+        "education": "విద్య",
+        "tagline": "నిర్వహించండి. నేర్చుకోండి. ఎదగండి.",
+        "student_login": "విద్యార్థి లాగిన్",
+        "staff_login": "సిబ్బంది లాగిన్",
+        "admin_login": "ఉన్నతాధికారి",
+        "accounts_login": "ఖాతాల విభాగం",
+        "powered_by": "Powered By : Nexsyrus©"
+    },
+    "login": {
+        "login_to": "లాగిన్ చేయండి",
+        "welcome_back": "తిరిగి స్వాగతం!",
+        "welcome_admin": "స్వాగతం అడ్మిన్!",
+        "welcome_staff": "స్వాగతం సిబ్బంది!",
+        "signin_continue": "కొనసాగడానికి సైన్ ఇన్ చేయండి",
+        "signin_admin": "డాష్‌బోర్డ్‌ని యాక్సెస్ చేయడానికి సైన్ ఇన్ చేయండి",
+        "signin_staff": "విద్యార్థులను నిర్వహించడానికి సైన్ ఇన్ చేయండి",
+        "signin_accounts": "ఆర్థిక వ్యవహారాలను నిర్వహించడానికి సైన్ ఇన్ చేయండి",
+        "enter_id": "ID నమోదు చేయండి",
+        "enter_employee_id": "ఉద్యోగి ID నమోదు చేయండి",
+        "enter_admin_id": "అడ్మిన్ ID నమోదు చేయండి",
+        "enter_staff_id": "సిబ్బంది ID నమోదు చేయండి",
+        "enter_pass": "పాస్వర్డ్ నమోదు చేయండి",
+        "forgot_pass": "పాస్వర్డ్ మర్చిపోయారా?",
+        "login_btn": "లాగిన్",
+        "not_student": "విద్యార్థి కాదా?",
+        "not_admin": "అడ్మిన్ కాదా?",
+        "not_accounts": "అకౌంట్స్ విభాగం కాదా?",
+        "student": "విద్యార్థి",
+        "staff": "సిబ్బంది",
+        "admin": "అడ్మిన్",
+        "accounts": "అకౌంట్స్",
+        "higher_authority": "ఉన్నతాధికారి",
+        "accounts_dept": "ఖాతాల విభాగం"
+    },
+    "dashboard": {
+        "good_morning": "శుభోదయం",
+        "good_afternoon": "శుభ మధ్యాహ్నం",
+        "good_evening": "శుభ సాయంత్రం",
+        "quick_actions": "త్వరిత చర్యలు",
+        "recent_transactions": "ఇటీవలి లావాదేవీలు",
+        "view_all": "అన్ని చూడండి",
+        "school_overview": "పాఠశాల అవలోకనం",
+        "attendance_trends": "హాజరు పోకడలు"
+    },
+    "admin_dashboard": {
+        "title": "ప్రిన్సిపాల్ డాష్‌బోర్డ్",
+        "total_students": "మొత్తం విద్యార్థులు",
+        "staff_present": "హాజరైన సిబ్బంది",
+        "collection": "వసూళ్లు",
+        "complaints": "ఫిర్యాదులు",
+        "manage_staff": "సిబ్బంది నిర్వహణ",
+        "transport": "రవాణా",
+        "events": "కార్యక్రమాలు",
+        "notices": "నోటీసులు",
+        "leaves": "సెలవులు",
+        "view_reports": "నివేదికలు చూడండి",
+        "settings": "సెట్టింగులు"
+    },
+    "accounts_dashboard": {
+        "title": "ఖాతాల విభాగం",
+        "todays_collection": "నేటి వసూళ్లు",
+        "pending_dues": "పెండింగ్ బకాయిలు",
+        "monthly_target": "నెలవారీ లక్ష్యం",
+        "collect_fees": "ఫీజు సేకరణ",
+        "expenses": "ఖర్చులు",
+        "payroll": "పేరోల్",
+        "defaulters": "డిఫాల్టర్లు",
+        "invoices": "ఇన్వాయిస్లు",
+        "total_collection_month": "మొత్తం వసూళ్లు (ఈ నెల)",
+        "receipts": "Receipts",
+        "addStaff": "Add Staff",
+        "addStudent": "Add Student",
+        "addAdmin": "Add Admin"
+    },
+    "staff_dashboard": {
+        "title": "సిబ్బంది పోర్టల్",
+        "mark_attendance": "హాజరు మార్క్ చేయండి",
+        "my_timetable": "నా టైమ్‌టేబుల్",
+        "upload_marks": "మార్కులు అప్‌లోడ్ చేయండి",
+        "apply_leave": "సెలవు అప్లై చేయండి",
+        "payslip": "జీతం స్లిప్",
+        "diary_hw": "డైరీ / హోంవర్క్",
+        "present_today": "ఈ రోజు హాజరు",
+        "absent": "గైర్హాజరు",
+        "important_notice": "ముఖ్యమైన గమనిక"
+    },
+    "common": {
+        "school_name": "మీ పాఠశాల పేరు",
+        "days": {
+            "Mon": "సోమ",
+            "Tue": "మం",
+            "Wed": "బుధ",
+            "Thu": "గురు",
+            "Fri": "శుక్ర",
+            "Sat": "శని"
+        }
+    },
+    "complaints": {
+        "title": "ఫిర్యాదు చేయండి",
+        "subtitle": "మేము సహాయం చేయడానికి ఇక్కడ ఉన్నాము. దయచేసి ఒక వర్గాన్ని ఎంచుకుని, మీ సమస్యను వివరించండి.",
+        "select_category": "వర్గాన్ని ఎంచుకోండి",
+        "placeholder": "మీ సమస్యను ఇక్కడ వివరించండి...",
+        "submit_btn": "ఫిర్యాదును సమర్పించండి",
+        "history": "మునుపటి ఫిర్యాదులు",
+        "success": "ఫిర్యాదు విజయవంతంగా సమర్పించబడింది",
+        "categories": {
+            "academic": "అకడమిక్",
+            "transport": "రవాణా",
+            "hostel": "హాస్టల్",
+            "food": "ఆహారం",
+            "others": "ఇతరాలు"
+        },
+        "status": {
+            "resolved": "పరిష్కరించబడింది",
+            "pending": "పెండింగ్‌లో ఉంది"
+        }
+    },
+    "announcements": {
+        "title": "ప్రకటనలు",
+        "subtitle": "తాజా వార్తలతో అప్‌డేట్‌గా ఉండండి",
+        "important": "ముఖ్యమైనది"
+    },
+    "attendance_screen": {
+        "title": "హాజరు చరిత్ర",
+        "subtitle": "మీ రోజువారీ హాజరు రికార్డును ట్రాక్ చేయండి",
+        "present": "హాజరు",
+        "absent": "గైర్హాజరు",
+        "leave": "సెలవులో",
+        "holiday": "సెలవు దినం",
+        "late": "ఆలస్యం",
+        "legend": "సూచిక",
+        "stats": "నెలవారీ గణాంకాలు"
+    }
+}

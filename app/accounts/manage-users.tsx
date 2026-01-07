@@ -1,0 +1,303 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import AdminHeader from '../../src/components/AdminHeader';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../src/hooks/useAuth';
+import { StudentService } from '../../src/services/student.service';
+import { StaffService } from '../../src/services/staff.service';
+import { Functions } from '../../src/services/functions';
+
+export default function ManageUsersScreen() {
+    const router = useRouter();
+    const { t } = useTranslation();
+    const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState<'student' | 'staff'>('student');
+    const [users, setUsers] = useState<any[]>([]);
+    const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        loadUsers();
+    }, [activeTab, user]);
+
+    useEffect(() => {
+        if (searchQuery) {
+            const lowerInfo = searchQuery.toLowerCase();
+            const filtered = users.filter(u =>
+                (u.firstName + ' ' + u.lastName).toLowerCase().includes(lowerInfo) ||
+                (u.name && u.name.toLowerCase().includes(lowerInfo)) ||
+                u.email?.toLowerCase().includes(lowerInfo) ||
+                (u.admissionNo && u.admissionNo.toLowerCase().includes(lowerInfo))
+            );
+            setFilteredUsers(filtered);
+        } else {
+            setFilteredUsers(users);
+        }
+    }, [searchQuery, users]);
+
+    const loadUsers = async () => {
+        setLoading(true);
+        try {
+            if (user) {
+                let data = [];
+                if (activeTab === 'student') {
+                    data = await StudentService.getAll();
+                } else {
+                    data = await StaffService.getAll();
+                }
+                setUsers(data || []);
+                setFilteredUsers(data || []);
+            }
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Failed to load users");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEdit = (user: any) => {
+        if (activeTab === 'student') {
+            router.push({ pathname: '/accounts/addStudent', params: { id: user.id } });
+        } else {
+            router.push({ pathname: '/accounts/addStaff', params: { id: user.id } });
+        }
+    };
+
+    const handleDelete = (targetUser: any) => {
+        Alert.alert(
+            "Confirm Delete",
+            `Are you sure you want to delete ${targetUser.firstName || targetUser.name}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            if (activeTab === 'student') {
+                                await Functions.deleteStudent(targetUser.id);
+                            } else {
+                                // await Functions.deleteStaff(targetUser.id);
+                                Alert.alert("Restricted", "Staff deletion restricted via app.");
+                                return;
+                            }
+                            loadUsers(); // Refresh
+                            Alert.alert("Success", "User deleted.");
+                        } catch (e) {
+                            Alert.alert("Error", "Failed to delete user");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const renderItem = ({ item }: { item: any }) => (
+        <View style={styles.userCard}>
+            <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{(item.firstName || item.name || 'U')[0]}</Text>
+            </View>
+            <View style={styles.userInfo}>
+                <Text style={styles.userName}>{item.name || `${item.firstName} ${item.lastName}`}</Text>
+                <Text style={styles.userSub}>
+                    {activeTab === 'student'
+                        ? `Class: ${item.classId || 'N/A'} • Adm: ${item.admissionNo || item.rollNo || 'N/A'}`
+                        : `${item.designation || 'Staff'} • ${item.department || 'N/A'}`}
+                </Text>
+            </View>
+            <View style={styles.actions}>
+                <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionBtn}>
+                    <Ionicons name="create-outline" size={20} color="#3B82F6" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionBtn}>
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <AdminHeader title="Manage Users" />
+
+            {/* TABS */}
+            <View style={styles.tabs}>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'student' && styles.activeTab]}
+                    onPress={() => setActiveTab('student')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'student' && styles.activeTabText]}>Students</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'staff' && styles.activeTab]}
+                    onPress={() => setActiveTab('staff')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'staff' && styles.activeTabText]}>Staff</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* SEARCH */}
+            <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#9CA3AF" />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={`Search ${activeTab === 'student' ? 'Students' : 'Staff'}...`}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </View>
+
+            {/* LIST */}
+            {loading ? (
+                <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
+            ) : (
+                <FlatList
+                    data={filteredUsers}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.list}
+                    ListEmptyComponent={
+                        <Text style={styles.emptyText}>No users found.</Text>
+                    }
+                />
+            )}
+
+            {/* FAB to Add New */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => {
+                    if (activeTab === 'student') router.push('/accounts/addStudent');
+                    else router.push('/accounts/addStaff');
+                }}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+    },
+    tabs: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        padding: 5,
+        margin: 15,
+        borderRadius: 12,
+        marginBottom: 10,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    activeTab: {
+        backgroundColor: '#EFF6FF',
+    },
+    tabText: {
+        color: '#6B7280',
+        fontWeight: '600',
+    },
+    activeTabText: {
+        color: '#3B82F6',
+        fontWeight: '700',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        marginHorizontal: 15,
+        paddingHorizontal: 15,
+        borderRadius: 12,
+        height: 50,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 16,
+    },
+    list: {
+        padding: 15,
+        paddingBottom: 80,
+    },
+    userCard: {
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 16,
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#F3F4F6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    avatarText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#6B7280',
+    },
+    userInfo: {
+        flex: 1,
+    },
+    userName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    userSub: {
+        fontSize: 13,
+        color: '#6B7280',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 15,
+    },
+    actionBtn: {
+        padding: 5,
+    },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#9CA3AF',
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 25,
+        right: 25,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#3B82F6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: "#3B82F6",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 6,
+    }
+});

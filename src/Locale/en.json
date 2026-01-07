@@ -1,0 +1,184 @@
+{
+    "header": {
+        "english": "English",
+        "telugu": "Telugu"
+    },
+    "home": {
+        "regular_complaints": "Regular Complaints",
+        "attendance": "Attendance",
+        "today": "Today",
+        "present": "Present",
+        "class_teacher": "Class Teacher",
+        "mobile": "Mobile No",
+        "free_class": "Free Class"
+    },
+    "menu": {
+        "profile": "Profile",
+        "bus_map": "BusMap",
+        "hostel": "Hostel",
+        "id_card": "ID Card",
+        "imp_messages": "Imp Messages",
+        "life_values": "Life Values",
+        "science_projects": "Science Projects",
+        "weekend_test": "Weekend Test",
+        "results": "Results"
+    },
+    "fees": {
+        "sem_fee": "Sem fee",
+        "exam_fee": "Exam fee",
+        "fine": "Fine",
+        "total_fee": "Total Fee",
+        "due_date": "Due Date",
+        "pay_now": "Pay Now",
+        "request_time": "Request Time"
+    },
+    "timetable": {
+        "title": "Time Table",
+        "interval": "Interval",
+        "lunch": "Lunch Break"
+    },
+    "results": {
+        "slip_test": "Regular Slip Test",
+        "fa_results": "FA Results",
+        "sa_results": "SA Results",
+        "special": "Special Competitions",
+        "weekend": "Weekend Test Result"
+    },
+    "index": {
+        "welcome": "WELCOME TO",
+        "futuristic": "FUTURISTIC",
+        "next_gen": "NEXT-GEN",
+        "education": "EDUCATION",
+        "tagline": "Manage. Learn. Grow.",
+        "student_login": "Student Login",
+        "staff_login": "Staff Login",
+        "admin_login": "Higher Authority",
+        "accounts_login": "Accounts Dept",
+        "powered_by": "Powered By : Nexsyrus©"
+    },
+    "login": {
+        "login_to": "Log in To",
+        "welcome_back": "Welcome Back!",
+        "welcome_admin": "Welcome Admin!",
+        "welcome_staff": "Welcome Staff!",
+        "signin_continue": "Please sign in to continue",
+        "signin_admin": "Please sign in to access dashboard",
+        "signin_staff": "Sign in to manage classes & students",
+        "signin_accounts": "Please sign in to manage finances",
+        "enter_id": "Enter ID",
+        "enter_employee_id": "Enter Employee ID",
+        "enter_admin_id": "Enter Admin ID",
+        "enter_staff_id": "Enter Staff ID",
+        "enter_pass": "Enter Password",
+        "forgot_pass": "Forgot Password?",
+        "login_btn": "LOGIN",
+        "not_student": "Not a Student?",
+        "not_admin": "Not an Admin?",
+        "not_accounts": "Not from Accounts?",
+        "student": "Student",
+        "staff": "Staff",
+        "admin": "Admin",
+        "accounts": "Accounts",
+        "higher_authority": "Higher Authority",
+        "accounts_dept": "Accounts Department"
+    },
+    "dashboard": {
+        "good_morning": "Good Morning",
+        "good_afternoon": "Good Afternoon",
+        "good_evening": "Good Evening",
+        "quick_actions": "Quick Actions",
+        "recent_transactions": "Recent Transactions",
+        "view_all": "View All",
+        "school_overview": "School Overview",
+        "attendance_trends": "Attendance Trends"
+    },
+    "admin_dashboard": {
+        "title": "Principal Dashboard",
+        "total_students": "Total Students",
+        "staff_present": "Staff Present",
+        "collection": "Collection",
+        "complaints": "Complaints",
+        "manage_staff": "Manage Staff",
+        "transport": "Transport",
+        "events": "Events",
+        "notices": "Notices",
+        "leaves": "Leaves",
+        "view_reports": "View Reports",
+        "settings": "Settings"
+    },
+    "accounts_dashboard": {
+        "title": "Accounts Department",
+        "todays_collection": "Today's Collection",
+        "pending_dues": "Pending Dues",
+        "monthly_target": "Monthly Target",
+        "collect_fees": "Collect Fees",
+        "expenses": "Expenses",
+        "payroll": "Payroll",
+        "defaulters": "Defaulters",
+        "invoices": "Invoices",
+        "total_collection_month": "Total Collection (This Month)",
+        "receipts": "Receipts",
+        "addStaff": "Add Staff",
+        "addStudent": "Add Student",
+        "addAdmin": "Add Admin"
+    },
+    "staff_dashboard": {
+        "title": "Staff Portal",
+        "mark_attendance": "Mark Attendance",
+        "my_timetable": "My Timetable",
+        "upload_marks": "Upload Marks",
+        "apply_leave": "Apply Leave",
+        "payslip": "Pay Slip",
+        "diary_hw": "Diary / HW",
+        "present_today": "Present Today",
+        "absent": "Absent",
+        "important_notice": "Important Notice"
+    },
+    "common": {
+        "school_name": "Your School Name",
+        "days": {
+            "Mon": "Mon",
+            "Tue": "Tue",
+            "Wed": "Wed",
+            "Thu": "Thu",
+            "Fri": "Fri",
+            "Sat": "Sat"
+        }
+    },
+    "complaints": {
+        "title": "Raise a Complaint",
+        "subtitle": "We are here to help. Please select a category and describe your issue.",
+        "select_category": "Select Category",
+        "placeholder": "Describe your issue here...",
+        "submit_btn": "Submit Complaint",
+        "history": "Previous Complaints",
+        "success": "Complaint Submitted Successfully",
+        "categories": {
+            "academic": "Academic",
+            "transport": "Transport",
+            "hostel": "Hostel",
+            "food": "Food",
+            "others": "Others"
+        },
+        "status": {
+            "resolved": "Resolved",
+            "pending": "Pending"
+        }
+    },
+    "announcements": {
+        "title": "Announcements",
+        "subtitle": "Stay updated with latest news",
+        "important": "IMPORTANT"
+    },
+    "attendance_screen": {
+        "title": "Attendance History",
+        "subtitle": "Track your daily attendance record",
+        "present": "Present",
+        "absent": "Absent",
+        "leave": "On Leave",
+        "holiday": "Holiday",
+        "late": "Late",
+        "legend": "Legend",
+        "stats": "Monthly Stats"
+    }
+}

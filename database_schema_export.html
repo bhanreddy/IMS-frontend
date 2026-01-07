@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School LMS - Database Schema & ERD</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css" rel="stylesheet">
+    <style>
+        body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (max-width: 767px) {
+            body {
+                padding: 15px;
+            }
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        @media print {
+            body { max-width: 100%; padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body class="markdown-body">
+
+    <div class="no-print" style="margin-bottom: 20px; padding: 10px; background: #e0f2fe; border-left: 4px solid #0284c7; color: #0c4a6e;">
+        <strong>How to save as PDF:</strong> Press <code>Ctrl + P</code> (or Cmd + P), ensure "Save as PDF" is selected, and click Save.
+    </div>
+
+    <!-- Part 1: Intro -->
+    <div id="content-part-1"></div>
+
+    <!-- Part 2: Diagram -->
+    <h2>Mermaid ER Diagram</h2>
+    <div class="mermaid">
+erDiagram
+    Users ||--o| StudentProfiles : has
+    Users ||--o| StaffProfiles : has
+    Classes ||--|{ Sections : contains
+    Sections }|--|| StaffProfiles : "class teacher"
+    StudentProfiles }|--|| Sections : belongs_to
+    
+    %% Academics
+    Subjects }|--|{ ClassSubjects : taught_in
+    ClassSubjects }|--|| StaffProfiles : taught_by
+    TimeTable }|--|| Sections : for
+    TimeTable }|--|| Subjects : covers
+    
+    %% Marks & Attendance
+    StudentProfiles ||--|{ Marks : obtains
+    Marks }|--|| Exams : from
+    StudentProfiles ||--|{ Attendance : tracks
+    
+    %% LMS
+    Homework }|--|| Sections : assigned_to
+    LMSContent }|--|| Subjects : related_to
+    
+    %% Finance
+    StudentProfiles ||--|{ FeePayments : pays
+    StaffProfiles ||--|{ Payroll : receives
+    
+    %% Facilities
+    StudentProfiles }|--|{ TransportRoutes : assigned_bus
+    StudentProfiles }|--|{ HostelRooms : assigned_room
+    
+    %% Admin
+    StaffProfiles ||--|{ Leaves : applies
+    Users ||--|{ Complaints : raises
+    </div>
+
+    <!-- Part 3: Rest of content -->
+    <div id="content-part-3"></div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+        const part1 = `
+# Database Schema Design & ERD
+
+## Database Prompt for Backend Implementation
+
+This prompt is designed for a backend developer or AI to generate the complete SQL schema and API structure for the School LMS.
+
+---
+
+### **System Overview**
+Create a relational database schema for a comprehensive School ERP / LMS system with 4 distinct user roles: **Student**, **Staff**, **Management (Admin)**, and **Accounts**. The system must support the following modules:
+
+1.  **User Management**: Unified login with role-based access (Student, Staff, Admin, Accountant).
+2.  **Academic Management**: Classes, Sections, Subjects, Timetables, Exam Results, Progress Reports.
+3.  **LMS & Content**: Homework (Diary), Study Materials (Files/Videos), Weekend Tests, Science Projects, Life Values content.
+4.  **Attendance**: Student (Day-wise/Subject-wise) and Staff Attendance.
+5.  **Administrative**: Complaints (Student -> Teacher/Admin), Leaves (Staff -> Admin), Digital ID Cards, Notices/Announcements.
+6.  **Finance (Accounts)**: Fee Collection, Invoices, Expenses, Payroll, Defaulters List.
+7.  **Facilities**: Transport (Bus Routes, Live Tracking), Hostel (Rooms, Allocation), Sports, Insurance.
+8.  **Advanced Analytics**: Principal 360 (Student Risk Analysis), Smart Insights (Heatmaps), AI Talking Points.
+
+---
+
+### **Core Entities & Relationships**
+
+#### 1. Users & Profiles
+*   \`Users\` (id, username, password_hash, role, is_active)
+*   \`StudentProfiles\` (user_id, admission_no, name, class_id, section_id, parent_contact, address, dob, blood_group, bus_route_id, hostel_room_id, photo_url)
+*   \`StaffProfiles\` (user_id, employee_id, name, designation, department, contact, qualification, photo_url, joining_date)
+*   \`Classes\` (id, name, grade_level)
+*   \`Sections\` (id, class_id, name, class_teacher_id -> Staff)
+
+#### 2. Academics
+*   \`Subjects\` (id, name, code)
+*   \`ClassSubjects\` (class_id, subject_id, teacher_id)
+*   \`TimeTable\` (class_id, section_id, day, period_no, start_time, end_time, subject_id, teacher_id)
+*   \`Exams\` (id, name, exam_date, type [Mid/Final/Weekend])
+*   \`Marks\` (exam_id, student_id, subject_id, marks_obtained, max_marks, grade)
+*   \`Attendance\` (student_id, date, status [P/A/L], marked_by -> Staff)
+*   \`StaffAttendance\` (staff_id, date, status, check_in_time, check_out_time)
+
+#### 3. LMS & Communication
+*   \`Homework\` (id, class_id, section_id, subject_id, teacher_id, title, description, due_date, file_url)
+*   \`LMSContent\` (id, type [Video/PDF/Doc], title, description, url, subject_id, uploaded_by)
+*   \`Notices\` (id, title, content, audience [Student/Staff/All], published_by, date)
+*   \`Complaints\` (id, raised_by, raised_against, category, description, status [Pending/Resolved], priority)
+*   \`Messages\` (id, sender_id, receiver_id, content, timestamp)
+
+#### 4. Finance (Accounts)
+*   \`FeeStructure\` (class_id, academic_year, amount, type [Tuition/Transport/Hostel])
+*   \`FeePayments\` (id, student_id, amount_paid, payment_date, payment_mode, transaction_id, invoice_no)
+*   \`Expenses\` (id, title, amount, category, date, approved_by)
+*   \`Payroll\` (id, staff_id, month, year, basic_salary, deductions, net_salary, status)
+
+#### 5. Facilities & Extras
+*   \`TransportRoutes\` (id, route_name, driver_name, vehicle_no, live_coords_lat, live_coords_lng)
+*   \`HostelRooms\` (id, room_no, capacity, occupied_beds, warden_id)
+*   \`Leaves\` (id, staff_id, type, start_date, end_date, reason, status [Approved/Rejected], approved_by)
+*   \`Events\` (id, name, date, description, photo_gallery_url)
+*   \`WeekendTests\` (id, title, subject_id, file_url, date)
+*   \`ScienceProjects\` (id, title, steps, video_url)
+*   \`RiskAnalysis\` (student_id, risk_score, factors [JSON], last_updated)
+        `;
+
+        const part3 = `
+---
+
+## Detailed Module Breakdown
+
+### 1. Student Module
+*   **Login**: \`Users\` table lookup.
+*   **Dashboard**:
+    *   **Profile**: Fetch \`StudentProfiles\`.
+    *   **Attendance**: Aggregate \`Attendance\` table (Calculate % present).
+    *   **LMS/Diary**: Query \`Homework\` & \`LMSContent\` by \`class_id\`.
+    *   **Results**: Fetch \`Marks\` grouped by Exam.
+    *   **Bus Map**: Real-time poll of \`TransportRoutes.live_coords\`.
+    *   **Fees**: Sum \`FeePayments\` vs \`FeeStructure\`.
+
+### 2. Staff Module
+*   **Attendance Marking**: Bulk insert into \`Attendance\` for a Section.
+*   **Upload Marks**: specific interface to update \`Marks\` table.
+*   **Apply Leave**: Insert into \`Leaves\` table.
+*   **Payslips**: Read-only view of \`Payroll\` table.
+
+### 3. Management (Admin) Module
+*   **Staff Mgmt**: CRUD on \`StaffProfiles\`.
+*   **Approve Leaves**: Update \`Leaves.status\`.
+*   **Certificates**: Generate PDF using \`StudentProfiles\` data (TC, Bonafide).
+*   **Principal 360**: Complex Query aggregation:
+    *   Get Student Info
+    *   Get recent \`Complaints\` count
+    *   Compare \`Marks\` (Current Exam vs Previous)
+*   **Smart Insights**:
+    *   **Risk**: Logic to filter students where Marks < 35% OR Attendance < 75%.
+    *   **Heatmap**: Group Marks by Section and Subject to find averages.
+
+### 4. Accounts Module
+*   **Fee Collection**: Insert \`FeePayments\` (PDF Invoice).
+*   **Defaulters**: query students where \`SUM(Paid) < FeeStructure.amount\`.
+*   **Payroll**: Calculate Salary based on \`StaffAttendance\`.
+        `;
+
+        document.getElementById('content-part-1').innerHTML = marked.parse(part1);
+        document.getElementById('content-part-3').innerHTML = marked.parse(part3);
+    </script>
+</body>
+</html>

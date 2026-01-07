@@ -1,0 +1,144 @@
+import React from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+} from 'react-native';
+
+import ScreenLayout from '../../src/components/ScreenLayout';
+import StudentHeader from '../../src/components/StudentHeader';
+
+const examLinks = [
+    'Scholarship Exams',
+    '"SFI" Talent Test',
+    'Navodaya Application',
+    'Gurkula Application',
+    'PolyCET Application',
+    'IIIT Application',
+];
+
+const ExamLinksScreen = () => {
+    return (
+        <ScreenLayout>
+
+            {/* ===== HEADER ===== */}
+            <StudentHeader showBackButton={true} title="Exams" />
+
+            {/* ===== CONTENT ===== */}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.container}
+            >
+
+                {/* TITLE */}
+                <Text style={styles.pageTitle}>Important Exam Links</Text>
+
+                {/* STUDENT INFO CARD */}
+                <View style={styles.studentCard}>
+                    <View style={styles.avatar} />
+                    <View>
+                        <Text style={styles.infoText}>Name: xyz</Text>
+                        <Text style={styles.infoText}>Class/sec: 10th/A</Text>
+                        <Text style={styles.infoText}>Roll No: 24xyz123</Text>
+                        <Text style={styles.infoText}>Admission No:</Text>
+                    </View>
+                </View>
+
+                {/* LINKS SECTION */}
+                <Text style={styles.sectionTitle}>Links</Text>
+
+                {examLinks.map((item, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={styles.linkCard}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                            // TODO: open external link
+                        }}
+                    >
+                        <Text style={styles.linkText}>{item}</Text>
+                        <Text style={styles.arrow}>›</Text>
+                    </TouchableOpacity>
+                ))}
+
+            </ScrollView>
+
+        </ScreenLayout>
+    );
+};
+
+export default ExamLinksScreen;
+
+/* ============================ STYLES ============================ */
+
+const styles = StyleSheet.create({
+    container: {
+        padding: 16,
+        paddingBottom: 30,
+    },
+
+    /* Page title */
+    pageTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        marginBottom: 12,
+    },
+
+    /* Student info */
+    studentCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#d8ecef',
+        padding: 14,
+        borderRadius: 16,
+        marginBottom: 16,
+        elevation: 3,
+    },
+
+    avatar: {
+        width: 54,
+        height: 54,
+        borderRadius: 27,
+        backgroundColor: '#9ca3af',
+        marginRight: 12,
+    },
+
+    infoText: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+
+    /* Section title */
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 10,
+    },
+
+    /* Link card */
+    linkCard: {
+        backgroundColor: '#cfe9ef',
+        borderRadius: 16,
+        paddingVertical: 16,
+        paddingHorizontal: 18,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        elevation: 2,
+    },
+
+    linkText: {
+        fontSize: 17,
+        fontWeight: '700',
+    },
+
+    arrow: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#555',
+    },
+});
