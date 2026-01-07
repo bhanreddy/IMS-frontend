@@ -11,13 +11,15 @@ interface AdminHeaderProps {
     showMenuButton?: boolean;
     showProfileButton?: boolean;
     showBackButton?: boolean;
+    showNotification?: boolean;
 }
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({
     title,
     showMenuButton = true,
     showProfileButton = true,
-    showBackButton = false
+    showBackButton = false,
+    showNotification = false
 }) => {
     const router = useRouter();
 
@@ -66,6 +68,18 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
                     {/* Right: Settings/Profile */}
                     <View style={styles.rightContainer}>
+                        {showNotification && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    router.push('/admin/notifications' as any);
+                                }}
+                                style={[styles.iconButton, { marginRight: 8 }]}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="notifications-outline" size={22} color={ADMIN_THEME.colors.text.secondary} />
+                            </TouchableOpacity>
+                        )}
                         {showProfileButton && (
                             <TouchableOpacity
                                 onPress={() => {
@@ -118,8 +132,9 @@ const styles = StyleSheet.create({
         letterSpacing: 0.3,
     },
     rightContainer: {
-        width: 40,
-        alignItems: 'flex-end',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
     },
     leftContainer: {
         width: 40,

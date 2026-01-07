@@ -43,17 +43,23 @@ export function listenAuth(
 }
 
 const AuthService = {
-    login: async (email: string, pass: string) => {
+    login: async (email: string, pass: string, schoolId?: string): Promise<{ user: User }> => {
         try {
             const result = await import('firebase/auth').then(m => m.signInWithEmailAndPassword(auth, email, pass));
             // Fetch profile for role-based redirect
             const snap = await getDoc(doc(db, 'users', result.user.uid));
             if (snap.exists()) {
-                const userData = { uid: result.user.uid, ...snap.data() };
-                // partial validation or trust for login flow
+                const userData = { uid: result.user.uid, ...snap.data() } as User;
                 return { user: userData };
             }
-            return { user: { uid: result.user.uid, role: 'student' } }; // Fallback? or throw
+            // Fallback for users without a profile document
+            return {
+                user: {
+                    uid: result.user.uid,
+                    role: 'student',
+                    name: 'Guest User'
+                } as User
+            };
         } catch (e) {
             logError('AuthService:Login', e);
             throw e;

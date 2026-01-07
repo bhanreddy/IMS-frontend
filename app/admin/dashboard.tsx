@@ -6,6 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     StatusBar,
+    ViewStyle,
+    TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +21,14 @@ import { useAuth } from '../../src/hooks/useAuth';
 import { StudentService } from '../../src/services/student.service';
 import { StaffService } from '../../src/services/staff.service';
 import { ComplaintService } from '../../src/services/complaint.service';
+
+interface ActionItem {
+    title: string;
+    icon: any;
+    route: any;
+    gradient: [string, string, ...string[]];
+    iconBg: string;
+}
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -99,7 +109,7 @@ export default function AdminDashboard() {
     ];
 
     /* ---------------- QUICK ACTIONS (GRID) ---------------- */
-    const quickActions = [
+    const quickActions: ActionItem[] = [
         {
             title: t('admin_dashboard.manage_staff'),
             icon: 'people-outline',
@@ -152,7 +162,7 @@ export default function AdminDashboard() {
     ];
 
     // Grid Item Component (Internal)
-    const GridItem = ({ item, index }: { item: any, index: number }) => (
+    const GridItem = ({ item, index }: { item: ActionItem, index: number }) => (
         <Animated.View exiting={FadeInDown} entering={FadeInDown.delay(index * 100)}>
             <TouchableOpacity onPress={() => router.push(item.route)} style={styles.gridItem}>
                 <LinearGradient
@@ -162,7 +172,7 @@ export default function AdminDashboard() {
                     style={styles.gridGradient}
                 >
                     <View style={[styles.iconContainer, { backgroundColor: item.iconBg }]}>
-                        <Ionicons name={item.icon} size={28} color="#FFF" />
+                        <Ionicons name={item.icon as any} size={28} color="#FFF" />
                     </View>
                     <Text style={styles.gridTitle}>{item.title}</Text>
                 </LinearGradient>
@@ -209,7 +219,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: ADMIN_THEME.colors.background,
+        backgroundColor: ADMIN_THEME.colors.background.app,
     },
     content: {
         padding: 20,
