@@ -6,8 +6,8 @@ import AdminHeader from '../../src/components/AdminHeader';
 import { useTranslation } from 'react-i18next';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../src/hooks/useAuth';
-import { StaffService } from '../../src/services/staff.service';
-import { Functions } from '../../src/services/functions';
+import { StaffService } from '@/src/services/staffService';
+import { Functions } from '@/src/services/functions';
 
 const InputField = ({ label, placeholder, value, onChangeText, keyboardType = 'default', icon, secureTextEntry = false }: any) => (
     <View style={styles.inputGroup}>
@@ -36,13 +36,17 @@ export default function AddStaffScreen() {
     const [isEditMode, setIsEditMode] = useState(false);
 
     const [formData, setFormData] = useState({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         email: '',
         password: '',
         phone: '',
-        designation: '',
-        department: '',
+        designationId: '2', // Default: Teacher
         salary: '',
+        genderId: '1',     // Default: Male
+        staffCode: '',
+        dob: '',          // YYYY-MM-DD
+        joiningDate: new Date().toISOString().split('T')[0], // Today
     });
 
     useEffect(() => {
@@ -57,13 +61,17 @@ export default function AddStaffScreen() {
             const data: any = await StaffService.getById(userId);
             if (data) {
                 setFormData({
-                    fullName: data.name || (data.firstName + ' ' + data.lastName),
+                    firstName: data.first_name || '',
+                    lastName: data.last_name || '',
                     email: data.email || '',
-                    password: '', // Password not editable/viewable
+                    password: '',
                     phone: data.phone || '',
-                    designation: data.designation || '',
-                    department: data.department || '',
+                    designationId: data.designation_id?.toString() || '2',
                     salary: data.salary ? data.salary.toString() : '',
+                    genderId: data.gender ? (data.gender === 'Male' ? '1' : data.gender === 'Female' ? '2' : '3') : '1', // Approximation
+                    staffCode: data.staff_code || '',
+                    dob: data.dob || '',
+                    joiningDate: data.joining_date || '',
                 });
             }
         } catch (e) {
@@ -73,36 +81,40 @@ export default function AddStaffScreen() {
     };
 
     const handleSave = async () => {
-        if (!formData.email || (!isEditMode && !formData.password) || !formData.fullName) {
-            Alert.alert("Error", "Please fill required fields");
+        if (!formData.firstName || !formData.lastName || !formData.staffCode || !formData.joiningDate) {
+            Alert.alert("Error", "Please fill required fields (Name, Staff Code, Joining Date)");
+            return;
+        }
+
+        if (!isEditMode && !formData.password) {
+            Alert.alert("Error", "Password is required for new staff");
             return;
         }
 
         setLoading(true);
         try {
-            const userData = {
+            const payload = {
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                middle_name: '',
                 email: formData.email,
-                name: formData.fullName,
-                role: 'staff',
-                schoolId: user?.schoolId || 'default',
+                password: formData.password || undefined,
                 phone: formData.phone,
-                designation: formData.designation,
-                department: formData.department,
-                salary: formData.salary,
+                designation_id: parseInt(formData.designationId),
+                department: '', // Not used yet
+                salary: formData.salary ? parseFloat(formData.salary) : undefined,
+                gender_id: parseInt(formData.genderId),
+                staff_code: formData.staffCode,
+                joining_date: formData.joiningDate,
+                dob: formData.dob || undefined,
+                role_code: 'staff'
             };
 
             if (isEditMode) {
-                // Update Staff
-                await Functions.updateStaff({ id: id, ...userData });
+                await StaffService.update(id as string, payload as any); // Partial Update
                 Alert.alert("Success", "Staff Account Updated!", [{ text: "OK", onPress: () => router.back() }]);
             } else {
-                // Create Staff
-                // Note: user.schoolId usage for automatic school assignment
-                await Functions.createStaff({
-                    ...userData,
-                    password: formData.password
-                });
-
+                await StaffService.create(payload);
                 Alert.alert("Success", "Staff Account Created!", [{ text: "OK", onPress: () => router.back() }]);
             }
         } catch (error: any) {
@@ -117,7 +129,7 @@ export default function AddStaffScreen() {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-            <AdminHeader title={isEditMode ? "Edit Staff" : "Add Staff"} />
+            <AdminHeader title={isEditMode ? "Edit Staff" : "Add Staff"} showBackButton={true} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -125,13 +137,108 @@ export default function AddStaffScreen() {
             >
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+                        <Text style={styles.sectionTitle}>Personal Details</Text>
+                        <View style={styles.row}>
+                            <View style={styles.halfInput}>
+                                <InputField
+                                    label="First Name *"
+                                    placeholder="Jane"
+                                    value={formData.firstName}
+                                    onChangeText={(t: string) => setFormData({ ...formData, firstName: t })}
+                                    icon="person-outline"
+                                />
+                            </View>
+                            <View style={styles.halfInput}>
+                                <InputField
+                                    label="Last Name *"
+                                    placeholder="Doe"
+                                    value={formData.lastName}
+                                    onChangeText={(t: string) => setFormData({ ...formData, lastName: t })}
+                                    icon="person-outline"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Gender *</Text>
+                            <View style={styles.radioContainer}>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, formData.genderId === '1' && styles.radioBtnActive]}
+                                    onPress={() => setFormData({ ...formData, genderId: '1' })}
+                                >
+                                    <Text style={[styles.radioText, formData.genderId === '1' && styles.radioTextActive]}>Male</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, formData.genderId === '2' && styles.radioBtnActive]}
+                                    onPress={() => setFormData({ ...formData, genderId: '2' })}
+                                >
+                                    <Text style={[styles.radioText, formData.genderId === '2' && styles.radioTextActive]}>Female</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
                         <InputField
-                            label="Full Name"
-                            placeholder="Jane Doe"
-                            value={formData.fullName}
-                            onChangeText={(t: string) => setFormData({ ...formData, fullName: t })}
-                            icon="person-outline"
+                            label="Date of Birth (YYYY-MM-DD)"
+                            placeholder="1990-01-01"
+                            value={formData.dob}
+                            onChangeText={(t: string) => setFormData({ ...formData, dob: t })}
+                            icon="calendar-outline"
                         />
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+                        <Text style={styles.sectionTitle}>Employment Details</Text>
+                        <InputField
+                            label="Staff Code *"
+                            placeholder="STF-2024-001"
+                            value={formData.staffCode}
+                            onChangeText={(t: string) => setFormData({ ...formData, staffCode: t })}
+                            icon="id-card-outline"
+                        />
+                        <InputField
+                            label="Joining Date (YYYY-MM-DD) *"
+                            placeholder="2024-01-01"
+                            value={formData.joiningDate}
+                            onChangeText={(t: string) => setFormData({ ...formData, joiningDate: t })}
+                            icon="calendar-outline"
+                        />
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Designation *</Text>
+                            <View style={styles.radioContainer}>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, formData.designationId === '1' && styles.radioBtnActive]}
+                                    onPress={() => setFormData({ ...formData, designationId: '1' })}
+                                >
+                                    <Text style={[styles.radioText, formData.designationId === '1' && styles.radioTextActive]}>Principal</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, formData.designationId === '2' && styles.radioBtnActive]}
+                                    onPress={() => setFormData({ ...formData, designationId: '2' })}
+                                >
+                                    <Text style={[styles.radioText, formData.designationId === '2' && styles.radioTextActive]}>Teacher</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, formData.designationId === '3' && styles.radioBtnActive]}
+                                    onPress={() => setFormData({ ...formData, designationId: '3' })}
+                                >
+                                    <Text style={[styles.radioText, formData.designationId === '3' && styles.radioTextActive]}>Admin</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <InputField
+                            label="Salary"
+                            placeholder="50000"
+                            value={formData.salary}
+                            onChangeText={(t: string) => setFormData({ ...formData, salary: t })}
+                            keyboardType="numeric"
+                            icon="cash-outline"
+                        />
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+                        <Text style={styles.sectionTitle}>Contact & Login</Text>
                         <InputField
                             label="Email Address"
                             placeholder="staff@school.com"
@@ -140,16 +247,6 @@ export default function AddStaffScreen() {
                             keyboardType="email-address"
                             icon="mail-outline"
                         />
-                        {!isEditMode && (
-                            <InputField
-                                label="Password"
-                                placeholder="******"
-                                value={formData.password}
-                                onChangeText={(t: string) => setFormData({ ...formData, password: t })}
-                                secureTextEntry={true}
-                                icon="lock-closed-outline"
-                            />
-                        )}
                         <InputField
                             label="Phone Number"
                             placeholder="+1 234 567"
@@ -158,32 +255,18 @@ export default function AddStaffScreen() {
                             keyboardType="phone-pad"
                             icon="call-outline"
                         />
+                        {!isEditMode && (
+                            <InputField
+                                label="Password *"
+                                placeholder="******"
+                                value={formData.password}
+                                onChangeText={(t: string) => setFormData({ ...formData, password: t })}
+                                secureTextEntry={true}
+                                icon="lock-closed-outline"
+                            />
+                        )}
                     </Animated.View>
 
-                    <Animated.View entering={FadeInDown.delay(200).duration(500)}>
-                        <InputField
-                            label="Designation"
-                            placeholder="Math Teacher"
-                            value={formData.designation}
-                            onChangeText={(t: string) => setFormData({ ...formData, designation: t })}
-                            icon="briefcase-outline"
-                        />
-                        <InputField
-                            label="Department"
-                            placeholder="Mathematics"
-                            value={formData.department}
-                            onChangeText={(t: string) => setFormData({ ...formData, department: t })}
-                            icon="layers-outline"
-                        />
-                        <InputField
-                            label="Salary (Optional)"
-                            placeholder="50000"
-                            value={formData.salary}
-                            onChangeText={(t: string) => setFormData({ ...formData, salary: t })}
-                            keyboardType="numeric"
-                            icon="cash-outline"
-                        />
-                    </Animated.View>
 
                     <TouchableOpacity
                         style={styles.saveButton}
@@ -194,7 +277,7 @@ export default function AddStaffScreen() {
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.saveButtonText}>{isEditMode ? "Update" : "Create Staff"}</Text>
+                            <Text style={styles.saveButtonText}>{isEditMode ? "Update Details" : "Create Staff Member"}</Text>
                         )}
                     </TouchableOpacity>
 
@@ -258,4 +341,45 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#111827',
+        marginTop: 10,
+        marginBottom: 15,
+    },
+    row: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    halfInput: {
+        flex: 1,
+    },
+    radioContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    radioBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#fff',
+    },
+    radioBtnActive: {
+        borderColor: '#2563EB',
+        backgroundColor: '#EFF6FF',
+    },
+    radioText: {
+        color: '#374151',
+        fontSize: 14,
+    },
+    radioTextActive: {
+        color: '#2563EB',
+        fontWeight: '600',
+    },
 });
+
+

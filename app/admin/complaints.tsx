@@ -1,70 +1,108 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { MOCK_COMPLAINTS, Complaint } from '../../src/data/mockComplaints';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ComplaintService, Complaint } from '../../src/services/commonServices';
+
+
 
 export default function AdminComplaints() {
+    const [complaints, setComplaints] = useState<Complaint[]>([]);
+    const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState<'ALL' | 'DISCIPLINARY' | 'FACILITY'>('ALL');
-    const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'RESOLVED'>('ALL');
 
-    const filteredData = MOCK_COMPLAINTS.filter(item => {
-        const typeMatch = filterType === 'ALL' || item.type === filterType;
-        const statusMatch = filterStatus === 'ALL' ||
-            (filterStatus === 'PENDING' && item.status !== 'Resolved') ||
-            (filterStatus === 'RESOLVED' && item.status === 'Resolved');
-        return typeMatch && statusMatch;
+    useEffect(() => {
+        fetchComplaints();
+    }, []);
+
+    const fetchComplaints = async () => {
+        try {
+            setLoading(true);
+            const data = await ComplaintService.getAll();
+            setComplaints(data);
+        } catch (error) {
+            console.error('Failed to fetch complaints:', error);
+            Alert.alert('Error', 'Failed to load complaints');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getStatusStyle = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'resolved': return { bg: '#D1FAE5', text: '#065F46' };
+            case 'escalated': return { bg: '#FEE2E2', text: '#991B1B' };
+            case 'closed': return { bg: '#F3F4F6', text: '#374151' };
+            default: return { bg: '#FEF3C7', text: '#92400E' }; // Pending/Open
+        }
+    };
+
+    const getCategoryColor = (category: string) => {
+        switch (category.toLowerCase()) {
+            case 'disciplinary': return '#EF4444';
+            case 'facility': return '#3B82F6';
+            case 'academic': return '#8B5CF6';
+            default: return '#6B7280';
+        }
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric'
+        });
+    };
+
+    const filteredData = complaints.filter(item => {
+        if (filterType === 'ALL') return true;
+        return (item.category || 'General').toUpperCase() === filterType;
     });
 
-    const renderItem = ({ item, index }: { item: Complaint, index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
-            <TouchableOpacity style={styles.card}>
-                <View style={[styles.accentBar, { backgroundColor: item.color }]} />
+    const renderItem = ({ item, index }: { item: Complaint, index: number }) => {
+        const category = item.category || 'General';
+        const statusStyle = getStatusStyle(item.status);
+        const color = getCategoryColor(category);
 
-                <View style={styles.headerRow}>
-                    <View style={styles.typeBadge}>
-                        <Ionicons
-                            name={item.type === 'DISCIPLINARY' ? 'person-circle-outline' : 'business-outline'}
-                            size={14}
-                            color="#6B7280"
-                        />
-                        <Text style={styles.category}>{item.type}</Text>
-                    </View>
-                    <View style={[styles.statusBadge,
-                    item.status === 'Resolved' ? styles.sResolved :
-                        item.status === 'Escalated' ? styles.sEscalated : styles.sPending
-                    ]}>
-                        <Text style={[styles.statusText,
-                        item.status === 'Resolved' ? { color: '#065F46' } :
-                            item.status === 'Escalated' ? { color: '#991B1B' } : { color: '#92400E' }
-                        ]}>{item.status}</Text>
-                    </View>
-                </View>
+        return (
+            <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
+                <TouchableOpacity style={styles.card}>
+                    <View style={[styles.accentBar, { backgroundColor: color }]} />
 
-                <View style={styles.titleRow}>
-                    <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
-                        <Ionicons name={item.icon as any || 'alert-circle'} size={20} color={item.color} />
+                    <View style={styles.headerRow}>
+                        <View style={styles.typeBadge}>
+                            <Ionicons
+                                name={category.toLowerCase() === 'disciplinary' ? 'person-circle-outline' : 'business-outline'}
+                                size={14}
+                                color="#6B7280"
+                            />
+                            <Text style={styles.category}>{category.toUpperCase()}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                            <Text style={[styles.statusText, { color: statusStyle.text }]}>{item.status}</Text>
+                        </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.title}>{item.title}</Text>
-                        <Text style={styles.targetText}>Target: <Text style={{ fontWeight: '700' }}>{item.target}</Text></Text>
-                    </View>
-                </View>
 
-                <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
-
-                <View style={styles.footer}>
-                    <View style={styles.metaInfo}>
-                        <Ionicons name="person-outline" size={12} color="#6B7280" />
-                        <Text style={styles.fromText}>Filed by: {item.filedBy}</Text>
+                    <View style={styles.titleRow}>
+                        <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
+                            <Ionicons name="alert-circle" size={20} color={color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.title}>{item.title}</Text>
+                            <Text style={styles.targetText}>Ticket: <Text style={{ fontWeight: '700' }}>#{item.ticket_no}</Text></Text>
+                        </View>
                     </View>
-                    <Text style={styles.dateText}>{item.date}</Text>
-                </View>
-            </TouchableOpacity>
-        </Animated.View>
-    );
+
+                    <View style={styles.footer}>
+                        <View style={styles.metaInfo}>
+                            <Ionicons name="person-outline" size={12} color="#6B7280" />
+                            <Text style={styles.fromText}>Filed by: {(item as any).raised_by_name || item.raised_by}</Text>
+                        </View>
+                        <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+                    </View>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -87,16 +125,25 @@ export default function AdminComplaints() {
                 </View>
             </View>
 
-            <FlatList
-                data={filteredData}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                ListHeaderComponent={() => (
-                    <Text style={styles.listHeader}>Recent Reports ({filteredData.length})</Text>
-                )}
-            />
+            {loading ? (
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#6366F1" />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredData}
+                    keyExtractor={item => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={() => (
+                        <Text style={styles.listHeader}>Recent Reports ({filteredData.length})</Text>
+                    )}
+                    ListEmptyComponent={<Text style={styles.emptyText}>No complaints found</Text>}
+                    refreshing={loading}
+                    onRefresh={fetchComplaints}
+                />
+            )}
         </View>
     );
 }
@@ -106,16 +153,17 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F3F4F6',
     },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     filterSection: {
         paddingVertical: 15,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
         paddingHorizontal: 20,
-    },
-    filterRow: {
-        flexDirection: 'row',
-        gap: 10,
     },
     tabContainer: {
         flexDirection: 'row',
@@ -197,15 +245,11 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 6,
     },
-    sResolved: { backgroundColor: '#D1FAE5' },
-    sEscalated: { backgroundColor: '#FEE2E2' },
-    sPending: { backgroundColor: '#FEF3C7' },
     statusText: {
         fontSize: 10,
         fontWeight: '700',
         textTransform: 'uppercase',
     },
-
     titleRow: {
         flexDirection: 'row',
         gap: 12,
@@ -227,13 +271,6 @@ const styles = StyleSheet.create({
     targetText: {
         fontSize: 12,
         color: '#6B7280',
-    },
-    desc: {
-        fontSize: 14,
-        color: '#4B5563',
-        lineHeight: 20,
-        marginBottom: 12,
-        paddingLeft: 10 + 36 + 12, // Indent to align with text
     },
     footer: {
         flexDirection: 'row',
@@ -259,4 +296,12 @@ const styles = StyleSheet.create({
         color: '#9CA3AF',
         fontWeight: '500',
     },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#9CA3AF',
+        fontSize: 16,
+    },
 });
+
+

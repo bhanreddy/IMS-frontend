@@ -26,9 +26,7 @@ const MenuOverlay: React.FC<Props> = ({ visible, onClose, userType = 'student' }
 
     const studentMenuItems = [
         { key: 'dcgd', label: 'DCGD', icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', link: '/Screen/dcgd' },
-        { key: 'imp_exam', label: 'IMP Exam Links', icon: 'https://cdn-icons-png.flaticon.com/512/942/942748.png', link: '/Screen/examLinkScreen' },
-        { key: 'sports', label: 'Sports', icon: 'https://cdn-icons-png.flaticon.com/512/857/857455.png', link: '/Screen/sports' },
-        { key: 'contact_teacher', label: 'Contact Teacher', icon: 'https://cdn-icons-png.flaticon.com/512/597/597177.png', link: '/Screen/contactTeacher' },
+
         { key: 'ai_doubt', label: 'AI Doubt Assist', icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png', link: '/Screen/aiChat' },
         { key: 'event_photos', label: 'Event Photos', icon: 'https://cdn-icons-png.flaticon.com/512/747/747310.png', link: '/Screen/eventPhotos' },
         { key: 'insurance', label: 'Insurance', icon: 'https://cdn-icons-png.flaticon.com/512/2966/2966486.png', link: '/Screen/insurance' },
@@ -51,7 +49,9 @@ const MenuOverlay: React.FC<Props> = ({ visible, onClose, userType = 'student' }
         onClose();
         if (key === 'logout') {
             await AuthService.logout();
-            router.replace(link as Href);
+            // Clear entire navigation stack and go to root
+            // router.dismissAll(); // Causes crash in some Expo Router versions
+            router.replace('/');
         } else {
             // Alert.alert('Coming Soon', `${key} feature is under development`);
             router.push(link as Href);

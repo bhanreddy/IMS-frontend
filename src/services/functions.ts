@@ -1,42 +1,100 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../config/firebase';
-import { logError } from '../utils/error';
+import { api } from './apiClient';
 
 /**
- * Generic wrapper for calling Cloud Functions.
- * Now includes centralized error logging.
+ * Functions service for admin operations like creating/updating users
+ * These call server-side endpoints that use Supabase Admin API
  */
-async function call<T>(name: string, payload: any): Promise<T> {
-    try {
-        const fn = httpsCallable(functions, name);
-        const res = await fn(payload);
-        return res.data as T;
-    } catch (error) {
-        logError(`CloudFunction:${name}`, error);
-        throw error;
-    }
+
+export interface CreateUserRequest {
+    email: string;
+    password: string;
+    name: string;
+    role: 'staff' | 'student' | 'teacher' | 'admin';
+    schoolId?: string;
+    phone?: string;
+    designation?: string;
+    department?: string;
+    salary?: string;
+}
+
+export interface UpdateUserRequest {
+    id: string;
+    email?: string;
+    name?: string;
+    role?: string;
+    phone?: string;
+    designation?: string;
+    department?: string;
+    salary?: string;
+    schoolId?: string;
+}
+
+export interface UserResponse {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
 }
 
 export const Functions = {
-    // Students
-    createStudent: (data: any) => call('createStudent', data),
-    updateStudent: (data: any) => call('updateStudent', data),
-    deleteStudent: (studentId: string) => call('deleteStudent', { studentId }),
+    /**
+     * Create a new staff member via admin API
+     */
+    createStaff: async (data: CreateUserRequest): Promise<UserResponse> => {
+        return api.post<UserResponse>('/users', {
+            ...data,
+            role: 'staff',
+        });
+    },
 
-    // Staff
-    createStaff: (data: any) => call('createStaff', data),
-    updateStaff: (data: any) => call('updateStaff', data),
+    /**
+     * Update an existing staff member
+     */
+    updateStaff: async (data: UpdateUserRequest): Promise<UserResponse> => {
+        const { id, ...updateData } = data;
+        return api.put<UserResponse>(`/users/${id}`, updateData);
+    },
 
-    // Attendance
-    markAttendance: (data: any) => call('markAttendance', data),
+    /**
+     * Create a new student via admin API
+     */
+    createStudent: async (data: CreateUserRequest): Promise<UserResponse> => {
+        return api.post<UserResponse>('/users', {
+            ...data,
+            role: 'student',
+        });
+    },
 
-    // Fees
-    createFee: (data: any) => call('createFee', data),
-    collectFee: (data: any) => call('collectFee', data), // Assuming this exists or will exist
+    /**
+     * Update an existing student
+     */
+    updateStudent: async (data: UpdateUserRequest): Promise<UserResponse> => {
+        const { id, ...updateData } = data;
+        return api.put<UserResponse>(`/users/${id}`, updateData);
+    },
 
-    // Notices / Complaints if needed
-    // ...
+    /**
+     * Create a new teacher via admin API
+     */
+    createTeacher: async (data: CreateUserRequest): Promise<UserResponse> => {
+        return api.post<UserResponse>('/users', {
+            ...data,
+            role: 'teacher',
+        });
+    },
 
-    // Universal Caller (for flexibility)
-    call: (name: string, data: any) => call(name, data),
+    /**
+     * Update an existing teacher
+     */
+    updateTeacher: async (data: UpdateUserRequest): Promise<UserResponse> => {
+        const { id, ...updateData } = data;
+        return api.put<UserResponse>(`/users/${id}`, updateData);
+    },
+
+    /**
+     * Delete a user by ID
+     */
+    deleteUser: async (id: string): Promise<void> => {
+        return api.delete<void>(`/users/${id}`);
+    },
 };

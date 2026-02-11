@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  Image,
 } from "react-native";
 import { FontAwesome5, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -12,6 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../src/hooks/useAuth';
+import { ActivityIndicator } from 'react-native';
+import { SCHOOL_CONFIG } from '../src/constants/schoolConfig';
 
 
 const { width } = Dimensions.get("window");
@@ -19,92 +23,102 @@ const { width } = Dimensions.get("window");
 export default function Index() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { user, loading } = useAuth();
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ================= HEADER (OLD STYLE REFINED) ================= */}
-      <Animated.View
-        entering={FadeInDown.duration(800)}
-        style={styles.header}
-      >
+      {/* ================= LOADING STATE (SPLASH) ================= */}
+      {(loading || user) ? (
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#4F46E5" />
+        </View>
+      ) : (
+        <>
+          {/* ================= HEADER (OLD STYLE REFINED) ================= */}
+          <Animated.View
+            entering={FadeInDown.duration(800)}
+            style={styles.header}
+          >
 
-        <LinearGradient
-          colors={["#3a1c71", "#d76d77", "#ffaf7b"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.headerRow}>
-              <Ionicons name="school" size={42} color="#fff" />
-              <Text style={styles.schoolName}>{t('common.school_name')}</Text>
+            <LinearGradient
+              colors={["#3a1c71", "#d76d77", "#ffaf7b"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerGradient}
+            >
+              <View style={styles.headerContent}>
+                <View style={styles.headerRow}>
+                  <Image source={SCHOOL_CONFIG.logo} style={styles.schoolLogo} />
+                  <Text style={styles.schoolName}>{SCHOOL_CONFIG.name}</Text>
+                </View>
+
+                <Text style={styles.welcomeText}>{t('index.welcome')}</Text>
+                <Text style={styles.bigTitle}>{t('index.futuristic')}</Text>
+                <Text style={styles.bigTitle}>{t('index.next_gen')}</Text>
+                <Text style={styles.bigTitle}>{t('index.education')}</Text>
+              </View>
+            </LinearGradient>
+
+
+
+            {/* Decorative Icon */}
+            <FontAwesome5
+              name="walking"
+              size={120}
+              color="rgba(255,255,255,0.15)"
+              style={styles.walkIcon}
+            />
+          </Animated.View>
+
+          {/* ================= CONTENT ================= */}
+          <View style={styles.content}>
+            <Animated.Text
+              entering={FadeInDown.delay(300)}
+              style={styles.tagline}
+            >
+              {t('index.tagline')}
+            </Animated.Text>
+
+            {/* ================= LOGIN GRID (NEW STYLE) ================= */}
+            <View style={styles.grid}>
+              <LoginCard
+                icon={<FontAwesome5 name="user-graduate" size={30} color="#4F46E5" />}
+                title={t('index.student_login')}
+                delay={400}
+                onPress={() => router.push("/login")}
+              />
+
+              <LoginCard
+                icon={<Ionicons name="people" size={30} color="#10B981" />}
+                title={t('index.staff_login')}
+                delay={500}
+                onPress={() => router.push("/staff-login")}
+              />
+
+              <LoginCard
+                icon={<MaterialIcons name="groups" size={32} color="#8B5CF6" />}
+                title={t('index.admin_login')}
+                delay={600}
+                onPress={() => router.push("/admin-login")}
+              />
+
+              <LoginCard
+                icon={<FontAwesome5 name="calculator" size={30} color="#F59E0B" />}
+                title={t('index.accounts_login')}
+                delay={700}
+                onPress={() => router.push("/accounts-login")}
+              />
             </View>
 
-            <Text style={styles.welcomeText}>{t('index.welcome')}</Text>
-            <Text style={styles.bigTitle}>{t('index.futuristic')}</Text>
-            <Text style={styles.bigTitle}>{t('index.next_gen')}</Text>
-            <Text style={styles.bigTitle}>{t('index.education')}</Text>
+            <Animated.Text
+              entering={FadeInUp.delay(900)}
+              style={styles.footer}
+            >
+              {t('index.powered_by')}
+            </Animated.Text>
           </View>
-        </LinearGradient>
-
-
-
-        {/* Decorative Icon */}
-        <FontAwesome5
-          name="walking"
-          size={120}
-          color="rgba(255,255,255,0.15)"
-          style={styles.walkIcon}
-        />
-      </Animated.View>
-
-      {/* ================= CONTENT ================= */}
-      <View style={styles.content}>
-        <Animated.Text
-          entering={FadeInDown.delay(300)}
-          style={styles.tagline}
-        >
-          {t('index.tagline')}
-        </Animated.Text>
-
-        {/* ================= LOGIN GRID (NEW STYLE) ================= */}
-        <View style={styles.grid}>
-          <LoginCard
-            icon={<FontAwesome5 name="user-graduate" size={30} color="#4F46E5" />}
-            title={t('index.student_login')}
-            delay={400}
-            onPress={() => router.push("/login")}
-          />
-
-          <LoginCard
-            icon={<Ionicons name="people" size={30} color="#10B981" />}
-            title={t('index.staff_login')}
-            delay={500}
-            onPress={() => router.push("/staff-login")}
-          />
-
-          <LoginCard
-            icon={<MaterialIcons name="groups" size={32} color="#8B5CF6" />}
-            title={t('index.admin_login')}
-            delay={600}
-            onPress={() => router.push("/admin-login")}
-          />
-
-          <LoginCard
-            icon={<FontAwesome5 name="calculator" size={30} color="#F59E0B" />}
-            title={t('index.accounts_login')}
-            delay={700}
-            onPress={() => router.push("/accounts-login")}
-          />
-        </View>
-
-        <Animated.Text
-          entering={FadeInUp.delay(900)}
-          style={styles.footer}
-        >
-          {t('index.powered_by')}
-        </Animated.Text>
-      </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -178,6 +192,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: 0.4,
+  },
+  schoolLogo: {
+    width: 50,
+    height: 50,
+    resizeMode: "contain",
   },
   welcomeText: {
     color: "rgba(255,255,255,0.85)",
@@ -264,3 +283,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+
+

@@ -1,22 +1,63 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, StatusBar, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StaffHeader from '../../src/components/StaffHeader';
-
-const POSTED_HOMEWORK = [
-    { id: '1', class: '10-A', subject: 'English', title: 'Chapter 5 Questions', date: 'Today', due: '12 Aug', attachments: 1 },
-    { id: '2', class: '9-B', subject: 'Grammar', title: 'Essay Writing', date: 'Yesterday', due: '11 Aug', attachments: 0 },
-];
+import { DiaryService, DiaryEntry } from '../../src/services/commonServices';
+import { useAuth } from '../../src/hooks/useAuth';
 
 export default function StaffDiary() {
+    const { user } = useAuth();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [selectedClass, setSelectedClass] = useState('10-A');
     const [dueDate, setDueDate] = useState('');
+    const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+    const [loading, setLoading] = useState(false);
 
-    const handlePost = () => {
-        Alert.alert("Success", "Homework posted successfully!");
+    useEffect(() => {
+        fetchDiary();
+    }, []);
+
+    const fetchDiary = async () => {
+        try {
+            setLoading(true);
+            const data = await DiaryService.getAll({ class_section_id: '1' }); // Mock class ID for now
+            setDiaryEntries(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePost = async () => {
+        if (!title || !description || !dueDate) {
+            Alert.alert('Error', 'Please fill all fields');
+            return;
+        }
+        try {
+            setLoading(true);
+            await DiaryService.create({
+                class_section_id: '1', // Mock
+                entry_date: new Date().toISOString().split('T')[0],
+                subject_id: '1', // Mock
+                title,
+                content: description,
+                homework_due_date: dueDate,
+                created_by: user?.id || 'teacher_1'
+            });
+            Alert.alert("Success", "Homework posted successfully!");
+            setTitle('');
+            setDescription('');
+            setDueDate('');
+            fetchDiary();
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'Failed to post homework');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -92,35 +133,37 @@ export default function StaffDiary() {
                 </View>
 
                 <View style={styles.listContainer}>
-                    {POSTED_HOMEWORK.map((item, index) => (
-                        <Animated.View
-                            key={item.id}
-                            entering={FadeInDown.delay(300 + (index * 100)).duration(600)}
-                            style={styles.postCard}
-                        >
-                            <View style={styles.postHeader}>
-                                <View>
-                                    <Text style={styles.postClass}>{item.class} • {item.subject}</Text>
-                                    <Text style={styles.postTitle}>{item.title}</Text>
-                                </View>
-                                <View style={styles.dateBadge}>
-                                    <Text style={styles.dateText}>{item.date}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.divider} />
-
-                            <View style={styles.postFooter}>
-                                <Text style={styles.dueText}>Due: {item.due}</Text>
-                                {item.attachments > 0 && (
-                                    <View style={styles.attachmentBadge}>
-                                        <Ionicons name="attach" size={14} color="#6366F1" />
-                                        <Text style={styles.attachmentText}>{item.attachments} File</Text>
+                    <View style={styles.listContainer}>
+                        {loading ? <ActivityIndicator size="large" /> : diaryEntries.map((item, index) => (
+                            <Animated.View
+                                key={item.id}
+                                entering={FadeInDown.delay(300 + (index * 100)).duration(600)}
+                                style={styles.postCard}
+                            >
+                                <View style={styles.postHeader}>
+                                    <View>
+                                        <Text style={styles.postClass}>Class A • Subject</Text>
+                                        <Text style={styles.postTitle}>{item.title || 'Homework'}</Text>
                                     </View>
-                                )}
-                            </View>
-                        </Animated.View>
-                    ))}
+                                    <View style={styles.dateBadge}>
+                                        <Text style={styles.dateText}>{item.entry_date}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.divider} />
+
+                                <View style={styles.postFooter}>
+                                    <Text style={styles.dueText}>Due: {item.homework_due_date}</Text>
+                                    {item.attachments && item.attachments.length > 0 && (
+                                        <View style={styles.attachmentBadge}>
+                                            <Ionicons name="attach" size={14} color="#6366F1" />
+                                            <Text style={styles.attachmentText}>{item.attachments.length} File</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            </Animated.View>
+                        ))}
+                    </View>
                 </View>
 
             </ScrollView>
@@ -313,3 +356,5 @@ const styles = StyleSheet.create({
         color: '#6366F1',
     },
 });
+
+

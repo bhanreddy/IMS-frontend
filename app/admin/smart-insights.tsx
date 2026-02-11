@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,91 +8,19 @@ import {
     Dimensions,
     TextInput,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AdminHeader from '../../src/components/AdminHeader';
 import { ADMIN_THEME } from '../../src/constants/adminTheme';
-import Animated, { FadeInDown, FadeInRight, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { AdminService, StudentRiskProfile, HeatmapData } from '../../src/services/adminService';
 
 const { width } = Dimensions.get('window');
 
-// --- Types ---
-
 type RiskLevel = 'SAFE' | 'WARNING' | 'CRITICAL';
-
-interface StudentRiskProfile {
-    id: string;
-    name: string;
-    class: string;
-    riskLevel: RiskLevel;
-    factors: string[]; // e.g., ["Marks ↓ 15%", "Attendance < 75%"]
-    trend: number[]; // Last 5 test scores for tiny graph
-}
-
-interface HeatmapCell {
-    section: string;
-    subject: string;
-    avg: number;
-}
-
-// --- Mock Data ---
-
-const RISK_DATA: StudentRiskProfile[] = [
-    {
-        id: '103',
-        name: 'Amit Kumar',
-        class: 'Class X-B',
-        riskLevel: 'CRITICAL',
-        factors: ['Math Failed', 'Attendance 65%', '3 Complaints'],
-        trend: [60, 55, 50, 45, 32]
-    },
-    {
-        id: '105',
-        name: 'Rahul Verma',
-        class: 'Class IX-A',
-        riskLevel: 'CRITICAL',
-        factors: ['Discipline Issue', 'Sudden Drop in Sci'],
-        trend: [70, 72, 68, 50, 45]
-    },
-    {
-        id: '106',
-        name: 'Sneha Gupta',
-        class: 'Class XI-C',
-        riskLevel: 'WARNING',
-        factors: ['Attendance Irregular'],
-        trend: [80, 82, 78, 75, 76]
-    },
-    {
-        id: '107',
-        name: 'John Doe',
-        class: 'Class X-A',
-        riskLevel: 'WARNING',
-        factors: ['English Marks ↓'],
-        trend: [65, 60, 58, 55, 52]
-    },
-    {
-        id: '101',
-        name: 'Rohan Sharma',
-        class: 'Class X-A',
-        riskLevel: 'SAFE',
-        factors: [],
-        trend: [70, 75, 78, 80, 85]
-    }
-];
-
-const HEATMAP_DATA = {
-    classes: ['IX-A', 'IX-B', 'X-A', 'X-B'],
-    subjects: ['Math', 'Science', 'English', 'Social'],
-    // Mock averages
-    data: {
-        'IX-A': { Math: 78, Science: 82, English: 85, Social: 88 },
-        'IX-B': { Math: 65, Science: 70, English: 72, Social: 75 }, // Weaker section
-        'X-A': { Math: 88, Science: 85, English: 90, Social: 92 },
-        'X-B': { Math: 72, Science: 75, English: 68, Social: 80 },
-    } as Record<string, Record<string, number>>
-};
 
 // --- Helper Functions ---
 
@@ -103,34 +31,6 @@ const getRiskColor = (level: RiskLevel) => {
         case 'SAFE': return '#10B981';
         default: return '#64748B';
     }
-};
-
-const generateTalkingPoints = (studentId: string) => {
-    // Mock logic simulating AI generation
-    const student = RISK_DATA.find(s => s.id === studentId);
-    if (!student) return null;
-
-    const points = [];
-
-    // Academic logic
-    const lastScore = student.trend[student.trend.length - 1];
-    const prevScore = student.trend[student.trend.length - 2];
-    const diff = lastScore - prevScore;
-
-    if (diff > 5) points.push(`Academics trending up! Improved by ${diff} points recently.`);
-    else if (diff < -5) points.push(`Significant drop in performance (${diff} points). Needs intervention.`);
-    else points.push('Academic performance is stable.');
-
-    // Risk factors logic
-    if (student.riskLevel === 'CRITICAL') {
-        points.push('Critical Attention Needed: ' + student.factors.join(', ') + '.');
-    } else if (student.riskLevel === 'WARNING') {
-        points.push('Monitor: ' + student.factors.join(', ') + '.');
-    } else {
-        points.push('Behavior and attendance are satisfactory. Keep up the good work.');
-    }
-
-    return points;
 };
 
 // --- Components ---
@@ -151,23 +51,53 @@ export default function SmartInsights() {
     const [activeTab, setActiveTab] = useState<'RISK' | 'TALKING_POINTS' | 'HEATMAP'>('RISK');
     const [searchId, setSearchId] = useState('');
     const [generatedPoints, setGeneratedPoints] = useState<string[] | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [generating, setGenerating] = useState(false);
+
+    const [riskData, setRiskData] = useState<StudentRiskProfile[]>([]);
+    const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [risk, heatmap] = await Promise.all([
+                AdminService.getRiskProfiles(),
+                AdminService.getAcademicHeatmap()
+            ]);
+            setRiskData(risk);
+            setHeatmapData(heatmap);
+        } catch (error) {
+            console.error("Failed to load insights", error);
+            Alert.alert("Error", "Failed to load smart insights.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Filtered Risk Data
-    const criticalStudents = useMemo(() => RISK_DATA.filter(s => s.riskLevel === 'CRITICAL'), []);
-    const warningStudents = useMemo(() => RISK_DATA.filter(s => s.riskLevel === 'WARNING'), []);
-    const safeStudents = useMemo(() => RISK_DATA.filter(s => s.riskLevel === 'SAFE'), []);
+    const criticalStudents = useMemo(() => riskData.filter(s => s.riskLevel === 'CRITICAL'), [riskData]);
+    const warningStudents = useMemo(() => riskData.filter(s => s.riskLevel === 'WARNING'), [riskData]);
+    const safeStudents = useMemo(() => riskData.filter(s => s.riskLevel === 'SAFE'), [riskData]);
 
     // Handlers
-    const handleGeneratePoints = () => {
+    const handleGeneratePoints = async () => {
         if (!searchId) {
             Alert.alert('Enter ID', 'Please enter a valid student ID (e.g. 103)');
             return;
         }
-        const points = generateTalkingPoints(searchId);
-        if (points) {
+        setGenerating(true);
+        try {
+            const points = await AdminService.generateTalkingPoints(searchId);
             setGeneratedPoints(points);
-        } else {
-            Alert.alert('Not Found', 'Student ID not found in current analysis batch. Try 103, 105, 107.');
+        } catch (error) {
+            Alert.alert('Not Found', 'Student ID not found or analysis failed.');
+            setGeneratedPoints(null);
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -192,6 +122,10 @@ export default function SmartInsights() {
             </View>
 
             <Text style={styles.sectionTitle}>Students Needing Attention</Text>
+
+            {criticalStudents.length === 0 && warningStudents.length === 0 && (
+                <Text style={{ textAlign: 'center', color: '#666', marginVertical: 20 }}>No students in critical or warning zones.</Text>
+            )}
 
             {criticalStudents.map((student, i) => (
                 <TouchableOpacity key={student.id} style={styles.studentListCard}>
@@ -250,14 +184,18 @@ export default function SmartInsights() {
                     value={searchId}
                     onChangeText={setSearchId}
                 />
-                <TouchableOpacity style={styles.generateBtn} onPress={handleGeneratePoints}>
-                    <MaterialCommunityIcons name="magic-staff" size={20} color="#FFF" />
+                <TouchableOpacity style={styles.generateBtn} onPress={handleGeneratePoints} disabled={generating}>
+                    {generating ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                        <MaterialCommunityIcons name="magic-staff" size={20} color="#FFF" />
+                    )}
                 </TouchableOpacity>
             </View>
 
             {generatedPoints && (
                 <View style={styles.pointsResult}>
-                    <Text style={styles.pointsTitle}>✨ AI Summary for {RISK_DATA.find(s => s.id === searchId)?.name}</Text>
+                    <Text style={styles.pointsTitle}>✨ AI Summary for Student {searchId}</Text>
                     {generatedPoints.map((point, i) => (
                         <View key={i} style={styles.pointRow}>
                             <Feather name="check-circle" size={18} color={ADMIN_THEME.colors.primary} style={{ marginTop: 2 }} />
@@ -280,65 +218,77 @@ export default function SmartInsights() {
         </Animated.View>
     );
 
-    const renderHeatmap = () => (
-        <Animated.View entering={FadeInRight.duration(400)}>
-            <Text style={styles.helperText}>
-                Compare section performance across subjects. Darker colors indicate lower performance.
-            </Text>
+    const renderHeatmap = () => {
+        if (!heatmapData) return <Text>No Data</Text>;
 
-            <View style={styles.heatmapGrid}>
-                {/* Header Row */}
-                <View style={styles.hmRow}>
-                    <View style={[styles.hmCell, styles.hmHeaderCell]}>
-                        <Text style={styles.hmHeaderText}>Class \ Sub</Text>
+        return (
+            <Animated.View entering={FadeInRight.duration(400)}>
+                <Text style={styles.helperText}>
+                    Compare section performance across subjects. Darker colors indicate lower performance.
+                </Text>
+
+                <View style={styles.heatmapGrid}>
+                    {/* Header Row */}
+                    <View style={styles.hmRow}>
+                        <View style={[styles.hmCell, styles.hmHeaderCell]}>
+                            <Text style={styles.hmHeaderText}>Class \ Sub</Text>
+                        </View>
+                        {heatmapData.subjects.map((sub, i) => (
+                            <View key={i} style={[styles.hmCell, styles.hmHeaderCell]}>
+                                <Text style={styles.hmHeaderText}>{sub.substring(0, 3)}</Text>
+                            </View>
+                        ))}
                     </View>
-                    {HEATMAP_DATA.subjects.map((sub, i) => (
-                        <View key={i} style={[styles.hmCell, styles.hmHeaderCell]}>
-                            <Text style={styles.hmHeaderText}>{sub.substring(0, 3)}</Text>
+
+                    {/* Data Rows */}
+                    {heatmapData.classes.map((className, i) => (
+                        <View key={i} style={styles.hmRow}>
+                            <View style={[styles.hmCell, styles.hmLabelCell]}>
+                                <Text style={styles.hmLabelText}>{className}</Text>
+                            </View>
+                            {heatmapData.subjects.map((sub, j) => {
+                                const val = heatmapData.data[className][sub];
+                                // Color logic: < 70 Red, 70-80 Yellow, > 80 Green
+                                let bg = '#ECFDF5'; // Green-50
+                                let text = '#065F46';
+                                if (val < 70) { bg = '#FEF2F2'; text = '#991B1B'; } // Red
+                                else if (val < 80) { bg = '#FFFBEB'; text = '#92400E'; } // Yellow
+
+                                return (
+                                    <View key={j} style={[styles.hmCell, { backgroundColor: bg }]}>
+                                        <Text style={[styles.hmValueText, { color: text }]}>{val}%</Text>
+                                    </View>
+                                );
+                            })}
                         </View>
                     ))}
                 </View>
 
-                {/* Data Rows */}
-                {HEATMAP_DATA.classes.map((className, i) => (
-                    <View key={i} style={styles.hmRow}>
-                        <View style={[styles.hmCell, styles.hmLabelCell]}>
-                            <Text style={styles.hmLabelText}>{className}</Text>
-                        </View>
-                        {HEATMAP_DATA.subjects.map((sub, j) => {
-                            const val = HEATMAP_DATA.data[className][sub];
-                            // Color logic: < 70 Red, 70-80 Yellow, > 80 Green
-                            let bg = '#ECFDF5'; // Green-50
-                            let text = '#065F46';
-                            if (val < 70) { bg = '#FEF2F2'; text = '#991B1B'; } // Red
-                            else if (val < 80) { bg = '#FFFBEB'; text = '#92400E'; } // Yellow
-
-                            return (
-                                <View key={j} style={[styles.hmCell, { backgroundColor: bg }]}>
-                                    <Text style={[styles.hmValueText, { color: text }]}>{val}%</Text>
-                                </View>
-                            );
-                        })}
+                <View style={styles.legend}>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendBox, { backgroundColor: '#ECFDF5', borderColor: '#10B981' }]} />
+                        <Text style={styles.legendText}>&gt; 80% (Safe)</Text>
                     </View>
-                ))}
-            </View>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendBox, { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' }]} />
+                        <Text style={styles.legendText}>70-80% (Avg)</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendBox, { backgroundColor: '#FEF2F2', borderColor: '#EF4444' }]} />
+                        <Text style={styles.legendText}>&lt; 70% (Weak)</Text>
+                    </View>
+                </View>
+            </Animated.View>
+        );
+    };
 
-            <View style={styles.legend}>
-                <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: '#ECFDF5', borderColor: '#10B981' }]} />
-                    <Text style={styles.legendText}>&gt; 80% (Safe)</Text>
-                </View>
-                <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' }]} />
-                    <Text style={styles.legendText}>70-80% (Avg)</Text>
-                </View>
-                <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: '#FEF2F2', borderColor: '#EF4444' }]} />
-                    <Text style={styles.legendText}>&lt; 70% (Weak)</Text>
-                </View>
+    if (loading) {
+        return (
+            <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={ADMIN_THEME.colors.primary} />
             </View>
-        </Animated.View>
-    );
+        );
+    }
 
     return (
         <View style={styles.root}>
@@ -611,3 +561,5 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
 });
+
+

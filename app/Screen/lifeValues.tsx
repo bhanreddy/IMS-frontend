@@ -1,71 +1,106 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
+    ActivityIndicator
 } from 'react-native';
-
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
-
-const lifeValuesSubjects = [
-    'Ramayanam',
-    'Mahabharatam',
-    'Geetha',
-    'Shiva Puranam',
-    'Vedhas',
-    'Hindu Temples',
-    'Dharmic Science',
-];
+import { LifeValuesService } from '../../src/services/lifeValuesService';
+import { LifeValuesModule } from '../../src/types/models';
 
 const LifeValuesScreen = () => {
+    const router = useRouter();
+    const [modules, setModules] = useState<LifeValuesModule[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            const data = await LifeValuesService.getModules();
+            setModules(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePress = (item: LifeValuesModule) => {
+        // Navigate to native content screen
+        router.push({
+            pathname: '/Screen/contentDetail',
+            params: {
+                title: item.title,
+                content_body: item.content_body || item.description || 'No content.',
+                image_url: item.banner_image_url,
+                headerColor: '#006064'
+            },
+        });
+    };
+
     return (
         <ScreenLayout>
-
-            {/* ===== HEADER ===== */}
             <StudentHeader showBackButton={true} title="Life Values" />
 
-            {/* ===== CONTENT ===== */}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.container}
             >
-
-                {/* ===== TITLE ===== */}
                 <View style={styles.titleContainer}>
                     <Text style={styles.pageTitle}>Life Values</Text>
-                    <Text style={styles.subtitle}>
-                        Learn values through ancient wisdom & culture
-                    </Text>
+                    <Text style={styles.subtitle}>Timeless wisdom for modern life.</Text>
                 </View>
 
-                {/* ===== SUBJECT LIST ===== */}
-                <Text style={styles.sectionTitle}>Subjects</Text>
+                <Text style={styles.sectionTitle}>Modules</Text>
 
-                {lifeValuesSubjects.map((subject, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        style={styles.subjectCard}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                            // TODO: navigate to chapters/content
-                        }}
-                    >
-                        <View style={styles.left}>
-                            <View style={styles.iconCircle}>
-                                <Text style={styles.icon}>🕉️</Text>
-                            </View>
-                            <Text style={styles.subjectText}>{subject}</Text>
-                        </View>
+                {loading ? (
+                    <ActivityIndicator size="large" color="#006064" />
+                ) : (
+                    modules.map((subject, index) => (
+                        <TouchableOpacity
+                            key={subject.id}
+                            activeOpacity={0.9}
+                            onPress={() => handlePress(subject)}
+                        >
+                            <LinearGradient
+                                colors={['#e0f7fa', '#b2ebf2']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.subjectCard}
+                            >
+                                <View style={styles.left}>
+                                    <View style={styles.iconCircle}>
+                                        <Text style={styles.icon}>🕉️</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.subjectText}>{subject.title}</Text>
+                                        <Text style={styles.descText} numberOfLines={1}>
+                                            {subject.description}
+                                        </Text>
+                                    </View>
+                                </View>
 
-                        <Text style={styles.arrow}>›</Text>
-                    </TouchableOpacity>
-                ))}
+                                <View style={styles.arrowContainer}>
+                                    <Text style={styles.arrow}>›</Text>
+                                </View>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    ))
+                )}
 
+                {!loading && modules.length === 0 && (
+                    <Text style={styles.empty}>No modules available yet.</Text>
+                )}
             </ScrollView>
-
         </ScreenLayout>
     );
 };
@@ -79,71 +114,90 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 30,
     },
-
-    /* Title */
     titleContainer: {
-        marginBottom: 12,
+        marginBottom: 20,
     },
-
     pageTitle: {
-        fontSize: 22,
+        fontSize: 28,
         fontWeight: '800',
+        color: '#006064',
+        marginBottom: 4,
     },
-
     subtitle: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '500',
-        color: '#555',
-        marginTop: 2,
+        color: '#546e7a',
     },
-
-    /* Section */
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        marginVertical: 10,
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#455a64',
+        marginBottom: 16,
+        marginLeft: 4,
     },
-
-    /* Subject card */
     subjectCard: {
-        backgroundColor: '#d8ecef',
-        borderRadius: 18,
-        paddingVertical: 16,
-        paddingHorizontal: 14,
+        borderRadius: 20,
+        paddingVertical: 18,
+        paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 12,
-        elevation: 3,
+        marginBottom: 14,
+        shadowColor: '#004d40',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.6)',
     },
-
     left: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
+        marginRight: 8
     },
-
     iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#c7e3e8',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.7)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 14,
     },
-
     icon: {
-        fontSize: 20,
+        fontSize: 22,
     },
-
     subjectText: {
         fontSize: 17,
         fontWeight: '700',
+        color: '#006064',
     },
-
+    descText: {
+        fontSize: 12,
+        color: '#00838f',
+        marginTop: 2
+    },
+    arrowContainer: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: 'rgba(255,255,255,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     arrow: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#555',
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#006064',
+        marginTop: -2,
     },
+    empty: {
+        textAlign: 'center',
+        color: '#9ca3af',
+        marginTop: 20,
+    }
 });
+
+

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, Image } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MenuOverlay from './MenuOverlay';
+import { SCHOOL_CONFIG } from '../constants/schoolConfig';
 
 interface StaffHeaderProps {
     title: string;
@@ -18,7 +19,7 @@ interface StaffHeaderProps {
 }
 
 const StaffHeader: React.FC<StaffHeaderProps> = ({
-    title,
+    title = SCHOOL_CONFIG.name,
     subtitle,
     showMenuButton = true,
     showProfileButton = true,
@@ -80,10 +81,15 @@ const StaffHeader: React.FC<StaffHeaderProps> = ({
                 )}
             </View>
 
-            {/* Center: Title */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={styles.title}>{title}</Text>
-                {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            {/* Center: Title & Logo */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Image source={SCHOOL_CONFIG.logo} style={styles.logo} />
+                    <View>
+                        <Text style={styles.title}>{title}</Text>
+                        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+                    </View>
+                </View>
             </View>
 
             {/* Right: Lang Toggle & Settings */}
@@ -163,17 +169,22 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         backgroundColor: '#F9FAFB',
     },
+    logo: {
+        width: 32,
+        height: 32,
+        resizeMode: 'contain',
+        marginRight: 8,
+    },
     title: {
         fontSize: 18,
         fontWeight: '700',
         color: '#111827',
-        flex: 1,
-        textAlign: 'center',
+        textAlign: 'left',
     },
     subtitle: {
         fontSize: 12,
         color: '#6B7280',
-        marginTop: 2,
+        marginTop: 0,
     },
     rightContainer: {
         flexDirection: 'row',

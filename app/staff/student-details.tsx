@@ -12,29 +12,75 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StudentService } from '../../src/services/studentService';
+import { StudentWithDetails } from '../../src/types/schema';
 
 export default function StudentDetails() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
 
-    // Mock initial data based on ID (real app would fetch from backend)
-    const isDemo = true; // In real app use this to check loaded status
-
+    const [loading, setLoading] = useState(true);
+    const [student, setStudent] = useState<StudentWithDetails | null>(null);
     const [formData, setFormData] = useState({
-        name: 'Aarav Patel',
-        grade: '10-A',
-        rollNo: '101',
-        parentName: 'Ritesh Patel',
-        contact: '9876543210',
-        remarks: 'Good performance in Science, needs improvement in Math.',
+        name: '',
+        grade: '',
+        rollNo: '',
+        parentName: '',
+        contact: '',
+        remarks: '',
     });
 
-    const handleSave = () => {
-        // Backend update logic here
-        console.log("Saving data for student:", id, formData);
-        Alert.alert("Success", "Student details updated successfully!", [
-            { text: "OK", onPress: () => router.back() }
-        ]);
+    React.useEffect(() => {
+        if (id) {
+            fetchStudent();
+        }
+    }, [id]);
+
+    const fetchStudent = async () => {
+        try {
+            const data = await StudentService.getById(id as string);
+            setStudent(data);
+
+            // Safe access for nested optional properties
+            const parent = data.parents?.[0]?.parent?.person;
+            const enrollment = data.current_enrollment;
+            const classInfo = enrollment ? `${enrollment.class_section.class.name}-${enrollment.class_section.section.name}` : 'N/A';
+
+            setFormData({
+                name: data.person.display_name || `${data.person.first_name} ${data.person.last_name}`,
+                grade: classInfo,
+                rollNo: data.admission_no,
+                parentName: parent ? (parent.display_name || `${parent.first_name} ${parent.last_name}`) : 'N/A',
+                contact: 'Not available', // Contacts not in StudentWithDetails default response usually
+                remarks: '',
+            });
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Failed to fetch student details");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            // Limited update support for now (Name only)
+            const nameParts = formData.name.split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            await StudentService.update(id as string, {
+                first_name: firstName,
+                last_name: lastName
+            });
+
+            Alert.alert("Success", "Student details updated successfully!", [
+                { text: "OK", onPress: () => router.back() }
+            ]);
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Failed to update details");
+        }
     };
 
     return (
@@ -80,18 +126,18 @@ export default function StudentDetails() {
                     <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                         <Text style={styles.label}>Class/Grade</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { backgroundColor: '#F3F4F6' }]}
                             value={formData.grade}
-                            onChangeText={(text) => setFormData({ ...formData, grade: text })}
+                            editable={false}
                         />
                     </View>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
                         <Text style={styles.label}>Roll No.</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { backgroundColor: '#F3F4F6' }]}
                             value={formData.rollNo}
                             keyboardType="numeric"
-                            onChangeText={(text) => setFormData({ ...formData, rollNo: text })}
+                            editable={false}
                         />
                     </View>
                 </View>
@@ -101,20 +147,20 @@ export default function StudentDetails() {
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Parent Name</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: '#F3F4F6' }]}
                         value={formData.parentName}
-                        onChangeText={(text) => setFormData({ ...formData, parentName: text })}
+                        editable={false}
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Contact Number</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: '#F3F4F6' }]}
                         value={formData.contact}
                         keyboardType="phone-pad"
                         maxLength={10}
-                        onChangeText={(text) => setFormData({ ...formData, contact: text })}
+                        editable={false}
                     />
                 </View>
 
@@ -257,3 +303,5 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
 });
+
+

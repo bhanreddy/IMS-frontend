@@ -10,12 +10,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
-import { NoticeService } from '../../src/services/notice.service';
-import { Notice } from '../../src/types/models';
+import { NoticeService, Notice } from '../../src/services/commonServices';
+
+interface UINotice {
+    id: string;
+    title: string;
+    message: string;
+    date: string;
+    time: string;
+    important: boolean;
+    icon: string;
+    color: string;
+}
 
 export default function AnnouncementsScreen() {
     const { t } = useTranslation();
-    const [notices, setNotices] = useState<any[]>([]);
+    const [notices, setNotices] = useState<UINotice[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -25,14 +35,14 @@ export default function AnnouncementsScreen() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await NoticeService.getRecent(10);
+            const data = await NoticeService.getAll({ audience: 'students' });
             const uiData = data.map((n: Notice) => ({
                 id: n.id,
                 title: n.title,
                 message: n.content,
-                date: n.date, // Assuming string YYYY-MM-DD or similar
+                date: (n.published_at || n.created_at).split('T')[0], // Extract date from timestamp
                 time: 'All Day', // Backend might need time field
-                important: true, // Mock or flag from backend
+                important: n.is_pinned, // Use is_pinned flag from backend
                 icon: 'notifications',
                 color: '#3b82f6'
             }));
@@ -44,7 +54,7 @@ export default function AnnouncementsScreen() {
         }
     };
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: UINotice }) => (
         <View style={styles.timelineItem}>
             {/* LEFT TIME COLUMN */}
             <View style={styles.leftCol}>
@@ -226,3 +236,5 @@ const styles = StyleSheet.create({
         opacity: 0.1,
     },
 });
+
+

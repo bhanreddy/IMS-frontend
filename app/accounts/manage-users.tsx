@@ -5,8 +5,8 @@ import { useRouter } from 'expo-router';
 import AdminHeader from '../../src/components/AdminHeader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../src/hooks/useAuth';
-import { StudentService } from '../../src/services/student.service';
-import { StaffService } from '../../src/services/staff.service';
+import { StudentService } from '../../src/services/studentService';
+import { StaffService } from '../../src/services/staffService';
 import { Functions } from '../../src/services/functions';
 
 export default function ManageUsersScreen() {
@@ -44,7 +44,8 @@ export default function ManageUsersScreen() {
             if (user) {
                 let data = [];
                 if (activeTab === 'student') {
-                    data = await StudentService.getAll();
+                    const response = await StudentService.getAll();
+                    data = response.data || [];
                 } else {
                     data = await StaffService.getAll();
                 }
@@ -79,7 +80,7 @@ export default function ManageUsersScreen() {
                     onPress: async () => {
                         try {
                             if (activeTab === 'student') {
-                                await Functions.deleteStudent(targetUser.id);
+                                await StudentService.delete(targetUser.id);
                             } else {
                                 // await Functions.deleteStaff(targetUser.id);
                                 Alert.alert("Restricted", "Staff deletion restricted via app.");
@@ -105,7 +106,7 @@ export default function ManageUsersScreen() {
                 <Text style={styles.userName}>{item.name || `${item.firstName} ${item.lastName}`}</Text>
                 <Text style={styles.userSub}>
                     {activeTab === 'student'
-                        ? `Class: ${item.classId || 'N/A'} • Adm: ${item.admissionNo || item.rollNo || 'N/A'}`
+                        ? `Class: ${item.current_enrollment?.class_code || 'N/A'} - ${item.current_enrollment?.section_name || ''} • Roll: ${item.current_enrollment?.roll_number || 'N/A'}`
                         : `${item.designation || 'Staff'} • ${item.department || 'N/A'}`}
                 </Text>
             </View>
@@ -301,3 +302,5 @@ const styles = StyleSheet.create({
         elevation: 6,
     }
 });
+
+

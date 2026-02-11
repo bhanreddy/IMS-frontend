@@ -4,8 +4,10 @@ import { useRouter } from 'expo-router';
 import AdminHeader from '../../../src/components/AdminHeader';
 import { ADMIN_THEME } from '../../../src/constants/adminTheme';
 import { useAuth } from '../../../src/hooks/useAuth';
-import { ClassService } from '../../../src/services/class.service';
-import { FeesService } from '../../../src/services/fees.service';
+import { ClassService, AcademicYear } from '../../../src/services/classService';
+import { FeeService, FeeType } from '../../../src/services/feeService';
+import { api } from '../../../src/services/apiClient';
+import { Class } from '../../../src/types/schema';
 
 export default function SetClassFeeScreen() {
     const router = useRouter();
@@ -14,65 +16,72 @@ export default function SetClassFeeScreen() {
     const [submitting, setSubmitting] = useState(false);
 
     // Form State
-    const [classes, setClasses] = useState<any[]>([]);
+    const [classes, setClasses] = useState<Class[]>([]);
+    const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
+    const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+
     const [selectedClassId, setSelectedClassId] = useState('');
     const [amount, setAmount] = useState('');
-    const [feeType, setFeeType] = useState('tuition');
+    const [feeTypeId, setFeeTypeId] = useState('');
     const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
-    const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
+    const [selectedYearId, setSelectedYearId] = useState('');
 
-    // Load Classes
     useEffect(() => {
-        loadClasses();
+        loadInitialData();
     }, []);
 
-    const loadClasses = async () => {
+    const loadInitialData = async () => {
         try {
             setLoading(true);
-            const data = await ClassService.getAll();
-            setClasses(data);
+            const [classesData, typesData, yearsData] = await Promise.all([
+                ClassService.getClasses(),
+                api.get<FeeType[]>('/fees/types'), // Helper route if exists, or FeeService expansion
+                ClassService.getAcademicYears()
+            ]);
+            setClasses(classesData);
+            setFeeTypes(typesData);
+            setAcademicYears(yearsData);
+
+            if (yearsData.length > 0) {
+                const current = yearsData.find(y => {
+                    const now = new Date();
+                    return new Date(y.start_date) <= now && new Date(y.end_date) >= now;
+                });
+                setSelectedYearId(current?.id || yearsData[0].id);
+            }
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to load classes');
+            Alert.alert('Error', 'Failed to load configuration data');
         } finally {
             setLoading(false);
         }
     };
 
     const handleSubmit = async () => {
-        if (!selectedClassId || !amount || !feeType || !dueDate) {
+        if (!selectedClassId || !amount || !feeTypeId || !selectedYearId) {
             Alert.alert('Error', 'Please fill all required fields');
             return;
         }
 
         try {
             setSubmitting(true);
-            await FeesService.createClassFee({
-                classId: selectedClassId,
+            await FeeService.createStructure({
+                class_id: selectedClassId,
                 amount: Number(amount),
-                feeType,
-                dueDate,
-                academicYear,
+                fee_type_id: feeTypeId,
+                due_date: dueDate,
+                academic_year_id: selectedYearId,
             });
 
             Alert.alert('Success', 'Class fee structure saved successfully', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
         } catch (error: any) {
-            Alert.alert('Error', error.result?.error || 'Failed to save fee structure');
+            Alert.alert('Error', error.result?.error || error.message || 'Failed to save fee structure');
         } finally {
             setSubmitting(false);
         }
     };
-
-    const feeTypes = [
-        { id: 'tuition', label: 'Tuition Fee' },
-        { id: 'transport', label: 'Transport Fee' },
-        { id: 'uniform', label: 'Uniform Fee' },
-        { id: 'exam', label: 'Exam Fee' },
-        { id: 'sports', label: 'Sports Fee' },
-        { id: 'other', label: 'Other' },
-    ];
 
     return (
         <View style={styles.container}>
@@ -112,15 +121,15 @@ export default function SetClassFeeScreen() {
                                 key={type.id}
                                 style={[
                                     styles.typeChip,
-                                    feeType === type.id && styles.typeChipActive
+                                    feeTypeId === type.id && styles.typeChipActive
                                 ]}
-                                onPress={() => setFeeType(type.id)}
+                                onPress={() => setFeeTypeId(type.id)}
                             >
                                 <Text style={[
                                     styles.typeChipText,
-                                    feeType === type.id && styles.typeChipTextActive
+                                    feeTypeId === type.id && styles.typeChipTextActive
                                 ]}>
-                                    {type.label}
+                                    {type.name}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -145,15 +154,27 @@ export default function SetClassFeeScreen() {
                         placeholder="YYYY-MM-DD"
                     />
 
-                    {/* Academic Year */}
+                    {/* Academic Year Selector */}
                     <Text style={styles.label}>Academic Year</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={academicYear}
-                        onChangeText={setAcademicYear}
-                        placeholder="e.g. 2026"
-                        keyboardType="numeric"
-                    />
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
+                        {academicYears.map((ay) => (
+                            <TouchableOpacity
+                                key={ay.id}
+                                style={[
+                                    styles.classChip,
+                                    selectedYearId === ay.id && styles.classChipActive
+                                ]}
+                                onPress={() => setSelectedYearId(ay.id)}
+                            >
+                                <Text style={[
+                                    styles.classChipText,
+                                    selectedYearId === ay.id && styles.classChipTextActive
+                                ]}>
+                                    {ay.code}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
 
                     <TouchableOpacity
                         style={styles.submitBtn}
@@ -272,3 +293,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+

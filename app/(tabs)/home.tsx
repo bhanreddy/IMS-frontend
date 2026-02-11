@@ -9,6 +9,7 @@ import {
     Pressable,
     Dimensions,
     ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -21,70 +22,90 @@ import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
 import HeaderCard from '../../src/components/HeaderCard';
 import { useAuth } from '../../src/hooks/useAuth';
-import { AttendanceService } from '../../src/services/attendance.service';
-import { StaffService } from '../../src/services/staff.service';
-import { NoticeService } from '../../src/services/notice.service';
+import { NoticeService } from '../../src/services/commonServices';
+import { StudentService } from '../../src/services/studentService';
+import { Student, AttendanceSummary } from '../../src/types/models';
+import { useTheme } from '../../src/hooks/useTheme';
 
 const { width } = Dimensions.get('window');
+
+const homeTabs = [
+    { key: 'profile', title: 'Profile', icon: 'person', colors: ['#EEF2FF', '#C7D2FE', '#EEF2FF'] },
+    { key: 'fees', title: 'My Fees', icon: 'wallet', colors: ['#ECFDF5', '#6EE7B7', '#ECFDF5'] },
+    { key: 'complaints', title: 'Complaints', icon: 'alert-circle', colors: ['#FEF2F2', '#FECACA', '#FEF2F2'] },
+    { key: 'busmap', title: 'BusMap', icon: 'bus', colors: ['#F0FDF4', '#BBF7D0', '#F0FDF4'] },
+    { key: 'hostel', title: 'Hostel', icon: 'bed', colors: ['#FFF1F2', '#FECDD3', '#FFF1F2'] },
+    // { key: 'idcard', title: 'ID Card', icon: 'card', colors: ['#EFF6FF', '#BFDBFE', '#EFF6FF'] },
+    { key: 'messages', title: 'Imp Messages', icon: 'chatbubble', colors: ['#F5F3FF', '#DDD6FE', '#F5F3FF'] },
+    { key: 'values', title: 'Life Values', icon: 'heart', colors: ['#FFFBEB', '#FDE68A', '#FFFBEB'] },
+    { key: 'projects', title: 'Science Projects', icon: 'flask', colors: ['#ECFEFF', '#A5F3FC', '#ECFEFF'] },
+    { key: 'money', title: 'Money Science', icon: 'cash', colors: ['#FFF7ED', '#FFEDD5', '#FFF7ED'] },
+    { key: 'test', title: 'Weekend Test', icon: 'document-text', colors: ['#FDF2F8', '#FBCFE8', '#FDF2F8'] },
+];
+
+const routeMap: Record<string, string> = {
+    profile: '/Screen/profile',
+    fees: '/(tabs)/fees',
+    complaints: '/Screen/complaints',
+    busmap: '/Screen/busMap',
+    hostel: '/Screen/hostel',
+    idcard: '/Screen/dcgd',
+    messages: '/Screen/announcements',
+    values: '/Screen/lifeValues',
+    projects: '/Screen/scienceProjects',
+    money: '/Screen/moneyScience',
+    test: '/Screen/weekendTest',
+};
 
 const HomeScreen = () => {
     const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuth();
-    const [dashboardData, setDashboardData] = useState<any>(null);
+
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    // Data States
+    const [student, setStudent] = useState<Student | null>(null);
+    const [attendanceStats, setAttendanceStats] = useState<AttendanceSummary | null>(null);
+    const [notices, setNotices] = useState<any[]>([]);
+
+    const loadData = async () => {
+        if (!user || user.role !== 'student') return;
+        try {
+            // 1. Fetch Student Profile (Critical for Header)
+            // We need this because User object (from Auth) doesn't have class/roll info
+            const profileData = await StudentService.getProfile();
+            setStudent(profileData);
+
+            // 2. Parallel Fetch for Dashboard Widgets
+            // Use profileData.id if available, or user.id fallback
+            const studentId = profileData?.id || user.id;
+
+            const [noticesData, attendanceData] = await Promise.all([
+                NoticeService.getAll({ audience: 'students' }).catch(() => []),
+                StudentService.getAttendance(studentId, { limit: 1 }).catch(() => ({ summary: null, records: [] }))
+            ]);
+
+            setNotices(noticesData || []);
+            setAttendanceStats(attendanceData.summary);
+
+        } catch (e) {
+            console.error("Failed to load dashboard data", e);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
 
     useEffect(() => {
-        const loadData = async () => {
-            if (!user) return;
-            try {
-                // Assuming 'default_school_id' for now 
-                const classId = user.classId || (user as any).class || '';
-
-                // Parallel fetch
-                const [attStats, classTeacher, notices] = await Promise.all([
-                    AttendanceService.getStudentStats(user.uid),
-                    classId ? StaffService.getClassTeacher(classId) : Promise.resolve(null),
-                    NoticeService.getRecent()
-                ]);
-
-                setDashboardData({
-                    attendancePercentage: attStats?.percentage || 0,
-                    attendanceToday: 'Present', // Mock or fetch daily
-                    classTeacher: classTeacher ? classTeacher.name : 'Not Assigned',
-                    notices: notices
-                });
-            } catch (e) {
-                console.log("Failed to load dashboard data", e);
-            } finally {
-                setLoading(false);
-            }
-        };
         loadData();
     }, [user]);
 
-    const homeTabs = [
-        { key: 'profile', title: 'Profile', link: 'https://cdn-icons-png.flaticon.com/512/9203/9203764.png', colors: ['#EEF2FF', '#C7D2FE', '#EEF2FF'] },
-        { key: 'complaints', title: 'Complaints', link: 'https://cdn-icons-png.flaticon.com/128/7867/7867551.png', colors: ['#FEF2F2', '#FECACA', '#FEF2F2'] },
-        { key: 'busmap', title: 'BusMap', link: 'https://cdn-icons-png.flaticon.com/512/4287/4287661.png', colors: ['#F0FDF4', '#BBF7D0', '#F0FDF4'] },
-        { key: 'hostel', title: 'Hostel', link: 'https://cdn-icons-png.flaticon.com/512/101/101859.png', colors: ['#FFF1F2', '#FECDD3', '#FFF1F2'] },
-        { key: 'messages', title: 'Imp Messages', link: 'https://cdn-icons-png.flaticon.com/512/5875/5875271.png', colors: ['#F5F3FF', '#DDD6FE', '#F5F3FF'] },
-        { key: 'values', title: 'Life Values', link: 'https://cdn-icons-png.flaticon.com/512/18333/18333845.png', colors: ['#FFFBEB', '#FDE68A', '#FFFBEB'] },
-        { key: 'projects', title: 'Science Projects', link: 'https://cdn-icons-png.flaticon.com/512/10963/10963786.png', colors: ['#ECFEFF', '#A5F3FC', '#ECFEFF'] },
-        { key: 'test', title: 'Weekend Test', link: 'https://cdn-icons-png.flaticon.com/512/2995/2995440.png', colors: ['#FDF2F8', '#FBCFE8', '#FDF2F8'] },
-    ];
-
-    // ✅ ROUTE MAP (single source of truth)
-    const routeMap: Record<string, string> = {
-        profile: '/Screen/profile',
-        complaints: '/Screen/complaints',
-        busmap: '/Screen/busMap',
-        hostel: '/Screen/hostel',
-        idcard: '/Screen/dcgd',
-        messages: '/Screen/announcements',
-        values: '/Screen/lifeValues',
-        projects: '/Screen/scienceProjects',
-        test: '/Screen/weekendTest',
+    const onRefresh = () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        loadData();
     };
 
     const handleNavigation = (key: string) => {
@@ -95,18 +116,25 @@ const HomeScreen = () => {
         }
     };
 
+    // Derived Attendance Stats
+    const attPercentage = attendanceStats?.total
+        ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+        : 0;
+
     return (
         <ScreenLayout>
             <StudentHeader />
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContainer}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
             >
+                {/* Header Card with Real Data */}
                 <HeaderCard
-                    schoolName={t('common.school_name', 'School Name')}
-                    studentName={user?.name || "Student Name"}
-                    classSec={user?.classId || "Class"}
-                    rollNo={user?.rollNo || user?.admissionNo || "Roll No"}
+                    // schoolName is now internal to HeaderCard
+                    studentName={student?.display_name || user?.display_name || "Student"}
+                    classSec={student?.current_enrollment ? `${student.current_enrollment.class_code} - ${student.current_enrollment.section_name}` : "Class N/A"}
+                    rollNo={student?.current_enrollment?.roll_number || "N/A"}
                 />
 
                 <View style={styles.gridContainer}>
@@ -133,7 +161,7 @@ const HomeScreen = () => {
                                         style={styles.gridCard}
                                     >
                                         <View style={styles.iconBadge}>
-                                            <Image source={{ uri: item.link }} style={styles.icon} />
+                                            <Ionicons name={item.icon as any} size={28} color="#000" style={{ opacity: 0.6 }} />
                                         </View>
                                         <Text style={styles.gridTitle} numberOfLines={2}>
                                             {item.title}
@@ -147,7 +175,7 @@ const HomeScreen = () => {
 
                 {/* WIDGETS */}
                 <View style={styles.widgetsContainer}>
-                    {/* ATTENDANCE */}
+                    {/* ATTENDANCE WIDGET */}
                     <Animated.View
                         style={[styles.widgetCard]}
                         entering={FadeInUp.delay(600).duration(600)}
@@ -171,18 +199,20 @@ const HomeScreen = () => {
                             ) : (
                                 <View style={styles.attContent}>
                                     <View style={styles.attCircle}>
-                                        <Text style={styles.attPercent}>{dashboardData?.attendancePercentage || 0}%</Text>
+                                        <Text style={styles.attPercent}>{attPercentage}%</Text>
                                     </View>
                                     <View>
-                                        <Text style={styles.attLabel}>{t('home.today', 'Today')}</Text>
-                                        <Text style={[styles.attValue, { color: '#16A34A' }]}>{t('home.present', 'Present')}</Text>
+                                        <Text style={styles.attLabel}>Academic Year</Text>
+                                        <Text style={[styles.attValue, { color: '#16A34A' }]}>
+                                            {attendanceStats?.present || 0} / {attendanceStats?.total || 0} Days
+                                        </Text>
                                     </View>
                                 </View>
                             )}
                         </TouchableOpacity>
                     </Animated.View>
 
-                    {/* TEACHER */}
+                    {/* TEACHER WIDGET (Static for now, backend pending) */}
                     <Animated.View
                         style={[styles.widgetCard]}
                         entering={FadeInUp.delay(700).duration(600)}
@@ -194,24 +224,17 @@ const HomeScreen = () => {
                             <Text style={styles.widgetTitle}>{t('home.class_teacher', 'Class Teacher')}</Text>
                         </View>
 
-                        {loading ? (
-                            <ActivityIndicator size="small" color="#2563EB" />
-                        ) : (
-                            <View style={styles.teacherContent}>
-                                <Image
-                                    source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
-                                    style={styles.teacherAvatar}
-                                />
-                                <View>
-                                    <Text style={styles.teacherName}>{dashboardData?.classTeacher || "Not Assigned"}</Text>
-                                    <Text style={styles.teacherSub}>{t('common.class_teacher', 'Class Teacher')}</Text>
-                                </View>
+                        <View style={styles.teacherContent}>
+                            <Ionicons name="person-circle" size={56} color="#CBD5E1" />
+                            <View>
+                                <Text style={styles.teacherName}>Not Assigned</Text>
+                                <Text style={styles.teacherSub}>{t('common.class_teacher', 'Class Teacher')}</Text>
                             </View>
-                        )}
+                        </View>
                     </Animated.View>
 
-                    {/* NOTICE */}
-                    {dashboardData?.notices && dashboardData.notices.length > 0 && (
+                    {/* NOTICE WIDGET */}
+                    {notices && notices.length > 0 && (
                         <Animated.View
                             style={[styles.widgetCard]}
                             entering={FadeInUp.delay(800).duration(600)}
@@ -222,8 +245,8 @@ const HomeScreen = () => {
                                 </View>
                                 <Text style={styles.widgetTitle}>{t('staff_dashboard.important_notice', 'Notice')}</Text>
                             </View>
-                            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>{dashboardData.notices[0].title}</Text>
-                            <Text numberOfLines={2} style={{ color: '#666' }}>{dashboardData.notices[0].content}</Text>
+                            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>{notices[0].title}</Text>
+                            <Text numberOfLines={2} style={{ color: '#666' }}>{notices[0].content}</Text>
                         </Animated.View>
                     )}
                 </View>
@@ -234,10 +257,12 @@ const HomeScreen = () => {
 
 export default HomeScreen;
 
+const { theme, isDark } = useTheme();
+
 const styles = StyleSheet.create({
     scrollContainer: {
         paddingBottom: 40,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: theme.colors.background,
     },
     gridContainer: {
         flexDirection: 'row',
@@ -258,7 +283,7 @@ const styles = StyleSheet.create({
         padding: 12,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.6)',
-        shadowColor: '#6366F1',
+        shadowColor: theme.colors.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.15,
         shadowRadius: 16,
@@ -278,11 +303,6 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
     },
-    icon: {
-        width: 26,
-        height: 26,
-        resizeMode: 'contain',
-    },
     gridTitle: {
         fontSize: 12,
         fontWeight: '700',
@@ -297,7 +317,7 @@ const styles = StyleSheet.create({
         gap: 20,
     },
     widgetCard: {
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.card,
         borderRadius: 24,
         padding: 20,
         shadowColor: "#000",
@@ -306,7 +326,7 @@ const styles = StyleSheet.create({
         shadowRadius: 20,
         elevation: 5,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
+        borderColor: theme.colors.border,
     },
     widgetHeader: {
         flexDirection: 'row',
@@ -324,7 +344,7 @@ const styles = StyleSheet.create({
     widgetTitle: {
         fontSize: 17,
         fontWeight: '700',
-        color: '#1F2937',
+        color: theme.colors.text,
         letterSpacing: 0.5,
     },
     attContent: {
@@ -337,19 +357,19 @@ const styles = StyleSheet.create({
         height: 64,
         borderRadius: 32,
         borderWidth: 6,
-        borderColor: '#16A34A',
+        borderColor: theme.colors.success,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F0FDF4',
+        backgroundColor: isDark ? 'rgba(22, 163, 74, 0.1)' : '#F0FDF4',
     },
     attPercent: {
         fontSize: 18,
         fontWeight: '800',
-        color: '#16A34A',
+        color: theme.colors.success,
     },
     attLabel: {
         fontSize: 14,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '600',
         marginBottom: 4,
         textTransform: 'uppercase',
@@ -359,33 +379,22 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '800',
         letterSpacing: 0.5,
+        color: theme.colors.success,
     },
     teacherContent: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
     },
-    teacherAvatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#F3F4F6',
-        borderWidth: 2,
-        borderColor: '#fff',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-    },
     teacherName: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#111827',
+        color: theme.colors.text,
         marginBottom: 2,
     },
     teacherSub: {
         fontSize: 14,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '500',
     },
 });

@@ -10,8 +10,11 @@ import ScreenLayout from '../../src/components/ScreenLayout';
 import { useTranslation } from 'react-i18next';
 import StudentHeader from '../../src/components/StudentHeader';
 
+import { useAuth } from '../../src/hooks/useAuth';
+
 const BusProfileScreen = () => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     return (
         <ScreenLayout>
 
@@ -31,10 +34,10 @@ const BusProfileScreen = () => {
                 <Text style={styles.sectionTitle}>Student Bus Information</Text>
 
                 <View style={styles.infoCard}>
-                    <InfoRow label="Name" value="xyz" />
-                    <InfoRow label="Route" value="Ashanpally Route" />
+                    <InfoRow label="Name" value={user?.name || 'Student'} />
+                    <InfoRow label="Route" value={(user as any)?.transportRoute || 'Not Assigned'} />
                     <InfoRow label="Driver No" value="**********" />
-                    <InfoRow label="Route No" value="R-12" />
+                    <InfoRow label="Route No" value={(user as any)?.transportRouteNo || 'N/A'} />
                 </View>
 
                 {/* ===== MAP SECTION ===== */}
@@ -173,3 +176,5 @@ const styles = StyleSheet.create({
         color: '#0ea5e9',
     },
 });
+
+

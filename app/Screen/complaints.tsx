@@ -15,15 +15,28 @@ import StudentHeader from '../../src/components/StudentHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../src/hooks/useAuth';
-import { ComplaintService } from '../../src/services/complaint.service';
+import { ComplaintService } from '../../src/services/commonServices';
 import { Complaint } from '../../src/types/models';
+
+interface UIComplaint {
+    id: string;
+    title: string;
+    description: string;
+    type: string;
+    severity: string;
+    filedBy: string;
+    date: string;
+    status: string;
+    color: string;
+    icon: string;
+}
 
 export default function ComplaintsScreen() {
     const { t } = useTranslation();
     const { user } = useAuth();
     const [activeFilter, setActiveFilter] = useState('All');
     const filters = ['All', 'High', 'Medium', 'Low'];
-    const [complaints, setComplaints] = useState<any[]>([]);
+    const [complaints, setComplaints] = useState<UIComplaint[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,22 +47,27 @@ export default function ComplaintsScreen() {
         if (!user) return;
         setLoading(true);
         try {
-            const data = await ComplaintService.getStudentComplaints(user.id);
-            // Map to UI format if needed, or assume data matches
-            // We might need to mock severity/type if not in basic Complaint model
-            // For now, assuming extended model or mapping defaults
-            const uiData = data.map((c: any) => ({
-                id: c.id,
-                title: c.title || 'Behavior Report',
-                description: c.message,
-                type: 'DISCIPLINARY', // hardcoded or mapped
-                severity: c.severity || 'Low',
-                filedBy: c.raisedBy || 'Staff',
-                date: c.createdAt ? new Date(c.createdAt.toDate()).toDateString() : 'Recent',
-                status: c.status || 'Resolved',
-                color: (c.severity === 'High') ? '#EF4444' : (c.severity === 'Medium' ? '#F59E0B' : '#6366F1'),
-                icon: (c.severity === 'High') ? 'alert-circle' : 'information-circle'
-            }));
+            const data = await ComplaintService.getStudentComplaints(user.id || '');
+            // Map to UI format
+            const uiData = data.map((c) => {
+                const severity = c.priority === 'urgent' || c.priority === 'high' ? 'High' :
+                    c.priority === 'medium' ? 'Medium' : 'Low';
+                const color = severity === 'High' ? '#EF4444' :
+                    severity === 'Medium' ? '#F59E0B' : '#6366F1';
+
+                return {
+                    id: c.id,
+                    title: c.title || 'Behavior Report',
+                    description: c.description,
+                    type: c.category?.toUpperCase() || 'OTHER',
+                    severity,
+                    filedBy: c.raised_by || 'Staff',
+                    date: c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent',
+                    status: c.status.charAt(0).toUpperCase() + c.status.slice(1).replace('_', ' '),
+                    color,
+                    icon: severity === 'High' ? 'alert-circle' : 'information-circle'
+                };
+            });
             setComplaints(uiData);
         } catch (e) {
             console.error("Failed to load complaints", e);
@@ -64,7 +82,7 @@ export default function ComplaintsScreen() {
 
     return (
         <ScreenLayout>
-            <StudentHeader showBackButton={true} title={t('complaints.title') || "Complaints"} />
+            <StudentHeader showBackButton={true} title={t('home.regular_complaints') || "Complaints"} />
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -270,3 +288,5 @@ const styles = StyleSheet.create({
     statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     statusTextData: { fontSize: 11, fontWeight: '700', color: '#6b7280' }
 });
+
+

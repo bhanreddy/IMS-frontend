@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, StatusBar, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import StaffHeader from '@/src/components/StaffHeader';
 import StaffFooter from '@/src/components/StaffFooter';
+import { StudentService } from '@/src/services/studentService';
+import { ResultService } from '@/src/services/commonServices';
+import { useAuth } from '@/src/hooks/useAuth';
+import { StudentWithDetails } from '@/src/types/schema';
+
+interface ExamCategory {
+    key: string;
+    title: string;
+    icon: string;
+    colors: string[];
+    accent: string;
+    subExams: string[];
+}
 
 // Data mirroring Student Side
 const EXAM_CATEGORIES = [
@@ -49,23 +62,38 @@ const EXAM_CATEGORIES = [
     },
 ];
 
-const STUDENTS = [
-    { id: '1', name: 'Aarav Patel', roll: '101' },
-    { id: '2', name: 'Ishita Sharma', roll: '102' },
-    { id: '3', name: 'Rohan Gupta', roll: '103' },
-    { id: '4', name: 'Ananya Singh', roll: '104' },
-    { id: '5', name: 'Vihaan Reddy', roll: '105' },
-    { id: '6', name: 'Saanvi Rao', roll: '106' },
-];
-
 export default function UploadMarks() {
     // State for navigation within the screen
-    const [selectedCategory, setSelectedCategory] = useState<any>(null); // 'slip_test' | ...
+    const [selectedCategory, setSelectedCategory] = useState<ExamCategory | null>(null);
     const [selectedSubExam, setSelectedSubExam] = useState(''); // 'FA-1' | ...
 
     const [marks, setMarks] = useState<{ [key: string]: string }>({});
+    const [students, setStudents] = useState<StudentWithDetails[]>([]);
+    const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
+    // TODO: Fetch classId from Staff Profile or User Context
+    const classId = (user as any)?.classId || 'class_10_a'; // Mock class ID placeholder
 
-    const handleCategorySelect = (category: any) => {
+    useEffect(() => {
+        if (selectedCategory) {
+            fetchStudents();
+        }
+    }, [selectedCategory]);
+
+    const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            const response = await StudentService.getAll<StudentWithDetails>({ class_section_id: classId, limit: 100 });
+            setStudents(response.data);
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'Failed to fetch students');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCategorySelect = (category: ExamCategory) => {
         setSelectedCategory(category);
         setSelectedSubExam(category.subExams[0]);
         setMarks({}); // Reset marks when switching category
@@ -79,14 +107,46 @@ export default function UploadMarks() {
         setMarks(prev => ({ ...prev, [id]: value }));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!selectedCategory) return;
+
+        const filledMarks = Object.keys(marks).map(studentId => ({
+            student_id: studentId,
+            marks: Number(marks[studentId])
+        }));
+
+        if (filledMarks.length === 0) {
+            Alert.alert("Warning", "No marks entered.");
+            return;
+        }
+
         Alert.alert(
             "Confirm Upload",
             `Upload marks for ${selectedCategory?.title} - ${selectedSubExam}?`,
             [
                 { text: "Cancel", style: "cancel" },
-                { text: "Upload", onPress: () => Alert.alert("Success", "Marks uploaded successfully!") }
+                {
+                    text: "Upload",
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            await ResultService.upload({
+                                class_section_id: classId,
+                                exam_category: selectedCategory.key,
+                                sub_exam: selectedSubExam,
+                                subject_id: '1', // Default subject for now or add selector
+                                results: filledMarks
+                            });
+                            Alert.alert("Success", "Marks uploaded successfully!");
+                            setSelectedCategory(null);
+                        } catch (e) {
+                            console.error(e);
+                            Alert.alert("Error", "Failed to upload marks");
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
             ]
         );
     };
@@ -169,15 +229,15 @@ export default function UploadMarks() {
                     <Text style={[styles.headerCell, { flex: 1, textAlign: 'center' }]}>Marks / 100</Text>
                 </View>
 
-                {STUDENTS.map((student, index) => (
+                {loading ? <ActivityIndicator size="large" /> : students.map((student, index) => (
                     <Animated.View
                         key={student.id}
                         entering={FadeInDown.delay(index * 50).duration(400)}
                         style={styles.studentRow}
                     >
                         <View style={{ flex: 2 }}>
-                            <Text style={styles.studentName}>{student.name}</Text>
-                            <Text style={styles.studentRoll}>Roll No: {student.roll}</Text>
+                            <Text style={styles.studentName}>{student.person.display_name || `${student.person.first_name} ${student.person.last_name}`}</Text>
+                            <Text style={styles.studentRoll}>Roll No: {student.admission_no}</Text>
                         </View>
                         <View style={{ flex: 1, alignItems: 'center' }}>
                             <TextInput
@@ -194,7 +254,7 @@ export default function UploadMarks() {
             </ScrollView>
 
             <View style={styles.floatingAction}>
-                <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
                     <Text style={styles.submitText}>Upload Results</Text>
                     <Ionicons name="cloud-upload" size={20} color="#fff" style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
@@ -451,3 +511,4 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+

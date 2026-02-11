@@ -15,11 +15,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import StaffHeader from '../../src/components/StaffHeader';
 import SwipeableStudentCard from '../../src/components/SwipeableStudentCard';
 import { useAuth } from '../../src/hooks/useAuth';
-import { StudentService } from '../../src/services/student.service';
-import { AttendanceService } from '../../src/services/attendance.service';
+import { StudentService } from '../../src/services/studentService';
+import { AttendanceService } from '../../src/services/attendanceService';
+import { StudentWithDetails, AttendanceStatus } from '../../src/types/schema';
 
 interface StudentUI {
     id: string;
+    enrollmentId?: string;
     name: string;
     rollNo: string;
     status: 'present' | 'absent' | 'unmarked';
@@ -37,23 +39,40 @@ export default function ManageStudents() {
     }, [user]);
 
     const loadStudents = async () => {
+        if (!user) return;
         try {
-            if (user) {
-                // Ideally fetch by class ID assigned to teacher
-                // For now fetching all students as prototype fallback
-                const data = await StudentService.getAll();
+            // Get Class ID from user profile
+            const classId = (user as any)?.classId;
 
-                const formatted = data.map((s: any) => ({
-                    id: s.id,
-                    name: s.name || `${s.firstName} ${s.lastName}`,
-                    rollNo: s.rollNo || s.admissionNo || 'N/A',
-                    status: 'unmarked' as any
-                }));
-                setStudents(formatted);
+            // If no class assigned, show empty state immediately
+            if (!classId) {
+                setStudents([]);
+                setLoading(false);
+                return;
             }
+
+            // Fetch students for the assigned class
+            const response = await StudentService.getAll<StudentWithDetails>({
+                class_section_id: classId,
+                limit: 100
+            });
+
+            // Defensive check: Ensure data exists and is an array
+            const studentList = response?.data || [];
+
+            const formatted = studentList.map((s: StudentWithDetails) => ({
+                id: s.id,
+                enrollmentId: s.current_enrollment?.id,
+                name: s.person.display_name || `${s.person.first_name} ${s.person.last_name}`,
+                rollNo: s.admission_no,
+                status: 'unmarked' as const
+            }));
+
+            setStudents(formatted);
         } catch (error) {
             console.error("Failed to load students", error);
-            Alert.alert("Error", "Failed to fetch student list");
+            // Default to empty list on error to prevent crash
+            setStudents([]);
         } finally {
             setLoading(false);
         }
@@ -66,6 +85,10 @@ export default function ManageStudents() {
     }, []);
 
     const handleSubmit = async () => {
+        if (students.length === 0) {
+            Alert.alert("No Data", "No students to submit attendance for.");
+            return;
+        }
         const unmarked = students.filter(s => s.status === 'unmarked');
         if (unmarked.length > 0) {
             Alert.alert("Incomplete", `You have ${unmarked.length} unmarked students. Please mark all before submitting.`);
@@ -79,14 +102,23 @@ export default function ManageStudents() {
                 status: s.status
             }));
 
-            // Using placeholder classId until Class Management is fully implemented
-            const classId = (user as any)?.classId || "class_10_a";
+            // Use actual classId from user
+            const classId = (user as any)?.classId;
+            if (!classId) {
+                Alert.alert("Error", "No Class Assigned");
+                return;
+            }
             const date = new Date().toISOString().split('T')[0];
 
             await AttendanceService.markAttendance({
-                classId,
-                date,
-                students: attendanceList
+                class_section_id: classId,
+                attendance_date: date,
+                records: attendanceList
+                    .filter(item => students.find(s => s.id === item.studentId)?.enrollmentId)
+                    .map(item => ({
+                        student_enrollment_id: students.find(s => s.id === item.studentId)!.enrollmentId!,
+                        status: item.status as AttendanceStatus
+                    }))
             });
 
             Alert.alert(
@@ -217,3 +249,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+

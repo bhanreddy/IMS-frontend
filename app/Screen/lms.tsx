@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,45 +9,88 @@ import {
     Linking,
     StatusBar,
     TextInput,
-    Platform,
+    ActivityIndicator,
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { MOCK_LMS_CONTENT, LMSContent } from '@/src/data/mockLMS';
 import StudentHeader from '../../src/components/StudentHeader';
+import { api } from '../../src/services/apiClient';
+
+interface LMSMaterial {
+    id: string;
+    title: string; // subTopic
+    description: string;
+    content_url: string; // videoUrl
+    duration: string;
+    material_type: string;
+    created_at: string;
+    course_title: string; // topic
+    class_name: string;
+    teacher_name: string;
+}
 
 export default function LMSPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSubject, setSelectedSubject] = useState('All');
-    const STUDENT_CLASS = '10th A'; // Mock: In real app, get from user profile
+    const [materials, setMaterials] = useState<LMSMaterial[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const SUBJECTS = ['All', 'Mathematics', 'Science', 'English', 'Social Science', 'Hindi', 'Telugu', 'Physics', 'Biology'];
 
-    const filteredContent = MOCK_LMS_CONTENT.filter(item => {
-        const matchesSearch = item.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.subTopic.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesClass = item.className === STUDENT_CLASS;
-        const matchesSubject = selectedSubject === 'All' || item.topic === selectedSubject;
+    useEffect(() => {
+        fetchLMSFeed();
+    }, []);
 
-        return matchesSearch && matchesClass && matchesSubject;
+    const fetchLMSFeed = async () => {
+        try {
+            setLoading(true);
+            // Fetch flattened feed of materials (latest first)
+            const data: any[] = await api.get('/lms/all-materials');
+
+            // Map to UI model
+            const mapped: LMSMaterial[] = data.map(m => ({
+                id: m.id,
+                title: m.title,
+                description: m.description,
+                content_url: m.content_url,
+                duration: m.duration,
+                material_type: m.material_type,
+                created_at: new Date(m.created_at).toLocaleDateString(),
+                course_title: m.course_title,
+                class_name: m.class_name || 'Class',
+                teacher_name: m.instructor_name || 'Teacher'
+            }));
+            setMaterials(mapped);
+        } catch (error) {
+            console.error('Failed to load LMS feed', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredContent = materials.filter(item => {
+        const matchesSearch = item.course_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSubject = selectedSubject === 'All' || item.course_title === selectedSubject;
+        return matchesSearch && matchesSubject;
     });
 
     const handleOpenVideo = (url: string) => {
         Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
     };
 
-    const renderItem = ({ item, index }: { item: LMSContent, index: number }) => (
+    const renderItem = ({ item, index }: { item: LMSMaterial, index: number }) => (
         <Animated.View entering={FadeInDown.delay(index * 100).duration(600)}>
             <TouchableOpacity
                 style={styles.card}
                 activeOpacity={0.9}
-                onPress={() => handleOpenVideo(item.videoUrl)}
+                onPress={() => handleOpenVideo(item.content_url)}
             >
                 <View style={styles.thumbnailContainer}>
                     <Image
-                        source={{ uri: `https://img.youtube.com/vi/${item.videoUrl.split('v=')[1]?.split('&')[0]}/hqdefault.jpg` }}
+                        source={{ uri: `https://img.youtube.com/vi/${item.content_url.split('v=')[1]?.split('&')[0]}/hqdefault.jpg` }}
                         style={styles.thumbnail}
                         resizeMode="cover"
                     />
@@ -61,20 +104,20 @@ export default function LMSPage() {
                         style={styles.thumbnailGradient}
                     />
                     <View style={styles.durationBadge}>
-                        <Text style={styles.durationText}>10:00</Text>
+                        <Text style={styles.durationText}>{item.duration || '10:00'}</Text>
                     </View>
                 </View>
 
                 <View style={styles.cardContent}>
                     <View style={styles.badgesRow}>
                         <View style={styles.topicBadge}>
-                            <Text style={styles.topicText}>{item.topic}</Text>
+                            <Text style={styles.topicText}>{item.course_title}</Text>
                         </View>
                         <View style={styles.classBadge}>
-                            <Text style={styles.classBadgeText}>{item.className}</Text>
+                            <Text style={styles.classBadgeText}>{item.class_name}</Text>
                         </View>
                     </View>
-                    <Text style={styles.subTopic} numberOfLines={2}>{item.subTopic}</Text>
+                    <Text style={styles.subTopic} numberOfLines={2}>{item.title}</Text>
 
                     {item.description ? (
                         <Text style={styles.description} numberOfLines={2}>
@@ -85,9 +128,9 @@ export default function LMSPage() {
                     <View style={styles.footer}>
                         <View style={styles.teacherInfo}>
                             <MaterialIcons name="person" size={14} color="#6B7280" />
-                            <Text style={styles.teacherName}>{item.teacherName}</Text>
+                            <Text style={styles.teacherName}>{item.teacher_name}</Text>
                         </View>
-                        <Text style={styles.date}>{item.date}</Text>
+                        <Text style={styles.date}>{item.created_at}</Text>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -97,11 +140,8 @@ export default function LMSPage() {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-            {/* Header Section - Matches Diary Header */}
             <StudentHeader showBackButton={true} title="LMS" />
 
-            {/* Subject Tabs */}
             <View style={styles.tabsContainer}>
                 <ScrollView
                     horizontal
@@ -128,7 +168,6 @@ export default function LMSPage() {
                 </ScrollView>
             </View>
 
-            {/* Search Bar */}
             <View style={styles.searchContainer}>
                 <View style={styles.searchBar}>
                     <Ionicons name="search" size={20} color="#9CA3AF" />
@@ -142,19 +181,25 @@ export default function LMSPage() {
                 </View>
             </View>
 
-            <FlatList
-                data={filteredContent}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <MaterialIcons name="video-library" size={64} color="#E5E7EB" />
-                        <Text style={styles.emptyText}>No content found</Text>
-                    </View>
-                }
-            />
+            {loading ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#3B82F6" />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredContent}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <MaterialIcons name="video-library" size={64} color="#E5E7EB" />
+                            <Text style={styles.emptyText}>No content found</Text>
+                        </View>
+                    }
+                />
+            )}
         </View>
     );
 }

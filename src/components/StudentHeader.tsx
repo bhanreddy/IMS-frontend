@@ -7,12 +7,13 @@ import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MenuOverlay from './MenuOverlay';
+import { SCHOOL_CONFIG } from '../constants/schoolConfig';
 
 interface StudentHeaderProps {
     onMenuPress?: () => void;
 }
 
-const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, title?: string, showSettingsButton?: boolean }> = ({ onMenuPress, showBackButton = false, title, showSettingsButton = true }) => {
+const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, title?: string, showSettingsButton?: boolean }> = ({ onMenuPress, showBackButton = false, title = SCHOOL_CONFIG.name, showSettingsButton = true }) => {
     const router = useRouter();
     const { t, i18n } = useTranslation();
     const [isTelugu, setIsTelugu] = useState(i18n.language === 'te');
@@ -41,7 +42,7 @@ const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, t
     const handleTabPress = (tabName: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (tabName === 'Diary') {
-            router.push('/Screen/diaryScreen' as any);
+            router.push('/Screen/diary' as any);
         } else if (tabName === 'LMS') {
             router.push('/Screen/lms' as any);
         }

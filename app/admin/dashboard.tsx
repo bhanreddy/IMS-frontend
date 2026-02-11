@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -6,300 +6,362 @@ import {
     ScrollView,
     TouchableOpacity,
     StatusBar,
-    ViewStyle,
-    TextStyle,
+    BackHandler,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 import AdminHeader from '../../src/components/AdminHeader';
 import { ADMIN_THEME } from '../../src/constants/adminTheme';
 import { useAuth } from '../../src/hooks/useAuth';
-import { StudentService } from '../../src/services/student.service';
-import { StaffService } from '../../src/services/staff.service';
-import { ComplaintService } from '../../src/services/complaint.service';
+import { api } from '../../src/services/apiClient';
+import { AdminDashboardStats } from '../../src/types/models';
+import { AdminService } from '../../src/services/adminService';
+import { useTheme } from '../../src/hooks/useTheme';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface ActionItem {
     title: string;
-    icon: any;
-    route: any;
-    gradient: [string, string, ...string[]];
-    iconBg: string;
+    icon: IconName;
+    route: string;
+    gradient: [string, string];
 }
+
+interface StatItem {
+    label: string;
+    value: string | number;
+    icon: IconName;
+    color: string;
+    bg: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  COMPONENT                                 */
+/* -------------------------------------------------------------------------- */
 
 export default function AdminDashboard() {
     const { user } = useAuth();
     const router = useRouter();
     const { t } = useTranslation();
-    const [chartTab, setChartTab] = useState<'attendance' | 'finance'>('attendance');
-    const [dashboardData, setDashboardData] = useState<any>(null);
+
+    const [dashboardData, setDashboardData] = useState<AdminDashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            if (!user) return;
+        if (!user) return;
+        // ... rest of file
+
+
+        (async () => {
             try {
-                // Parallel fetch for speed
-                // Note: ComplaintService not yet fully implemented in previous steps? 
-                // Ensuring it exists or mocking if I missed it.
-                // I created it in step 853.
-
-                // Using Promise.allSettled to avoid complete failure if one fails
-                const results = await Promise.allSettled([
-                    StudentService.getAll(),
-                    StaffService.getAll(),
-                    ComplaintService.getAll()
-                ]);
-
-                const students = results[0].status === 'fulfilled' ? results[0].value : [];
-                const staff = results[1].status === 'fulfilled' ? results[1].value : [];
-                const complaints = results[2].status === 'fulfilled' ? results[2].value : [];
-
-                setDashboardData({
-                    studentCount: students.length,
-                    staffCount: staff.length,
-                    complaints: complaints
-                });
-            } catch (e) {
-                console.error(e);
+                // Determine logic based on silent?
+                const data = await AdminService.getDashboardStats({ silent: true });
+                setDashboardData(data);
+            } catch (err: any) {
+                // Suppress expected error when switching roles
+                if (err?.message?.includes('Student profile not found')) {
+                    console.warn('[AdminDashboard] Suppressed student profile error during role switch.');
+                } else {
+                    console.error(err);
+                }
             } finally {
                 setLoading(false);
             }
-        };
-        loadData();
+        })();
     }, [user]);
 
-    /* ---------------- STATS ---------------- */
-    const stats = [
-        {
-            label: t('admin_dashboard.total_students'),
-            value: loading ? '...' : (dashboardData?.studentCount ? `${dashboardData.studentCount}` : '0'),
-            icon: 'people',
-            color: ADMIN_THEME.colors.primary,
-            trend: '+12%',
-            positive: true,
-        },
-        {
-            label: t('admin_dashboard.staff_present'),
-            value: loading ? '...' : (dashboardData?.staffCount ? `${dashboardData.staffCount}` : '0'),
-            icon: 'id-card',
-            color: ADMIN_THEME.colors.success,
-            trend: '92%',
-            positive: true,
-        },
-        {
-            label: t('admin_dashboard.collection'),
-            value: 'N/A', // Placeholder for now
-            icon: 'wallet',
-            color: ADMIN_THEME.colors.warning,
-            trend: '+5.4%',
-            positive: true,
-        },
-        {
-            label: t('admin_dashboard.complaints'),
-            value: loading ? '...' : (dashboardData?.complaints ? `${dashboardData.complaints.length}` : '0'),
-            icon: 'alert-circle',
-            color: ADMIN_THEME.colors.danger,
-            trend: '-2',
-            positive: false,
-        },
-    ];
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => {
+                BackHandler.exitApp();
+                return true;
+            };
 
-    /* ---------------- QUICK ACTIONS (GRID) ---------------- */
-    const quickActions: ActionItem[] = [
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
+        }, [])
+    );
+
+    const { theme, isDark } = useTheme();
+    const styles = useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+
+    /* --------------------------------- STATS -------------------------------- */
+
+    const stats: StatItem[] = [
         {
-            title: t('admin_dashboard.manage_staff'),
+            label: 'Total Students',
+            value: loading ? '—' : dashboardData?.totalStudents ?? 0,
             icon: 'people-outline',
-            route: '/admin/manage-staff',
-            gradient: ['#7C3AED', '#A78BFA'], // Deeper Violet -> Light Violet
-            iconBg: 'rgba(124, 58, 237, 0.2)',
+            color: '#3B82F6',
+            bg: '#EFF6FF',
         },
         {
-            title: t('admin_dashboard.transport'),
-            icon: 'bus-outline',
-            route: '/admin/transport',
-            gradient: ['#EA580C', '#FB923C'], // Burnt Orange -> Light Orange
-            iconBg: 'rgba(234, 88, 12, 0.2)',
+            label: 'Staff Present',
+            value: loading
+                ? '—'
+                : `${dashboardData?.staffPresent ?? 0} / ${dashboardData?.totalStaff ?? 0}`,
+            icon: 'id-card-outline',
+            color: '#10B981',
+            bg: '#ECFDF5',
         },
         {
-            title: t('admin_dashboard.events'),
-            icon: 'calendar-outline',
-            route: '/admin/events',
-            gradient: ['#059669', '#34D399'], // Green -> Light Green
-            iconBg: 'rgba(5, 150, 105, 0.2)',
+            label: 'Collection',
+            value: loading
+                ? '—'
+                : `₹${(dashboardData?.collection ?? 0).toLocaleString()}`,
+            icon: 'wallet-outline',
+            color: '#F59E0B',
+            bg: '#FFFBEB',
         },
         {
-            title: "Principal Tracker",
-            icon: "analytics-outline",
-            route: "/admin/principal-tracker",
-            gradient: ['#2563EB', '#60A5FA'],
-            iconBg: 'rgba(37, 99, 235, 0.2)',
+            label: 'Complaints',
+            value: loading ? '—' : dashboardData?.complaints ?? 0,
+            icon: 'alert-circle-outline',
+            color: '#EF4444',
+            bg: '#FEF2F2',
         },
-        {
-            title: t('admin_dashboard.fees'),
-            icon: 'cash-outline',
-            route: '/admin/fees/set-class-fee', // Updated route
-            gradient: ['#DC2626', '#F87171'],
-            iconBg: 'rgba(220, 38, 38, 0.2)',
-        },
-        {
-            title: "Complaints",
-            icon: "chatbubble-ellipses-outline",
-            route: "/admin/complaints",
-            gradient: ['#D946EF', '#F0ABFC'], // Fuchsia
-            iconBg: 'rgba(217, 70, 239, 0.2)',
-        },
-        {
-            title: t('admin_dashboard.manage_users'),
-            icon: 'people-circle-outline',
-            route: '/accounts/manage-users',
-            gradient: ['#4F46E5', '#818CF8'],
-            iconBg: 'rgba(79, 70, 229, 0.2)',
-        }
     ];
 
-    // Grid Item Component (Internal)
-    const GridItem = ({ item, index }: { item: ActionItem, index: number }) => (
-        <Animated.View exiting={FadeInDown} entering={FadeInDown.delay(index * 100)}>
-            <TouchableOpacity onPress={() => router.push(item.route)} style={styles.gridItem}>
+    /* ------------------------------ QUICK ACTIONS ---------------------------- */
+
+    /* ------------------------------ QUICK ACTIONS ---------------------------- */
+
+    const quickActions: ActionItem[] = [
+        { title: 'Manage Staff', icon: 'people-outline', route: '/admin/manage-staff', gradient: ['#A78BFA', '#8B5CF6'] },
+        { title: 'Academic Structure', icon: 'school-outline', route: '/admin/academics', gradient: ['#3B82F6', '#2DD4BF'] },
+        { title: 'Timetable Manager', icon: 'calendar-outline', route: '/admin/timetable', gradient: ['#EA580C', '#F97316'] },
+        { title: 'Fee Structure', icon: 'wallet-outline', route: '/admin/fees/set-class-fee', gradient: ['#6366F1', '#A855F7'] },
+        { title: 'Add Accounts Staff', icon: 'person-add-outline', route: '/admin/add-accounts-staff', gradient: ['#FBBF24', '#F59E0B'] },
+        { title: 'Transport', icon: 'bus-outline', route: '/admin/transport', gradient: ['#FB923C', '#F97316'] },
+        { title: 'Expense Tracker', icon: 'receipt-outline', route: '/admin/expenses', gradient: ['#6366F1', '#4F46E5'] },
+
+        { title: 'Notices', icon: 'megaphone-outline', route: '/admin/notices', gradient: ['#F472B6', '#EC4899'] },
+        { title: 'Leaves', icon: 'document-text-outline', route: '/admin/leaves', gradient: ['#818CF8', '#6366F1'] },
+        { title: 'Complaints', icon: 'chatbubble-ellipses-outline', route: '/admin/complaints', gradient: ['#F87171', '#EF4444'] },
+
+        { title: 'View Reports', icon: 'bar-chart-outline', route: '/admin/reports', gradient: ['#60A5FA', '#3B82F6'] },
+        { title: 'Certificates', icon: 'ribbon-outline', route: '/admin/certificate-generator', gradient: ['#22D3EE', '#06B6D4'] },
+        { title: 'Manage Content', icon: 'library-outline', route: '/admin/manage-content', gradient: ['#14B8A6', '#0D9488'] },
+        { title: 'Progress Reports', icon: 'stats-chart-outline', route: '/admin/progress-report-generator', gradient: ['#C4B5FD', '#8B5CF6'] },
+
+        // Principal 360 removed (file does not exist)
+        { title: 'Smart Insights', icon: 'bulb-outline', route: '/admin/smart-insights', gradient: ['#6EE7B7', '#34D399'] },
+    ];
+
+    /* ------------------------------- GRID ITEM ------------------------------- */
+
+    const GridItem = ({ item, index }: { item: ActionItem; index: number }) => (
+        <Animated.View
+            entering={FadeInDown.delay(index * 50).springify().damping(12)}
+            style={styles.gridWrapper}
+        >
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => router.push(item.route as any)}
+                style={styles.gridItem}
+            >
                 <LinearGradient
                     colors={item.gradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gridGradient}
                 >
-                    <View style={[styles.iconContainer, { backgroundColor: item.iconBg }]}>
-                        <Ionicons name={item.icon as any} size={28} color="#FFF" />
+                    {/* Decorative Circles */}
+                    < View style={styles.decorativeCircle1} />
+                    <View style={styles.decorativeCircle2} />
+
+                    <View style={styles.gridContent}>
+                        <View style={styles.iconBox}>
+                            <Ionicons name={item.icon} size={24} color="#fff" />
+                        </View>
+
+                        <View style={styles.textContainer}>
+                            <Text numberOfLines={2} style={styles.gridTitle}>
+                                {item.title}
+                            </Text>
+                            <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.8)" style={{ marginTop: 8 }} />
+                        </View>
                     </View>
-                    <Text style={styles.gridTitle}>{item.title}</Text>
                 </LinearGradient>
             </TouchableOpacity>
-        </Animated.View>
+        </Animated.View >
     );
+
+    /* ---------------------------------- UI ---------------------------------- */
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor={ADMIN_THEME.colors.primary} />
-            <AdminHeader title={t('admin_dashboard.title')} showNotification />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
+            <AdminHeader title={t('Dashboard')} showNotification />
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-                {/* Stats Cards */}
-                <View style={styles.statsContainer}>
-                    {stats.map((stat, index) => (
-                        <View key={index} style={styles.statsCard}>
-                            <View style={[styles.statsIcon, { backgroundColor: stat.color + '15' }]}>
-                                <Ionicons name={stat.icon as any} size={24} color={stat.color} />
+                {/* Greeting */}
+                <View style={styles.greeting}>
+                    <Text style={styles.greetingSub}>Good Morning</Text>
+                    <Text style={styles.greetingTitle}>{user?.display_name || 'Principal'}</Text>
+                    <Text style={styles.greetingDate}>
+                        {new Date().toDateString()}
+                    </Text>
+                </View>
+
+                {/* Stats */}
+                <View style={styles.statsRow}>
+                    {stats.map((s, i) => (
+                        <View key={i} style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: s.bg }]}>
+                                <Ionicons name={s.icon} size={22} color={s.color} />
                             </View>
-                            <View>
-                                <Text style={styles.statsLabel}>{stat.label}</Text>
-                                <Text style={styles.statsValue}>{stat.value}</Text>
-                                <Text style={[styles.statsTrend, { color: stat.positive ? 'green' : 'red' }]}>{stat.trend}</Text>
-                            </View>
+                            <Text style={styles.statLabel}>{s.label}</Text>
+                            <Text style={styles.statValue}>{s.value}</Text>
                         </View>
                     ))}
                 </View>
 
                 {/* Quick Actions */}
-                <Text style={styles.sectionTitle}>{t('admin_dashboard.quick_actions')}</Text>
-                <View style={styles.gridContainer}>
-                    {quickActions.map((action, index) => (
-                        <GridItem key={index} item={action} index={index} />
+                <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+                <View style={styles.grid}>
+                    {quickActions.map((item, index) => (
+                        <GridItem key={index} item={item} index={index} />
                     ))}
                 </View>
-
             </ScrollView>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                   STYLES                                   */
+/* -------------------------------------------------------------------------- */
+const getStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: ADMIN_THEME.colors.background.app,
+        backgroundColor: theme.colors.background,
     },
     content: {
         padding: 20,
+        paddingBottom: 40,
     },
-    statsContainer: {
+
+    /* Greeting */
+    greeting: { marginBottom: 24 },
+    greetingSub: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '500' },
+    greetingTitle: { fontSize: 26, fontWeight: '700', color: theme.colors.text },
+    greetingDate: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 },
+
+    /* Stats */
+    statsRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         marginBottom: 30,
     },
-    statsCard: {
+    statCard: {
         width: '48%',
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 15,
-        marginBottom: 15,
-        elevation: 2,
+        backgroundColor: theme.colors.card,
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 5,
+        shadowRadius: 10,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
-    statsIcon: {
+    statIcon: {
         width: 40,
         height: 40,
         borderRadius: 12,
-        justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 10,
+        justifyContent: 'center',
+        marginBottom: 12,
     },
-    statsLabel: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginBottom: 4,
-    },
-    statsValue: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#374151',
-    },
-    statsTrend: {
-        fontSize: 12,
-        marginTop: 2,
-    },
+    statLabel: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' },
+    statValue: { fontSize: 20, fontWeight: '700', color: theme.colors.text, marginTop: 4 },
+
+    /* Section */
     sectionTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 15,
+        fontWeight: '700',
+        color: theme.colors.text,
+        marginBottom: 16,
     },
-    gridContainer: {
+
+    /* Grid */
+    grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
     },
+    gridWrapper: { width: '48%', marginBottom: 16 },
     gridItem: {
-        width: '48%',
-        height: 120,
-        marginBottom: 15,
-        borderRadius: 20,
+        height: 140, // Taller cards
+        borderRadius: 24,
         overflow: 'hidden',
+        shadowColor: '#000', // Subtle shadow
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
     },
     gridGradient: {
         flex: 1,
-        padding: 15,
-        justifyContent: 'space-between',
+        padding: 16,
+        position: 'relative',
     },
-    iconContainer: {
-        width: 45,
-        height: 45,
-        borderRadius: 12,
+    gridContent: {
+        flex: 1,
+        justifyContent: 'space-between',
+        zIndex: 2,
+    },
+    iconBox: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.2)', // More transparent/glassy
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
         justifyContent: 'center',
         alignItems: 'center',
     },
+    textContainer: {
+        // Pushes content to bottom
+    },
     gridTitle: {
-        color: '#fff',
         fontSize: 16,
-        fontWeight: 'bold',
-        textShadowColor: 'rgba(0,0,0,0.1)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        fontWeight: '700',
+        color: '#fff',
+        marginBottom: 4,
+        letterSpacing: 0.3,
+    },
+    /* Decoration */
+    decorativeCircle1: {
+        position: 'absolute',
+        top: -20,
+        right: -20,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        zIndex: 1,
+    },
+    decorativeCircle2: {
+        position: 'absolute',
+        bottom: -20,
+        right: -20,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        zIndex: 1,
     },
 });

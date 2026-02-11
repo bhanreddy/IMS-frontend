@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Image, Alert, Linking } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StaffHeader from '../../src/components/StaffHeader';
 import StaffFooter from '../../src/components/StaffFooter';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/hooks/useAuth';
 
 export default function StaffSettings() {
+    const router = useRouter();
+    const { user, logout } = useAuth();
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [notifications, setNotifications] = useState(true);
     const [dataSaving, setDataSaving] = useState(false);
@@ -17,6 +21,18 @@ export default function StaffSettings() {
 
     const handlePress = (item: string) => {
         Alert.alert(item, "This feature will be available in the next update.");
+    };
+
+    const handleLogout = () => {
+        Alert.alert("Logout", "Are you sure?", [
+            { text: "Cancel" },
+            {
+                text: "Logout", style: "destructive", onPress: async () => {
+                    await logout();
+                    router.replace('/');
+                }
+            }
+        ]);
     };
 
     return (
@@ -33,8 +49,8 @@ export default function StaffSettings() {
                         style={styles.avatar}
                     />
                     <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>Rahul Reddy</Text>
-                        <Text style={styles.profileRole}>ID: STF-2024-001</Text>
+                        <Text style={styles.profileName}>{user?.display_name || user?.first_name || 'Staff Member'}</Text>
+                        <Text style={styles.profileRole}>ID: {user?.id || 'N/A'}</Text>
                         <TouchableOpacity onPress={() => handlePress("Edit Profile")}>
                             <Text style={styles.editProfileText}>Edit Profile</Text>
                         </TouchableOpacity>
@@ -134,7 +150,7 @@ export default function StaffSettings() {
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Privacy Policy")}>
+                        <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://nexsyrus.com/privacy')}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="shield-checkmark" size={20} color="#06B6D4" />
                             </View>
@@ -168,14 +184,44 @@ export default function StaffSettings() {
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.logoutButton} onPress={() => Alert.alert("Logout", "Are you sure?", [{ text: "Cancel" }, { text: "Logout", style: "destructive" }])}>
+                {/* Account Actions */}
+                <View style={styles.groupContainer}>
+                    <Text style={styles.groupTitle}>Danger Zone</Text>
+                    <View style={[styles.groupCard, { borderColor: '#FECACA' }]}>
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            onPress={() => Alert.alert(
+                                "Delete Account",
+                                "This action is permanent and cannot be undone. Are you sure you want to proceed?",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                        text: "Delete",
+                                        style: "destructive",
+                                        onPress: () => {
+                                            // Open Web URL for deletion request as per Play Store Policy
+                                            Linking.openURL('https://example.com/delete-account');
+                                        }
+                                    }
+                                ]
+                            )}
+                        >
+                            <View style={[styles.settingIconBox, { backgroundColor: '#FEF2F2' }]}>
+                                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                            </View>
+                            <Text style={[styles.settingLabel, { color: '#EF4444' }]}>Delete Account</Text>
+                            <MaterialIcons name="chevron-right" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Text style={styles.logoutText}>Log Out</Text>
                 </TouchableOpacity>
 
-            </ScrollView>
-
+            </ScrollView >
             <StaffFooter />
-        </View>
+        </View >
     );
 }
 
@@ -296,3 +342,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+

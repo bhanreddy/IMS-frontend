@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch, Image, Alert, Linking } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import AdminHeader from '../../src/components/AdminHeader';
 import { useRouter } from 'expo-router';
 import AuthService from '../../src/services/authService';
+import { useAuth } from '../../src/hooks/useAuth';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function AdminSettings() {
     const router = useRouter();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { user } = useAuth();
+    const { theme, isDark, toggleTheme } = useTheme();
     const [notifications, setNotifications] = useState(true);
     const [biometric, setBiometric] = useState(true);
 
@@ -20,9 +23,122 @@ export default function AdminSettings() {
         Alert.alert(item, "This feature will be available in the next update.");
     };
 
+    const styles = StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        scrollContent: {
+            padding: 20,
+            paddingBottom: 40,
+        },
+        profileCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: theme.colors.card,
+            padding: 20,
+            borderRadius: 20,
+            marginBottom: 25,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 2,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+        avatar: {
+            width: 70,
+            height: 70,
+            borderRadius: 35,
+            borderWidth: 3,
+            borderColor: theme.colors.background,
+        },
+        profileInfo: {
+            marginLeft: 20,
+            flex: 1,
+        },
+        profileName: {
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: theme.colors.text,
+        },
+        profileRole: {
+            fontSize: 14,
+            color: theme.colors.textSecondary,
+            marginBottom: 8,
+        },
+        editProfileText: {
+            fontSize: 14,
+            color: theme.colors.primary,
+            fontWeight: '600',
+        },
+        groupContainer: {
+            marginBottom: 25,
+        },
+        groupTitle: {
+            fontSize: 14,
+            fontWeight: '600',
+            color: theme.colors.textSecondary,
+            marginBottom: 10,
+            marginLeft: 10,
+            textTransform: 'uppercase',
+        },
+        groupCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: 20,
+            overflow: 'hidden',
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 5,
+            elevation: 1,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+        settingRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 15,
+            paddingHorizontal: 20,
+        },
+        settingIconBox: {
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: isDark ? theme.colors.background : '#F9FAFB',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 15,
+        },
+        settingLabel: {
+            flex: 1,
+            fontSize: 16,
+            color: theme.colors.text,
+            fontWeight: '500',
+        },
+        divider: {
+            height: 1,
+            backgroundColor: theme.colors.border,
+            marginLeft: 70,
+        },
+        logoutButton: {
+            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+            paddingVertical: 16,
+            borderRadius: 16,
+            alignItems: 'center',
+            marginTop: 10,
+        },
+        logoutText: {
+            color: theme.colors.danger,
+            fontSize: 16,
+            fontWeight: 'bold',
+        },
+    });
+
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
             <AdminHeader title="Settings" showBackButton={true} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -34,8 +150,10 @@ export default function AdminSettings() {
                         style={styles.avatar}
                     />
                     <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>Principal Reddy</Text>
-                        <Text style={styles.profileRole}>ID: ADMIN-001</Text>
+                        <Text style={styles.profileName}>{user?.display_name || user?.first_name || 'Admin User'}</Text>
+                        <Text style={styles.profileRole} numberOfLines={1}>
+                            ID: {user?.id?.substring(0, 8).toUpperCase() || 'UNKNOWN'}
+                        </Text>
                         <TouchableOpacity onPress={() => handlePress("Edit Profile")}>
                             <Text style={styles.editProfileText}>Edit Profile</Text>
                         </TouchableOpacity>
@@ -53,9 +171,9 @@ export default function AdminSettings() {
                             <Text style={styles.settingLabel}>Dark Mode</Text>
                             <Switch
                                 trackColor={{ false: "#E5E7EB", true: "#818CF8" }}
-                                thumbColor={isDarkMode ? "#fff" : "#f4f3f4"}
-                                onValueChange={() => toggleSwitch(setIsDarkMode)}
-                                value={isDarkMode}
+                                thumbColor={isDark ? "#fff" : "#f4f3f4"}
+                                onValueChange={toggleTheme}
+                                value={isDark}
                             />
                         </View>
                         <View style={styles.divider} />
@@ -95,7 +213,45 @@ export default function AdminSettings() {
                                 <Ionicons name="lock-closed" size={20} color="#3B82F6" />
                             </View>
                             <Text style={styles.settingLabel}>Change Password</Text>
-                            <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
+                            <MaterialIcons name="chevron-right" size={20} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
+                        <View style={styles.divider} />
+                        <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://nexsyrus.com/privacy')}>
+                            <View style={styles.settingIconBox}>
+                                <Ionicons name="shield-checkmark" size={20} color="#06B6D4" />
+                            </View>
+                            <Text style={styles.settingLabel}>Privacy Policy</Text>
+                            <MaterialIcons name="chevron-right" size={20} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Account Actions - Danger Zone */}
+                <View style={styles.groupContainer}>
+                    <Text style={styles.groupTitle}>Danger Zone</Text>
+                    <View style={[styles.groupCard, { borderColor: theme.colors.danger }]}>
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            onPress={() => Alert.alert(
+                                "Delete Account",
+                                "This action is permanent and cannot be undone. Are you sure you want to proceed?",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                        text: "Delete",
+                                        style: "destructive",
+                                        onPress: () => {
+                                            Linking.openURL('https://example.com/delete-account');
+                                        }
+                                    }
+                                ]
+                            )}
+                        >
+                            <View style={[styles.settingIconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2' }]}>
+                                <Ionicons name="trash-outline" size={20} color={theme.colors.danger} />
+                            </View>
+                            <Text style={[styles.settingLabel, { color: theme.colors.danger }]}>Delete Account</Text>
+                            <MaterialIcons name="chevron-right" size={20} color={theme.colors.danger} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -107,7 +263,7 @@ export default function AdminSettings() {
                         style: "destructive",
                         onPress: async () => {
                             await AuthService.logout();
-                            router.replace('/admin-login');
+                            router.replace('/');
                         }
                     }
                 ])}>
@@ -119,111 +275,4 @@ export default function AdminSettings() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F3F4F6',
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
-    },
-    profileCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 20,
-        marginBottom: 25,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    avatar: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        borderWidth: 3,
-        borderColor: '#F3F4F6',
-    },
-    profileInfo: {
-        marginLeft: 20,
-        flex: 1,
-    },
-    profileName: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#111827',
-    },
-    profileRole: {
-        fontSize: 14,
-        color: '#6B7280',
-        marginBottom: 8,
-    },
-    editProfileText: {
-        fontSize: 14,
-        color: '#3B82F6',
-        fontWeight: '600',
-    },
-    groupContainer: {
-        marginBottom: 25,
-    },
-    groupTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#6B7280',
-        marginBottom: 10,
-        marginLeft: 10,
-        textTransform: 'uppercase',
-    },
-    groupCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        overflow: 'hidden',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 1,
-    },
-    settingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-    },
-    settingIconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: '#F9FAFB',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    settingLabel: {
-        flex: 1,
-        fontSize: 16,
-        color: '#1F2937',
-        fontWeight: '500',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F3F4F6',
-        marginLeft: 70,
-    },
-    logoutButton: {
-        backgroundColor: '#FEE2E2',
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    logoutText: {
-        color: '#EF4444',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-});
+

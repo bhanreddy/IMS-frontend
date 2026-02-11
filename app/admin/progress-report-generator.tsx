@@ -17,6 +17,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AdminHeader from '../../src/components/AdminHeader';
 import { ADMIN_THEME } from '../../src/constants/adminTheme';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { StudentService } from '../../src/services/studentService';
+import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
+import { Image } from 'react-native';
 
 // --- Types ---
 interface SubjectMark {
@@ -44,102 +47,13 @@ interface StudentResult {
     division?: string;
 }
 
-// --- Mock Data & Service ---
-const MOCK_RESULTS: Record<string, StudentResult> = {
-    '101': {
-        id: '101',
-        name: 'Rohan Sharma',
-        fatherName: 'Mr. Rajesh Sharma',
-        class: 'Class X - A',
-        rollNo: '24',
-        dob: '15-Aug-2009',
-        academicYear: '2025-2026',
-        attendance: '92%',
-        marks: [
-            { subject: 'English', maxMarks: 100, obtained: 85, grade: 'A' },
-            { subject: 'Mathematics', maxMarks: 100, obtained: 92, grade: 'A+' },
-            { subject: 'Science', maxMarks: 100, obtained: 78, grade: 'B+' },
-            { subject: 'Social Studies', maxMarks: 100, obtained: 88, grade: 'A' },
-            { subject: 'Hindi', maxMarks: 100, obtained: 80, grade: 'A' },
-        ]
-    },
-    '102': {
-        id: '102',
-        name: 'Priya Reddy',
-        fatherName: 'Mr. Suresh Reddy',
-        class: 'Class X - A',
-        rollNo: '25',
-        dob: '22-Jan-2008',
-        academicYear: '2025-2026',
-        attendance: '96%',
-        marks: [
-            { subject: 'English', maxMarks: 100, obtained: 90, grade: 'A+' },
-            { subject: 'Mathematics', maxMarks: 100, obtained: 95, grade: 'A+' },
-            { subject: 'Science', maxMarks: 100, obtained: 94, grade: 'A+' },
-            { subject: 'Social Studies', maxMarks: 100, obtained: 91, grade: 'A+' },
-            { subject: 'Hindi', maxMarks: 100, obtained: 88, grade: 'A' },
-        ]
-    },
-    '103': {
-        id: '103',
-        name: 'Amit Kumar',
-        fatherName: 'Mr. Deepak Kumar',
-        class: 'Class X - B',
-        rollNo: '05',
-        dob: '10-Mar-2010',
-        academicYear: '2025-2026',
-        attendance: '75%',
-        marks: [
-            { subject: 'English', maxMarks: 100, obtained: 45, grade: 'C' },
-            { subject: 'Mathematics', maxMarks: 100, obtained: 32, grade: 'F' }, // Fail
-            { subject: 'Science', maxMarks: 100, obtained: 40, grade: 'C' },
-            { subject: 'Social Studies', maxMarks: 100, obtained: 50, grade: 'B' },
-            { subject: 'Hindi', maxMarks: 100, obtained: 60, grade: 'B+' },
-        ]
-    }
-};
-
-const fetchStudentResult = async (studentId: string): Promise<StudentResult> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            const data = MOCK_RESULTS[studentId];
-            if (data) {
-                // Calculate totals on the fly
-                let totalMax = 0;
-                let totalObtained = 0;
-                let hasFailed = false;
-
-                data.marks.forEach(m => {
-                    totalMax += m.maxMarks;
-                    totalObtained += m.obtained;
-                    if (m.obtained < 35) hasFailed = true; // Simple pass criteria
-                });
-
-                const percentage = (totalObtained / totalMax) * 100;
-                const result = hasFailed ? 'FAIL' : 'PASS';
-
-                let division = '-';
-                if (result === 'PASS') {
-                    if (percentage >= 75) division = 'Distinction';
-                    else if (percentage >= 60) division = 'First Class';
-                    else if (percentage >= 50) division = 'Second Class';
-                    else division = 'Third Class';
-                }
-
-                resolve({
-                    ...data,
-                    totalMax,
-                    totalObtained,
-                    percentage: parseFloat(percentage.toFixed(2)),
-                    result,
-                    division
-                });
-            } else {
-                reject(new Error('Student not found'));
-            }
-        }, 800);
-    });
-};
+const MOCK_MARKS = [
+    { subject: 'English', maxMarks: 100, obtained: 85, grade: 'A' },
+    { subject: 'Mathematics', maxMarks: 100, obtained: 92, grade: 'A+' },
+    { subject: 'Science', maxMarks: 100, obtained: 78, grade: 'B+' },
+    { subject: 'Social Studies', maxMarks: 100, obtained: 88, grade: 'A' },
+    { subject: 'Hindi', maxMarks: 100, obtained: 80, grade: 'A' },
+];
 
 export default function ProgressReportGenerator() {
     const router = useRouter();
@@ -149,7 +63,7 @@ export default function ProgressReportGenerator() {
 
     const handleSearch = async () => {
         if (!studentId.trim()) {
-            Alert.alert('Error', 'Please enter a Student ID');
+            Alert.alert('Error', 'Please enter a Student ID or Admission No');
             return;
         }
 
@@ -157,10 +71,82 @@ export default function ProgressReportGenerator() {
         setResultData(null);
 
         try {
-            const data = await fetchStudentResult(studentId);
+            // 1. Try search first (Name or Admission No)
+            let student = null;
+            const searchResults = await StudentService.search(studentId);
+
+            if (searchResults && searchResults.length > 0) {
+                const exactMatch = searchResults.find(s => s.admission_no === studentId);
+                student = exactMatch || searchResults[0];
+            }
+
+            // 2. Fallback to getById
+            if (!student) {
+                try {
+                    student = await StudentService.getById(studentId);
+                } catch (e) {
+                    // Not found by ID
+                }
+            }
+
+            if (!student) {
+                Alert.alert('Error', 'Student not found');
+                return;
+            }
+
+            // Fetch results
+            // TODO: actually implement getResults on backend. For now we might just get empty array or mock from service if implemented.
+            const results = await StudentService.getResults(student.id).catch(() => []);
+            const marks: SubjectMark[] = (results && results.length > 0) ? results : MOCK_MARKS;
+
+            let totalMax = 0;
+            let totalObtained = 0;
+            let hasFailed = false;
+
+            marks.forEach(m => {
+                totalMax += m.maxMarks;
+                totalObtained += m.obtained;
+                if (m.obtained < 35) hasFailed = true;
+            });
+
+            const percentage = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
+            const result = hasFailed ? 'FAIL' : 'PASS';
+
+            let division = '-';
+            if (result === 'PASS') {
+                if (percentage >= 75) division = 'Distinction';
+                else if (percentage >= 60) division = 'First Class';
+                else if (percentage >= 50) division = 'Second Class';
+                else division = 'Third Class';
+            }
+
+            const currentEnrollment = student.current_enrollment;
+            const cls = currentEnrollment?.class_code || 'N/A';
+            const sec = currentEnrollment?.section_name || '';
+            const fatherObj = student.parents?.find(p => p.relation === 'Father');
+            const father = fatherObj ? `${fatherObj.first_name} ${fatherObj.last_name}` : 'Guardian';
+
+            const data: StudentResult = {
+                id: student.id,
+                name: student.display_name || `${student.first_name} ${student.last_name}`,
+                fatherName: father,
+                class: `${cls} ${sec}`,
+                rollNo: currentEnrollment?.roll_number || 'N/A',
+                dob: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A',
+                academicYear: '2025-2026',
+                attendance: '85%', // TODO: Fetch real attendance %
+                marks,
+                totalMax,
+                totalObtained,
+                percentage: parseFloat(percentage.toFixed(2)),
+                result,
+                division
+            };
+
             setResultData(data);
         } catch (error) {
-            Alert.alert('Error', 'Student not found. Try IDs: 101, 102, 103');
+            console.error(error);
+            Alert.alert('Error', 'Student not found or error fetching data.');
         } finally {
             setLoading(false);
         }
@@ -187,10 +173,10 @@ export default function ProgressReportGenerator() {
                     {/* Header */}
                     <View style={styles.headerSection}>
                         <View style={styles.logoCircle}>
-                            <Ionicons name="school" size={24} color="#FFF" />
+                            <Image source={SCHOOL_CONFIG.logo} style={{ width: 40, height: 40, resizeMode: 'contain' }} />
                         </View>
                         <View style={{ alignItems: 'center' }}>
-                            <Text style={styles.schoolName}>NATIVE HIGH SCHOOL</Text>
+                            <Text style={styles.schoolName}>{SCHOOL_CONFIG.name}</Text>
                             <Text style={styles.schoolSub}>ANNUAL PROGRESS REPORT</Text>
                             <Text style={styles.academicYear}>{resultData.academicYear}</Text>
                         </View>
@@ -287,7 +273,9 @@ export default function ProgressReportGenerator() {
                     </View>
 
                     {/* School Watermark (Decorative) */}
-                    <Ionicons name="school" size={200} color="rgba(0,0,0,0.03)" style={styles.watermark} />
+                    <View style={styles.watermark}>
+                        <Image source={SCHOOL_CONFIG.logo} style={{ width: 200, height: 200, opacity: 0.05, resizeMode: 'contain' }} />
+                    </View>
                 </View>
 
                 {/* Print Button */}
@@ -325,7 +313,7 @@ export default function ProgressReportGenerator() {
                                 <Ionicons name="search-outline" size={20} color={ADMIN_THEME.colors.text.muted} style={styles.searchIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. 101, 102, 103"
+                                    placeholder="e.g. 01, 101, John Doe"
                                     placeholderTextColor={ADMIN_THEME.colors.text.muted}
                                     value={studentId}
                                     onChangeText={setStudentId}
@@ -571,3 +559,5 @@ const styles = StyleSheet.create({
         color: '#FFF', fontSize: 16, fontWeight: '700',
     },
 });
+
+

@@ -1,41 +1,76 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Dimensions, Platform } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Dimensions, Platform, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StudentHeader from '../src/components/StudentHeader';
+import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
+import { StudentService } from '../src/services/studentService';
+import { ResultService, ExamListEntry, StudentResultDetail } from '../src/services/resultService';
+import { useAuth } from '../src/hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 
-// Mock Data Generator
-const generateResults = (type: string) => {
-    // Randomized scores for demo
-    const subjects = [
-        { name: 'Mathematics', total: 100, score: 85, color: '#3B82F6', icon: 'calculate' },
-        { name: 'Science', total: 100, score: 78, color: '#10B981', icon: 'science' },
-        { name: 'English', total: 100, score: 92, color: '#F59E0B', icon: 'menu-book' },
-        { name: 'Social Studies', total: 100, score: 88, color: '#8B5CF6', icon: 'public' },
-        { name: 'Hindi', total: 100, score: 75, color: '#EC4899', icon: 'translate' },
-        { name: 'Telugu', total: 100, score: 80, color: '#EF4444', icon: 'language' },
-    ];
-
-    return subjects.map(s => ({
-        ...s,
-        // Slightly vary score based on exam type string length just for mock variety
-        score: Math.min(100, Math.max(40, s.score + (type.length % 5) - 2))
-    }));
-};
-
 export default function ResultDetails() {
-    const { type, title } = useLocalSearchParams();
+    const { type, title, examId } = useLocalSearchParams();
+    const router = useRouter();
+    const { user } = useAuth();
     const { t } = useTranslation();
-    const results = generateResults(type as string || 'default');
 
-    const totalScore = results.reduce((acc, curr) => acc + curr.score, 0);
-    const maxScore = results.length * 100;
-    const percentage = Math.round((totalScore / maxScore) * 100);
+    const [loading, setLoading] = useState(true);
+    const [examList, setExamList] = useState<ExamListEntry[]>([]);
+    const [detail, setDetail] = useState<StudentResultDetail | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+
+    useEffect(() => {
+        loadData();
+    }, [user?.id, type, examId]);
+
+    const loadData = async () => {
+        if (!user?.id) return;
+        setLoading(true);
+        try {
+            const student = await StudentService.getProfile();
+            if (!student?.id) {
+                setLoading(false);
+                return;
+            }
+
+            if (examId) {
+                // Fetch specific exam detail
+                const data = await ResultService.getStudentResult(student.id, examId as string);
+                setDetail(data.results[0] || null); // API returns array of results (grouped by exam, but here filtered by one exam)
+                setViewMode('detail');
+            } else if (type) {
+                // Fetch list of exams for this type
+                const list = await ResultService.getExamList(student.id, type as string);
+
+                // If only one exam, we could show details immediately, but let's stick to list for consistency unless required
+                // actually, for better UX:
+                if (list.length === 1) {
+                    const data = await ResultService.getStudentResult(student.id, list[0].id);
+                    setDetail(data.results[0] || null);
+                    setViewMode('detail');
+                } else {
+                    setExamList(list);
+                    setViewMode('list');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load result data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleExamPress = (exam: ExamListEntry) => {
+        router.push({
+            pathname: '/result-details',
+            params: { examId: exam.id, title: exam.name }
+        });
+    };
 
     const getGrade = (pct: number) => {
         if (pct >= 90) return 'A+';
@@ -45,10 +80,92 @@ export default function ResultDetails() {
         return 'D';
     };
 
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.container}>
+                <StudentHeader showBackButton={true} title={title as string || 'Loading...'} />
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#4F46E5" />
+                </View>
+            </View>
+        );
+    }
+
+    // --- LIST VIEW ---
+    if (viewMode === 'list') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+                <StudentHeader showBackButton={true} title={title as string || 'Results'} />
+
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {examList.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No exams found for this category.</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.listContainer}>
+                            {examList.map((exam, index) => (
+                                <Animated.View key={exam.id} entering={FadeInDown.delay(100 * index)}>
+                                    <TouchableOpacity style={styles.examCard} onPress={() => handleExamPress(exam)}>
+                                        <View style={styles.examHeader}>
+                                            <Text style={styles.examTitle}>{exam.name}</Text>
+                                            <Text style={styles.examDate}>{formatDate(exam.start_date)}</Text>
+                                        </View>
+
+                                        <View style={styles.examStats}>
+                                            <View style={styles.statItem}>
+                                                <Text style={styles.statLabel}>Subjects</Text>
+                                                <Text style={styles.statValue}>{exam.subjects_count}</Text>
+                                            </View>
+                                            <View style={styles.statDivider} />
+                                            <View style={styles.statItem}>
+                                                <Text style={styles.statLabel}>Percentage</Text>
+                                                <Text style={[styles.statValue, { color: exam.percentage >= 35 ? '#10B981' : '#EF4444' }]}>
+                                                    {exam.percentage}%
+                                                </Text>
+                                            </View>
+                                            <View style={styles.statDivider} />
+                                            <View style={styles.statItem}>
+                                                <Text style={styles.statLabel}>Grade</Text>
+                                                <Text style={styles.statValue}>{getGrade(exam.percentage)}</Text>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            ))}
+                        </View>
+                    )}
+                </ScrollView>
+            </View>
+        );
+    }
+
+    // --- DETAIL VIEW ---
+    if (!detail) {
+        return (
+            <View style={styles.container}>
+                <StudentHeader showBackButton={true} title={title as string || 'Result Details'} />
+                <View style={styles.centerContainer}>
+                    <Text style={styles.emptyText}>Result details not found.</Text>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-            <StudentHeader showBackButton={true} title={title as string || 'Results'} />
+            <StudentHeader showBackButton={true} title={detail.exam_name || title as string || 'Result Details'} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
@@ -63,12 +180,12 @@ export default function ResultDetails() {
                         <View style={styles.summaryContent}>
                             <View>
                                 <Text style={styles.summaryLabel}>Overall Percentage</Text>
-                                <Text style={styles.percentageText}>{percentage}%</Text>
-                                <Text style={styles.gradeText}>Grade: {getGrade(percentage)}</Text>
+                                <Text style={styles.percentageText}>{detail.percentage}%</Text>
+                                <Text style={styles.gradeText}>Grade: {getGrade(detail.percentage)}</Text>
                             </View>
                             <View style={styles.circularProgress}>
-                                <Text style={styles.totalScoreText}>{totalScore}</Text>
-                                <Text style={styles.maxScoreText}>/ {maxScore}</Text>
+                                <Text style={styles.totalScoreText}>{detail.total_obtained}</Text>
+                                <Text style={styles.maxScoreText}>/ {detail.total_max}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -78,33 +195,48 @@ export default function ResultDetails() {
                 <View style={styles.listContainer}>
                     <Text style={styles.sectionTitle}>Subject Breakdown</Text>
 
-                    {results.map((item, index) => (
+                    {detail.subjects && detail.subjects.map((item, index) => (
                         <Animated.View
-                            key={item.name}
+                            key={item.subject}
                             entering={FadeInDown.delay(300 + (index * 100)).duration(600)}
                             style={styles.resultItem}
                         >
-                            <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>
-                                <MaterialIcons name={item.icon as any} size={24} color={item.color} />
+                            <View style={[styles.iconBox, { backgroundColor: item.is_absent ? '#FEE2E2' : '#EFF6FF' }]}>
+                                <MaterialIcons
+                                    name={item.is_absent ? "event-busy" : "menu-book"}
+                                    size={24}
+                                    color={item.is_absent ? '#EF4444' : '#3B82F6'}
+                                />
                             </View>
 
                             <View style={styles.contentBox}>
                                 <View style={styles.row}>
-                                    <Text style={styles.subjectName}>{item.name}</Text>
+                                    <Text style={styles.subjectName}>{item.subject}</Text>
                                     <Text style={styles.scoreText}>
-                                        <Text style={[styles.scoreValue, { color: item.color }]}>{item.score}</Text>
-                                        <Text style={styles.scoreTotal}> / {item.total}</Text>
+                                        {item.is_absent ? (
+                                            <Text style={[styles.scoreValue, { color: '#EF4444' }]}>Absent</Text>
+                                        ) : (
+                                            <>
+                                                <Text style={[styles.scoreValue, { color: '#1F2937' }]}>{item.marks_obtained}</Text>
+                                                <Text style={styles.scoreTotal}> / {item.max_marks}</Text>
+                                            </>
+                                        )}
                                     </Text>
                                 </View>
 
-                                <View style={styles.progressBarBg}>
-                                    <View
-                                        style={[
-                                            styles.progressBarFill,
-                                            { width: `${(item.score / item.total) * 100}%`, backgroundColor: item.color }
-                                        ]}
-                                    />
-                                </View>
+                                {!item.is_absent && (
+                                    <View style={styles.progressBarBg}>
+                                        <View
+                                            style={[
+                                                styles.progressBarFill,
+                                                {
+                                                    width: `${(item.marks_obtained / item.max_marks) * 100}%`,
+                                                    backgroundColor: item.passed ? '#10B981' : '#EF4444'
+                                                }
+                                            ]}
+                                        />
+                                    </View>
+                                )}
                             </View>
                         </Animated.View>
                     ))}
@@ -121,10 +253,80 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
         paddingTop: Platform.OS === 'android' ? 30 : 0,
     },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     scrollContent: {
         padding: 20,
         paddingBottom: 40,
     },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 50,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#6B7280',
+    },
+
+    // List View Styles
+    examCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    examHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    examTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827',
+    },
+    examDate: {
+        fontSize: 14,
+        color: '#6B7280',
+    },
+    examStats: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 12,
+    },
+    statItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#E5E7EB',
+    },
+    statLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 4,
+    },
+    statValue: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#1F2937',
+    },
+
+    // Detailed View Styles
     summaryCard: {
         borderRadius: 24,
         overflow: 'hidden',
@@ -187,7 +389,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
 
-    // List
+    // List Container (Shared)
     listContainer: {
         gap: 15,
     },
@@ -253,3 +455,5 @@ const styles = StyleSheet.create({
         borderRadius: 3,
     },
 });
+
+

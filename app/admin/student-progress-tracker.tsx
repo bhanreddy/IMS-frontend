@@ -368,3 +368,5 @@ const styles = StyleSheet.create({
     bar: { height: 10, borderRadius: 5 },
     barLabel: { fontSize: 11, color: '#64748B', width: 24, textAlign: 'right' },
 });
+
+

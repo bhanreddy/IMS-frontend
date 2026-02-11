@@ -18,6 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AdminHeader from '../../src/components/AdminHeader';
 import { ADMIN_THEME } from '../../src/constants/adminTheme';
 import Animated, { FadeIn, FadeInDown, SlideInUp } from 'react-native-reanimated';
+import { StudentService } from '../../src/services/studentService';
+import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
 
 const { width } = Dimensions.get('window');
 
@@ -35,64 +37,6 @@ interface StudentData {
     address: string;
 }
 
-// --- Mock API Service ---
-const MOCK_DB: Record<string, StudentData> = {
-    '101': {
-        id: '101',
-        name: 'Rohan Sharma',
-        fatherName: 'Mr. Rajesh Sharma',
-        class: 'Class X - Section A',
-        dob: '15th August 2009',
-        admissionNo: 'ADM/2021/0045',
-        academicYear: '2025-2026',
-        address: '12/4, Green Avenue, Hyderabad'
-    },
-    '102': {
-        id: '102',
-        name: 'Priya Reddy',
-        fatherName: 'Mr. Suresh Reddy',
-        class: 'Class XII - Science',
-        dob: '22nd January 2008',
-        admissionNo: 'ADM/2020/0112',
-        academicYear: '2025-2026',
-        address: 'Plot 45, Jubilee Hills, Hyderabad'
-    },
-    '103': {
-        id: '103',
-        name: 'Amit Kumar',
-        fatherName: 'Mr. Deepak Kumar',
-        class: 'Class IX - Section B',
-        dob: '10th March 2010',
-        admissionNo: 'ADM/2022/0334',
-        academicYear: '2025-2026',
-        address: 'Flat 302, Cyber Towers, Hitech City'
-    },
-    '104': {
-        id: '104',
-        name: 'Sanya Mirza',
-        fatherName: 'Mr. Imran Mirza',
-        class: 'Class XI - Commerce',
-        dob: '5th November 2008',
-        admissionNo: 'ADM/2020/0099',
-        academicYear: '2025-2026',
-        address: 'Villa 12, Palm Meadows, Gachibowli'
-    }
-};
-
-// --- Mock API Service ---
-const fetchStudentData = async (studentId: string): Promise<StudentData> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            const student = MOCK_DB[studentId];
-            if (student) {
-                resolve(student);
-            } else {
-                reject(new Error('Student not found'));
-            }
-        }, 1000);
-    });
-};
-
 export default function CertificateGenerator() {
     const router = useRouter();
     const [studentId, setStudentId] = useState('');
@@ -105,7 +49,7 @@ export default function CertificateGenerator() {
 
     const handleSearch = async () => {
         if (!studentId.trim()) {
-            Alert.alert('Error', 'Please enter a valid Student ID');
+            Alert.alert('Error', 'Please enter a Student ID or Admission No');
             return;
         }
 
@@ -115,10 +59,54 @@ export default function CertificateGenerator() {
         setSelectedType(null);
 
         try {
-            const data = await fetchStudentData(studentId);
-            setStudentData(data);
+            // 1. Try search first (Name or Admission No)
+            let student = null;
+            const searchResults = await StudentService.search(studentId);
+
+            if (searchResults && searchResults.length > 0) {
+                // If multiple results, ideally show a picker. For now, prefer exact match on admission_no or just take first.
+                const exactMatch = searchResults.find(s => s.admission_no === studentId);
+                student = exactMatch || searchResults[0];
+            }
+
+            // 2. If no result, try getById (in case user entered a UUID)
+            if (!student) {
+                try {
+                    student = await StudentService.getById(studentId);
+                } catch (e) {
+                    // Not found by ID either
+                }
+            }
+
+            if (!student) {
+                Alert.alert('Error', 'Student not found');
+                return;
+            }
+
+            // Map backend data to UI format
+            const currentEnrollment = student.current_enrollment;
+            const cls = currentEnrollment?.class_code || '';
+            const sec = currentEnrollment?.section_name || '';
+
+            // Parents: backend returns flat objects with relation string
+            const fatherObj = student.parents?.find(p => p.relation === 'Father');
+            const father = fatherObj ? `${fatherObj.first_name} ${fatherObj.last_name}` : 'Guardian';
+
+            const mappedData: StudentData = {
+                id: student.id,
+                name: student.display_name || `${student.first_name} ${student.last_name}`,
+                fatherName: father,
+                class: `${cls} - ${sec}`,
+                dob: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A',
+                admissionNo: student.admission_no,
+                academicYear: currentEnrollment?.academic_year || '2025-2026',
+                address: 'Hyderabad'
+            };
+
+            setStudentData(mappedData);
         } catch (error) {
-            Alert.alert('Error', 'Student not found. Try IDs: 101, 102, 103, 104');
+            console.log(error);
+            Alert.alert('Error', 'Student not found or error fetching data.');
         } finally {
             setLoading(false);
         }
@@ -162,11 +150,11 @@ export default function CertificateGenerator() {
                     {/* Header of Certificate */}
                     <View style={styles.certHeader}>
                         <View style={styles.logoPlaceholder}>
-                            <Ionicons name="school" size={32} color={ADMIN_THEME.colors.primary} />
+                            <Image source={SCHOOL_CONFIG.logo} style={{ width: 80, height: 80, resizeMode: 'contain' }} />
                         </View>
                         <View style={styles.schoolInfo}>
-                            <Text style={styles.schoolName}>NATIVE HIGH SCHOOL</Text>
-                            <Text style={styles.schoolAddress}>Madhapur, Hyderabad - 500081</Text>
+                            <Text style={styles.schoolName}>{SCHOOL_CONFIG.name}</Text>
+                            <Text style={styles.schoolAddress}>{SCHOOL_CONFIG.address || 'Madhapur, Hyderabad - 500081'}</Text>
                             <Text style={styles.affiliation}>Affiliated to CBSE, New Delhi (No. 123456)</Text>
                         </View>
                     </View>
@@ -213,7 +201,7 @@ export default function CertificateGenerator() {
 
                     {/* Watermark */}
                     <View style={styles.watermark}>
-                        <Ionicons name="school-outline" size={150} color="rgba(0,0,0,0.03)" />
+                        <Image source={SCHOOL_CONFIG.logo} style={{ width: 300, height: 300, opacity: 0.05, resizeMode: 'contain' }} />
                     </View>
                 </View>
 
@@ -656,3 +644,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
 });
+
+

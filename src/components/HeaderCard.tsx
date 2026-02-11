@@ -11,9 +11,10 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { SCHOOL_CONFIG } from '../constants/schoolConfig';
 
 interface HeaderCardProps {
-    schoolName: string;
+    // schoolName removed, now using global config
     studentName: string;
     classSec: string;
     rollNo: string;
@@ -22,7 +23,7 @@ interface HeaderCardProps {
 const { width } = Dimensions.get('window');
 
 const HeaderCard: React.FC<HeaderCardProps> = ({
-    schoolName,
+    // schoolName,
     studentName,
     classSec,
     rollNo,
@@ -112,9 +113,9 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
 
                 {/* School Badge */}
                 <View style={styles.schoolBadge}>
-                    <Ionicons name="school-outline" size={18} color="#c7d2fe" />
+                    <Image source={SCHOOL_CONFIG.logo} style={styles.schoolLogo} />
                     <Text style={styles.schoolName} numberOfLines={1}>
-                        {schoolName}
+                        {SCHOOL_CONFIG.name}
                     </Text>
                 </View>
 
@@ -248,6 +249,12 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         borderRadius: 20,
         marginBottom: 18,
+    },
+
+    schoolLogo: {
+        width: 24,
+        height: 24,
+        resizeMode: 'contain',
     },
 
     schoolName: {

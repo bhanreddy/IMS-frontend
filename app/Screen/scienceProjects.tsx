@@ -6,24 +6,34 @@ import {
     ScrollView,
     TouchableOpacity,
 } from 'react-native';
-
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
 
 const projects = [
-    'Magnetic Levitation',
-    'Simple Electric Circuit',
-    'Volcano Eruption',
-    'Invisible Ink',
-    'Mini Water Purifier',
-    'Solar Oven',
-    'Homemade Slime',
+    { title: 'Magnetic Levitation', query: 'Magnetic Levitation science project DIY' },
+    { title: 'Simple Electric Circuit', query: 'Simple Electric Circuit project for students' },
+    { title: 'Volcano Eruption', query: 'Volcano Eruption science experiment' },
+    { title: 'Invisible Ink', query: 'Invisible Ink lemon juice experiment' },
+    { title: 'Mini Water Purifier', query: 'Homemade Water Purifier science project' },
+    { title: 'Solar Oven', query: 'DIY Solar Oven box project' },
+    { title: 'Homemade Slime', query: 'Science behind slime experiment' },
 ];
 
 const ScienceProjectsScreen = () => {
+    const router = useRouter();
+
+    const handlePress = (item: { title: string; query: string }) => {
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(item.query)}`;
+        router.push({
+            pathname: '/Screen/webView',
+            params: { url: searchUrl, title: item.title },
+        });
+    };
+
     return (
         <ScreenLayout>
-
             {/* ===== HEADER ===== */}
             <StudentHeader showBackButton={true} title="Science Projects" />
 
@@ -32,7 +42,6 @@ const ScienceProjectsScreen = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.container}
             >
-
                 {/* ===== TITLE ===== */}
                 <View style={styles.titleContainer}>
                     <Text style={styles.pageTitle}>Science Projects</Text>
@@ -49,34 +58,42 @@ const ScienceProjectsScreen = () => {
                 {projects.map((project, index) => (
                     <TouchableOpacity
                         key={index}
-                        style={styles.projectCard}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                            // TODO: navigate to project details
-                        }}
+                        activeOpacity={0.9}
+                        onPress={() => handlePress(project)}
                     >
-                        <View style={styles.left}>
-                            <View style={styles.iconCircle}>
-                                <Text style={styles.icon}>🧪</Text>
+                        <LinearGradient
+                            colors={['#e8f5e9', '#c8e6c9']} // Green-ish for science
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.projectCard}
+                        >
+                            <View style={styles.left}>
+                                <View style={styles.iconCircle}>
+                                    <Text style={styles.icon}>🧪</Text>
+                                </View>
+                                <Text style={styles.projectText}>{project.title}</Text>
                             </View>
-                            <Text style={styles.projectText}>{project}</Text>
-                        </View>
 
-                        <Text style={styles.arrow}>›</Text>
+                            <View style={styles.arrowContainer}>
+                                <Text style={styles.arrow}>›</Text>
+                            </View>
+                        </LinearGradient>
                     </TouchableOpacity>
                 ))}
 
                 {/* ===== CERTIFICATE INFO ===== */}
-                <View style={styles.certificateCard}>
+                <LinearGradient
+                    colors={['#fff8e1', '#ffecb3']}
+                    style={styles.certificateCard}
+                >
                     <Text style={styles.certificateIcon}>🏆</Text>
                     <Text style={styles.certificateText}>
-                        On successful completion of a project,
-                        you will receive a certificate.
+                        <Text style={{ fontWeight: 'bold' }}>Get Certified!</Text>{'\n'}
+                        Complete a project and submit your report to receive a certificate.
                     </Text>
-                </View>
+                </LinearGradient>
 
             </ScrollView>
-
         </ScreenLayout>
     );
 };
@@ -90,94 +107,104 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 30,
     },
-
-    /* Title */
     titleContainer: {
-        marginBottom: 12,
+        marginBottom: 20,
     },
-
     pageTitle: {
-        fontSize: 22,
+        fontSize: 28,
         fontWeight: '800',
+        color: '#1b5e20',
+        marginBottom: 4,
     },
-
     subtitle: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '500',
-        color: '#555',
-        marginTop: 2,
+        color: '#558b2f',
     },
-
-    /* Section */
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        marginVertical: 10,
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#33691e',
+        marginBottom: 16,
+        marginLeft: 4,
     },
-
-    /* Project Card */
     projectCard: {
-        backgroundColor: '#d8ecef',
-        borderRadius: 18,
-        paddingVertical: 16,
-        paddingHorizontal: 14,
+        borderRadius: 20,
+        paddingVertical: 18,
+        paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 12,
-        elevation: 3,
+        marginBottom: 14,
+        shadowColor: '#1b5e20',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.6)',
     },
-
     left: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-
     iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#c7e3e8',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.7)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 14,
     },
-
     icon: {
-        fontSize: 20,
-    },
-
-    projectText: {
-        fontSize: 17,
-        fontWeight: '700',
-    },
-
-    arrow: {
         fontSize: 22,
-        fontWeight: '700',
-        color: '#555',
     },
-
+    projectText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1b5e20',
+    },
+    arrowContainer: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: 'rgba(255,255,255,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    arrow: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1b5e20',
+        marginTop: -2,
+    },
     /* Certificate */
     certificateCard: {
-        marginTop: 18,
-        backgroundColor: '#ecfeff',
+        marginTop: 20,
         borderRadius: 18,
-        padding: 16,
+        padding: 20,
         flexDirection: 'row',
         alignItems: 'center',
         elevation: 2,
+        shadowColor: '#ff6f00',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: '#ffe082',
     },
-
     certificateIcon: {
-        fontSize: 26,
-        marginRight: 10,
+        fontSize: 32,
+        marginRight: 16,
     },
-
     certificateText: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#065f46',
+        fontWeight: '500',
+        color: '#6d4c41',
         flex: 1,
+        lineHeight: 20,
     },
 });
+
+

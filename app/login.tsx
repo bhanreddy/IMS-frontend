@@ -19,49 +19,58 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next'; // 1. Import
+import { useAuth } from '@/src/hooks/useAuth'; // Import useAuth
+import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
 
 const { width } = Dimensions.get('window');
 
-import AuthService from '../src/services/authService';
+import AuthService from '@/src/services/authService';
 import { ActivityIndicator, Alert } from 'react-native';
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
   const { t } = useTranslation();
-  const [id, setId] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  /* New Auth Check */
+  const { user, loading: authLoading } = useAuth(); // Import useAuth hook
+
+  // If we are checking auth or user is already logged in, show spinner to avoid flicker before redirect
+  if (authLoading || user) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3a1c71" />
+      </SafeAreaView>
+    );
+  }
 
   const handleLogin = async () => {
-    if (!id || !password) {
-      Alert.alert('Error', t('login.enter_id') + ' & ' + t('login.enter_pass'));
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await AuthService.login(id, password);
+      const response = await AuthService.login(email, password);
+      // userRole check is still good to keep as a secondary gate, 
+      // though AuthGuard will also redirect if they land on the wrong dashboard.
       const userRole = response.user.role;
 
-      // RBAC Redirection
+      // Strict Student Check
       if (userRole === 'student') {
-        router.replace('/(tabs)/home');
-      } else if (userRole === 'staff' || userRole === 'teacher') {
-        // Prevent staff from logging in via student login if stricter separation is desired, 
-        // but for now we allow redirection or guide them.
-        // Let's redirect them to their dashboard if they happen to use this screen.
-        router.replace('/staff/dashboard');
-      } else if (userRole === 'admin') {
-        router.replace('/admin/dashboard');
-      } else if (userRole === 'accountant') {
-        router.replace('/accounts/dashboard');
+        // Redirection handled by AuthGuard
+        console.log("Login success, waiting for AuthGuard...");
       } else {
-        // Fallback
-        router.replace('/(tabs)/home');
+        // Prevent staff/admin from logging in via student portal
+        Alert.alert('Access Restricted', 'This login is for students only. Please use the Staff or Admin login.');
+        await AuthService.logout();
       }
 
     } catch (error: any) {
+      console.error("Login Error Details:", error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);
@@ -72,168 +81,78 @@ const LoginScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#3a1c71" />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerWrapper}>
+        <LinearGradient
+          colors={["#3a1c71", "#d76d77", "#ffaf7b"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
 
-          {/* Top Header Section */}
-          <View style={styles.headerWrapper}>
-            <LinearGradient
-              colors={["#3a1c71", "#d76d77", "#ffaf7b"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.headerGradient}
-            >
-
-              {/* Back Button */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="arrow-back" size={28} color="#fff" />
-              </TouchableOpacity>
-
-              <View style={styles.headerContent}>
-                <Text style={styles.headerTitle}>{t('login.login_to')}</Text>
-
-                <View style={styles.schoolInfoContainer}>
-                  {/* Placeholder for the student icon */}
-                  <Image
-                    source={{ uri: 'https://cdn-icons-png.flaticon.com/512/5850/5850276.png' }}
-                    style={styles.schoolIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.schoolNameText}>
-                    {t('common.school_name').replace("\n", "\n")}
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
-
-            {/* Decorative white curve at the bottom of header */}
-            <View style={styles.headerCurve} />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{t('login.login_to')}</Text>
+            <View style={styles.schoolInfoContainer}>
+              <Image source={SCHOOL_CONFIG.logo} style={styles.schoolIcon} />
+              <Text style={styles.schoolNameText}>
+                {SCHOOL_CONFIG.name}
+              </Text>
+            </View>
           </View>
+        </LinearGradient>
+      </View>
 
-          {/* Form Section */}
-          <View style={styles.formContainer}>
+      <View style={styles.formContainer}>
+        <Text style={styles.welcomeBackText}>Welcome Back</Text>
+        <Text style={styles.subtitleText}>Sign in to your account</Text>
 
-            <Animated.View entering={FadeInDown.delay(200).duration(600).springify()}>
-              <Text style={styles.welcomeBackText}>{t('login.welcome_back')}</Text>
-              <Text style={styles.subtitleText}>{t('login.signin_continue')}</Text>
-            </Animated.View>
-
-            {/* ID Input */}
-            <Animated.View
-              entering={FadeInDown.delay(300).duration(600).springify()}
-              style={styles.inputWrapper}
-            >
-              <View style={styles.inputContainer}>
-                <FontAwesome5 name="user-alt" size={20} color="#888" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('login.enter_id')}
-                  placeholderTextColor="#B0B0B0"
-                  value={id}
-                  onChangeText={setId}
-                  autoCapitalize="none"
-                />
-              </View>
-            </Animated.View>
-
-            {/* Password Input */}
-            <Animated.View
-              entering={FadeInDown.delay(400).duration(600).springify()}
-              style={styles.inputWrapper}
-            >
-              <View style={styles.inputContainer}>
-                <MaterialIcons name="lock" size={24} color="#888" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('login.enter_pass')}
-                  placeholderTextColor="#B0B0B0"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#888" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-
-            {/* Forgot Password Link */}
-            <Animated.View entering={FadeInDown.delay(500).duration(600)}>
-              <TouchableOpacity
-                style={styles.forgotPasswordContainer}
-                onPress={() => router.push('/forgot-password')}
-              >
-                <Text style={styles.forgotPasswordText}>{t('login.forgot_pass')}</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Login Button */}
-            <Animated.View entering={FadeInUp.delay(600).springify()}>
-              <TouchableOpacity
-                style={styles.loginButtonContainer}
-                activeOpacity={0.8}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                <LinearGradient
-                  colors={['#FF512F', '#DD2476']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.loginButton}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Text style={styles.loginButtonText}>{t('login.login_btn')}</Text>
-                      <Ionicons name="arrow-forward" size={24} color="#fff" style={{ marginLeft: 10 }} />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Other Logins */}
-            <Animated.View entering={FadeInUp.delay(800).springify()} style={styles.otherLoginsContainer}>
-              <Text style={styles.otherLoginsLabel}>{t('login.not_student')}</Text>
-              <View style={styles.otherLoginsRow}>
-                <TouchableOpacity onPress={() => router.push('/staff-login')}>
-                  <Text style={styles.otherLoginText}>{t('login.staff')}</Text>
-                </TouchableOpacity>
-                <View style={styles.loginDivider} />
-                <TouchableOpacity onPress={() => router.push('/admin-login')}>
-                  <Text style={styles.otherLoginText}>{t('login.admin')}</Text>
-                </TouchableOpacity>
-                <View style={styles.loginDivider} />
-                <TouchableOpacity onPress={() => router.push('/accounts-login')}>
-                  <Text style={styles.otherLoginText}>{t('login.accounts')}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* dev login bypass */}
-              <TouchableOpacity
-                onPress={() => {
-                  setId('test@example.com');
-                  setPassword('password123');
-                  setTimeout(() => handleLogin(), 100);
-                }}
-                style={{ marginTop: 20, padding: 10, backgroundColor: '#eee', borderRadius: 8, alignItems: 'center' }}
-              >
-                <Text style={{ fontSize: 12, color: '#555' }}>[Dev: Mock Student Login]</Text>
-              </TouchableOpacity>
-
-            </Animated.View>
-
+        <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor="#999"
+            />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+
+        <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholderTextColor="#999"
+            />
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.loginButton, { backgroundColor: '#3a1c71' }]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.loginButtonText}>Sign In</Text>
+          )}
+        </TouchableOpacity>
+
+      </View>
     </SafeAreaView>
   );
 };
@@ -264,8 +183,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   headerContent: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'center',
+    marginTop: 0,
+    paddingBottom: 40,
   },
   headerTitle: {
     fontSize: 24,
@@ -289,6 +211,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     marginRight: 15,
+    resizeMode: 'contain',
   },
   schoolNameText: {
     fontSize: 20,
@@ -412,3 +335,5 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+
+

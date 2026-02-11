@@ -2,8 +2,8 @@ import { ViewStyle, TextStyle, ImageStyle } from "react-native";
 
 export const ADMIN_THEME = {
     colors: {
-        primary: '#6366F1', // Indigo/Violet
-        secondary: '#4F46E5',
+        primary: '#a363f1ff', // Indigo/Violet
+        secondary: '#5200d6ff',
         success: '#10B981', // Emerald
         warning: '#F59E0B', // Amber
         danger: '#EF4444', // Rose

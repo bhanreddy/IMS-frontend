@@ -19,38 +19,54 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/src/hooks/useAuth'; // Import useAuth
+import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
 
 const { width } = Dimensions.get('window');
 
-import AuthService from '../src/services/authService';
+import AuthService from '@/src/services/authService';
 import { ActivityIndicator, Alert } from 'react-native';
 
 const StaffLoginScreen: React.FC = () => {
     const router = useRouter();
     const { t } = useTranslation();
-    const [id, setId] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
 
+    /* New Auth Check */
+    const { user, loading: authLoading } = useAuth();
+
+    // Anti-flicker: Show spinner if checking auth or already logged in
+    if (authLoading || user) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#10B981" />
+            </SafeAreaView>
+        );
+    }
+
     const handleLogin = async () => {
-        if (!id || !password) {
+        if (!email || !password) {
             Alert.alert('Error', t('login.enter_id') + ' & ' + t('login.enter_pass'));
             return;
         }
 
         setLoading(true);
         try {
-            const response = await AuthService.login(id, password, 'default_school_id');
+            const response = await AuthService.login(email, password);
             const role = response.user.role;
 
             if (role === 'staff' || role === 'teacher') {
-                router.replace('/staff/dashboard');
+                // Redirection handled by AuthGuard
+                console.log("Login success, waiting for AuthGuard...");
             } else {
-                Alert.alert('Access Denied', 'You do not have staff privileges.');
-                AuthService.logout(); // Logout if role mismatch
+                Alert.alert('Access Denied', 'You do not have staff or teacher privileges.');
+                await AuthService.logout();
             }
         } catch (error: any) {
+            console.error("Login Error:", error);
             Alert.alert('Login Failed', error.message || 'Invalid credentials');
         } finally {
             setLoading(false);
@@ -89,9 +105,9 @@ const StaffLoginScreen: React.FC = () => {
 
                                 <View style={styles.schoolInfoContainer}>
                                     {/* Staff Icon */}
-                                    <Ionicons name="people" size={50} color="#fff" style={styles.schoolIcon} />
+                                    <Image source={SCHOOL_CONFIG.logo} style={styles.schoolIcon} />
                                     <Text style={styles.schoolNameText}>
-                                        {t('common.school_name').replace("\n", "\n")}
+                                        {SCHOOL_CONFIG.name}
                                     </Text>
                                 </View>
                             </View>
@@ -109,7 +125,7 @@ const StaffLoginScreen: React.FC = () => {
                             <Text style={styles.subtitleText}>{t('login.signin_staff')}</Text>
                         </Animated.View>
 
-                        {/* ID Input */}
+                        {/* Email Input */}
                         <Animated.View
                             entering={FadeInDown.delay(300).duration(600).springify()}
                             style={styles.inputWrapper}
@@ -118,11 +134,12 @@ const StaffLoginScreen: React.FC = () => {
                                 <FontAwesome5 name="id-card" size={20} color="#888" style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder={t('login.enter_staff_id')}
+                                    placeholder="Staff Email"
                                     placeholderTextColor="#B0B0B0"
-                                    value={id}
-                                    onChangeText={setId}
+                                    value={email}
+                                    onChangeText={setEmail}
                                     autoCapitalize="none"
+                                    keyboardType="email-address"
                                 />
                             </View>
                         </Animated.View>
@@ -184,18 +201,6 @@ const StaffLoginScreen: React.FC = () => {
                             </TouchableOpacity>
                         </Animated.View>
 
-                        {/* Mock Staff Login */}
-                        <TouchableOpacity
-                            onPress={() => {
-                                setId('teacher@school.com');
-                                setPassword('password123');
-                                setTimeout(() => handleLogin(), 100);
-                            }}
-                            style={{ alignSelf: 'center', marginTop: 20, padding: 10, backgroundColor: '#eee', borderRadius: 8 }}
-                        >
-                            <Text style={{ fontSize: 12, color: '#555' }}>[Dev: Mock Staff Login]</Text>
-                        </TouchableOpacity>
-
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -229,8 +234,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
     headerContent: {
+        flex: 1,
         alignItems: 'center',
-        marginTop: 20,
+        justifyContent: 'center',
+        marginTop: 0,
+        paddingBottom: 40,
     },
     headerTitle: {
         fontSize: 24,
@@ -251,7 +259,10 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.2)',
     },
     schoolIcon: {
+        width: 60,
+        height: 60,
         marginRight: 15,
+        resizeMode: 'contain',
     },
     schoolNameText: {
         fontSize: 20,
@@ -351,3 +362,5 @@ const styles = StyleSheet.create({
 });
 
 export default StaffLoginScreen;
+
+

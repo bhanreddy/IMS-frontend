@@ -19,38 +19,54 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/src/hooks/useAuth'; // Import useAuth
+import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
 
 const { width } = Dimensions.get('window');
 
-import AuthService from '../src/services/authService';
+import AuthService from '@/src/services/authService';
 import { ActivityIndicator, Alert } from 'react-native';
 
 const AdminLoginScreen: React.FC = () => {
     const router = useRouter();
     const { t } = useTranslation();
-    const [id, setId] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
 
+    /* New Auth Check */
+    const { user, loading: authLoading } = useAuth();
+
+    // Anti-flicker: Show spinner if checking auth or already logged in
+    if (authLoading || user) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#1e3c72" />
+            </SafeAreaView>
+        );
+    }
+
     const handleLogin = async () => {
-        if (!id || !password) {
+        if (!email || !password) {
             Alert.alert('Error', t('login.enter_id') + ' & ' + t('login.enter_pass'));
             return;
         }
 
         setLoading(true);
         try {
-            const response = await AuthService.login(id, password, 'default_school_id');
+            const response = await AuthService.login(email, password);
             const role = response.user.role;
 
             if (role === 'admin') {
-                router.replace('/admin/dashboard');
+                // Redirection handled by AuthGuard
+                console.log("Login success, waiting for AuthGuard...");
             } else {
-                Alert.alert('Access Denied', 'You do not have admin privileges.');
-                AuthService.logout();
+                Alert.alert('Access Denied', 'You do not have administrative privileges.');
+                await AuthService.logout();
             }
         } catch (error: any) {
+            console.error("Login Error:", error);
             Alert.alert('Login Failed', error.message || 'Invalid credentials');
         } finally {
             setLoading(false);
@@ -89,9 +105,9 @@ const AdminLoginScreen: React.FC = () => {
                                 <Text style={styles.headerTitle}>{t('login.admin')}</Text>
 
                                 <View style={styles.schoolInfoContainer}>
-                                    <MaterialIcons name="admin-panel-settings" size={50} color="#fff" style={{ marginRight: 15 }} />
+                                    <Image source={SCHOOL_CONFIG.logo} style={styles.schoolIcon} />
                                     <Text style={styles.schoolNameText}>
-                                        {t('login.higher_authority').replace(' ', '\n')}
+                                        {SCHOOL_CONFIG.name}
                                     </Text>
                                 </View>
                             </View>
@@ -109,7 +125,7 @@ const AdminLoginScreen: React.FC = () => {
                             <Text style={styles.subtitleText}>{t('login.signin_admin')}</Text>
                         </Animated.View>
 
-                        {/* ID Input */}
+                        {/* Email Input */}
                         <Animated.View
                             entering={FadeInDown.delay(300).duration(600).springify()}
                             style={styles.inputWrapper}
@@ -118,11 +134,12 @@ const AdminLoginScreen: React.FC = () => {
                                 <FontAwesome5 name="user-tie" size={20} color="#888" style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder={t('login.enter_admin_id')}
+                                    placeholder="Admin Email"
                                     placeholderTextColor="#B0B0B0"
-                                    value={id}
-                                    onChangeText={setId}
+                                    value={email}
+                                    onChangeText={setEmail}
                                     autoCapitalize="none"
+                                    keyboardType="email-address"
                                 />
                             </View>
                         </Animated.View>
@@ -201,18 +218,6 @@ const AdminLoginScreen: React.FC = () => {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Mock Admin Login */}
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setId('admin@school.com');
-                                    setPassword('password123');
-                                    setTimeout(() => handleLogin(), 100);
-                                }}
-                                style={{ marginTop: 20, padding: 10, backgroundColor: '#eee', borderRadius: 8, alignItems: 'center' }}
-                            >
-                                <Text style={{ fontSize: 12, color: '#555' }}>[Dev: Mock Admin Login]</Text>
-                            </TouchableOpacity>
-
                         </Animated.View>
 
                     </View>
@@ -248,8 +253,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
     headerContent: {
+        flex: 1,
         alignItems: 'center',
-        marginTop: 20,
+        justifyContent: 'center',
+        marginTop: 0,
+        paddingBottom: 40,
     },
     headerTitle: {
         fontSize: 24,
@@ -268,6 +276,12 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.2)',
+    },
+    schoolIcon: {
+        width: 60,
+        height: 60,
+        marginRight: 15,
+        resizeMode: 'contain',
     },
     schoolNameText: {
         fontSize: 20,
@@ -391,3 +405,5 @@ const styles = StyleSheet.create({
 });
 
 export default AdminLoginScreen;
+
+

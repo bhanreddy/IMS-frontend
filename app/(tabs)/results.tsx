@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Image, Platform, ActivityIndicator, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,47 +9,86 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import StudentHeader from '../../src/components/StudentHeader';
 import ScreenLayout from '@/src/components/ScreenLayout';
 
-const EXAM_TYPES = [
-    {
-        key: 'slip_test',
+import { StudentService } from '../../src/services/studentService';
+import { ResultService, ExamSummary } from '../../src/services/resultService';
+import { useAuth } from '../../src/hooks/useAuth';
+
+// Config for visual styling based on exam type
+const EXAM_TYPE_CONFIG: Record<string, { icon: string; colors: string[]; accent: string; labelKey: string }> = {
+    'slip_test': {
         icon: 'document-text',
         colors: ['#3B82F6', '#2563EB'],
         accent: '#EFF6FF',
-        stats: 'Assignments: 12'
+        labelKey: 'results.slip_test'
     },
-    {
-        key: 'fa_results',
+    'fa_results': {
         icon: 'analytics',
         colors: ['#10B981', '#059669'],
         accent: '#ECFDF5',
-        stats: 'Formative Assessment'
+        labelKey: 'results.fa_results'
     },
-    {
-        key: 'sa_results',
+    'sa_results': {
         icon: 'school',
         colors: ['#F59E0B', '#D97706'],
         accent: '#FFFBEB',
-        stats: 'Summative Assessment'
+        labelKey: 'results.sa_results'
     },
-    {
-        key: 'special',
+    'special': {
         icon: 'star',
         colors: ['#8B5CF6', '#7C3AED'],
         accent: '#F3E8FF',
-        stats: 'Special Programs'
+        labelKey: 'results.special'
     },
-    {
-        key: 'weekend',
+    'weekend': {
         icon: 'calendar',
         colors: ['#EC4899', '#DB2777'],
         accent: '#FDF2F8',
-        stats: 'Weekly Tests'
+        labelKey: 'results.weekend'
     },
-];
+    'default': {
+        icon: 'copy',
+        colors: ['#6B7280', '#4B5563'],
+        accent: '#F3F4F6',
+        labelKey: 'results.other'
+    }
+};
 
 const ResultsScreen = () => {
     const { t } = useTranslation();
     const router = useRouter();
+    const { user } = useAuth();
+
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [summary, setSummary] = useState<ExamSummary[]>([]);
+
+    useEffect(() => {
+        loadData();
+    }, [user?.id]);
+
+    const loadData = async () => {
+        if (!user?.id || user.role !== 'student') return;
+        try {
+            const student = await StudentService.getProfile();
+            if (!student?.id) {
+                setLoading(false);
+                return;
+            }
+
+            const data = await ResultService.getSummary(student.id);
+            setSummary(data || []);
+        } catch (error) {
+            console.error('Failed to load results summary:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        loadData();
+    };
 
     const handlePress = (type: string, title: string) => {
         router.push({
@@ -58,49 +97,86 @@ const ResultsScreen = () => {
         });
     };
 
+    const getExamConfig = (type: string) => {
+        return EXAM_TYPE_CONFIG[type] || EXAM_TYPE_CONFIG['default'];
+    };
+
+    // Helper to format subtitle
+    const getSubtitle = (type: string, count: number) => {
+        // We could use t() for "Exams" or "Assignments" if needed
+        return `Total Exams: ${count}`;
+    };
+
+    if (loading) {
+        return (
+            <ScreenLayout>
+                <StudentHeader title={'Results'} />
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#4F46E5" />
+                </View>
+            </ScreenLayout>
+        );
+    }
+
     return (
         <ScreenLayout>
 
-
             <StudentHeader title={'Results'} />
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 <Animated.View entering={FadeInUp.delay(100).duration(600)} style={styles.headerSection}>
                     <Text style={styles.pageTitle}>Exam Results</Text>
                     <Text style={styles.pageSubtitle}>Check your performance and progress reports</Text>
                 </Animated.View>
 
-                <View style={styles.gridContainer}>
-                    {EXAM_TYPES.map((item, index) => {
-                        const title = t(`results.${item.key}`);
-                        return (
-                            <Animated.View
-                                key={item.key}
-                                entering={FadeInDown.delay(200 + index * 100).duration(600)}
-                                style={styles.cardContainer}
-                            >
-                                <TouchableOpacity
-                                    activeOpacity={0.9}
-                                    onPress={() => handlePress(item.key, title)}
-                                    style={styles.card}
+                {summary.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="documents-outline" size={64} color="#D1D5DB" />
+                        <Text style={styles.emptyText}>No exam results available yet.</Text>
+                    </View>
+                ) : (
+                    <View style={styles.gridContainer}>
+                        {summary.map((item, index) => {
+                            const config = getExamConfig(item.exam_type);
+                            // Fallback title if translation key missing or dynamic type
+                            const title = t(config.labelKey, { defaultValue: item.exam_type.replace(/_/g, ' ').toUpperCase() });
+
+                            return (
+                                <Animated.View
+                                    key={item.exam_type}
+                                    entering={FadeInDown.delay(200 + index * 100).duration(600)}
+                                    style={styles.cardContainer}
                                 >
-                                    <View style={[styles.iconBox, { backgroundColor: item.accent }]}>
-                                        <Ionicons name={item.icon as any} size={28} color={item.colors[1]} />
-                                    </View>
+                                    <TouchableOpacity
+                                        activeOpacity={0.9}
+                                        onPress={() => handlePress(item.exam_type, title)}
+                                        style={styles.card}
+                                    >
+                                        <View style={[styles.iconBox, { backgroundColor: config.accent }]}>
+                                            <Ionicons name={config.icon as any} size={28} color={config.colors[1]} />
+                                        </View>
 
-                                    <View style={styles.textContainer}>
-                                        <Text style={styles.cardTitle}>{title}</Text>
-                                        <Text style={styles.cardSubtitle}>{item.stats}</Text>
-                                    </View>
+                                        <View style={styles.textContainer}>
+                                            <Text style={styles.cardTitle}>{title}</Text>
+                                            <Text style={styles.cardSubtitle}>{getSubtitle(item.exam_type, item.exam_count)}</Text>
+                                            {item.last_exam_date && (
+                                                <Text style={styles.dateText}>Last updated: {new Date(item.last_exam_date).toLocaleDateString()}</Text>
+                                            )}
+                                        </View>
 
-                                    <View style={styles.arrowBox}>
-                                        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                                    </View>
-                                </TouchableOpacity>
-                            </Animated.View>
-                        );
-                    })}
-                </View>
+                                        <View style={styles.arrowBox}>
+                                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                                        </View>
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            );
+                        })}
+                    </View>
+                )}
             </ScrollView>
 
         </ScreenLayout >
@@ -179,6 +255,28 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 60,
+    },
+    emptyText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#9CA3AF',
+    },
+    dateText: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        marginTop: 2,
+    },
 });
 
 export default ResultsScreen;
+
+

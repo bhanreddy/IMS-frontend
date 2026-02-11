@@ -1,46 +1,91 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const EVENTS_DATA = [
-    { id: '1', title: 'Annual Sports Day', date: '15 Jan 2024', day: 'Monday', type: 'Event', location: 'School Ground' },
-    { id: '2', title: 'Republic Day', date: '26 Jan 2024', day: 'Friday', type: 'Holiday', location: 'N/A' },
-    { id: '3', title: 'Science Exhibition', date: '05 Feb 2024', day: 'Monday', type: 'Event', location: 'Auditorium' },
-    { id: '4', title: 'Parent-Teacher Meeting', date: '10 Feb 2024', day: 'Saturday', type: 'Meeting', location: 'Classrooms' },
-];
+import { EventService, EventItem } from '../../src/services/commonServices';
 
 export default function AdminEvents() {
+    const [events, setEvents] = useState<EventItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'UPCOMING' | 'PAST'>('UPCOMING');
 
-    const renderItem = ({ item, index }: { item: typeof EVENTS_DATA[0], index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
-            <View style={styles.card}>
-                <View style={styles.dateBox}>
-                    <Text style={styles.dateText}>{item.date.split(' ')[0]}</Text>
-                    <Text style={styles.monthText}>{item.date.split(' ')[1]}</Text>
-                </View>
-                <View style={styles.contentBox}>
-                    <View style={styles.titleRow}>
-                        <Text style={styles.title}>{item.title}</Text>
-                        <View style={[styles.typeBadge,
-                        item.type === 'Holiday' ? styles.typeHoliday :
-                            item.type === 'Event' ? styles.typeEvent : styles.typeMeeting
-                        ]}>
-                            <Text style={styles.typeText}>{item.type}</Text>
-                        </View>
+    useEffect(() => {
+        fetchEvents();
+    }, [activeTab]);
+
+    const fetchEvents = async () => {
+        try {
+            setLoading(true);
+            const data = await EventService.getAll({
+                upcoming_only: activeTab === 'UPCOMING',
+                to_date: activeTab === 'PAST' ? new Date(Date.now() - 86400000).toISOString().split('T')[0] : undefined
+            });
+            setEvents(data);
+        } catch (error) {
+            console.error('Failed to fetch events:', error);
+            Alert.alert('Error', 'Failed to load events');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getMonth = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString('default', { month: 'short' }).toUpperCase();
+    };
+
+    const getDay = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.getDate().toString().padStart(2, '0');
+    };
+
+    const getDayName = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('default', { weekday: 'long' });
+    };
+
+    const getEventTypeStyle = (type: string) => {
+        switch (type.toLowerCase()) {
+            case 'holiday': return { bg: '#FEE2E2', text: '#991B1B' }; // Red
+            case 'event': return { bg: '#DBEAFE', text: '#1E40AF' };   // Blue
+            case 'meeting': return { bg: '#FEF3C7', text: '#92400E' }; // Yellow
+            case 'exam': return { bg: '#E0E7FF', text: '#3730A3' };    // Indigo
+            default: return { bg: '#F3F4F6', text: '#374151' };        // Gray
+        }
+    };
+
+    const renderItem = ({ item, index }: { item: EventItem, index: number }) => {
+        const typeStyle = getEventTypeStyle(item.event_type);
+
+        return (
+            <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
+                <View style={styles.card}>
+                    <View style={styles.dateBox}>
+                        <Text style={styles.dateText}>{getDay(item.start_date)}</Text>
+                        <Text style={styles.monthText}>{getMonth(item.start_date)}</Text>
                     </View>
-                    <Text style={styles.dayText}>{item.day}</Text>
-                    {item.location !== 'N/A' && (
-                        <View style={styles.locationRow}>
-                            <Ionicons name="location-sharp" size={14} color="#9CA3AF" />
-                            <Text style={styles.locationText}>{item.location}</Text>
+                    <View style={styles.contentBox}>
+                        <View style={styles.titleRow}>
+                            <Text style={styles.title}>{item.title}</Text>
+                            <View style={[styles.typeBadge, { backgroundColor: typeStyle.bg }]}>
+                                <Text style={[styles.typeText, { color: typeStyle.text }]}>
+                                    {item.event_type.charAt(0).toUpperCase() + item.event_type.slice(1)}
+                                </Text>
+                            </View>
                         </View>
-                    )}
+                        <Text style={styles.dayText}>{getDayName(item.start_date)}</Text>
+                        {item.location && (
+                            <View style={styles.locationRow}>
+                                <Ionicons name="location-sharp" size={14} color="#9CA3AF" />
+                                <Text style={styles.locationText}>{item.location}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
-            </View>
-        </Animated.View>
-    );
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -48,23 +93,38 @@ export default function AdminEvents() {
             <AdminHeader title="Event Calendar" showBackButton={true} />
 
             <View style={styles.tabs}>
-                <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-                    <Text style={[styles.tabText, styles.activeTabText]}>Upcoming</Text>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'UPCOMING' && styles.activeTab]}
+                    onPress={() => setActiveTab('UPCOMING')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'UPCOMING' && styles.activeTabText]}>Upcoming</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.tab}>
-                    <Text style={styles.tabText}>Past</Text>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'PAST' && styles.activeTab]}
+                    onPress={() => setActiveTab('PAST')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'PAST' && styles.activeTabText]}>Past</Text>
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={EVENTS_DATA}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-            />
+            {loading ? (
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#6366F1" />
+                </View>
+            ) : (
+                <FlatList
+                    data={events}
+                    keyExtractor={item => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={<Text style={styles.emptyText}>No events found</Text>}
+                    refreshing={loading}
+                    onRefresh={fetchEvents}
+                />
+            )}
 
-            <TouchableOpacity style={styles.fab}>
+            <TouchableOpacity style={styles.fab} onPress={() => Alert.alert('Create Event', 'Feature coming soon')}>
                 <Ionicons name="add" size={30} color="#fff" />
             </TouchableOpacity>
         </View>
@@ -75,6 +135,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F3F4F6',
+    },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     tabs: {
         flexDirection: 'row',
@@ -121,6 +186,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         alignItems: 'center',
         marginRight: 15,
+        minWidth: 60,
     },
     dateText: {
         fontSize: 20,
@@ -154,9 +220,6 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 6,
     },
-    typeHoliday: { backgroundColor: '#FEE2E2' },
-    typeEvent: { backgroundColor: '#DBEAFE' },
-    typeMeeting: { backgroundColor: '#FEF3C7' },
     typeText: {
         fontSize: 10,
         fontWeight: '700',
@@ -192,4 +255,12 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#9CA3AF',
+        fontSize: 16,
+    },
 });
+
+

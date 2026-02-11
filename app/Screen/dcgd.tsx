@@ -6,9 +6,9 @@ import {
     ScrollView,
     TouchableOpacity,
 } from 'react-native';
-
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
+import { useAuth } from '../../src/hooks/useAuth';
 
 const dcgdOptions = [
     'CSE Foundation',
@@ -20,6 +20,7 @@ const dcgdOptions = [
 ];
 
 const DCGDScreen = () => {
+    const { user } = useAuth();
     return (
         <ScreenLayout>
 
@@ -42,10 +43,10 @@ const DCGDScreen = () => {
                 <View style={styles.studentCard}>
                     <View style={styles.avatar} />
                     <View>
-                        <Text style={styles.infoText}>Name: xyz</Text>
-                        <Text style={styles.infoText}>Class/sec: 10th/A</Text>
-                        <Text style={styles.infoText}>Roll No: 24xyz123</Text>
-                        <Text style={styles.infoText}>Admission No:</Text>
+                        <Text style={styles.infoText}>Name: {user?.name || 'Student'}</Text>
+                        <Text style={styles.infoText}>Class/sec: {user?.classId || 'N/A'}</Text>
+                        <Text style={styles.infoText}>Roll No: {user?.rollNo || 'N/A'}</Text>
+                        <Text style={styles.infoText}>Admission No: {(user as any)?.admissionNo || 'N/A'}</Text>
                     </View>
                 </View>
 
@@ -153,3 +154,5 @@ const styles = StyleSheet.create({
         color: '#555',
     },
 });
+
+

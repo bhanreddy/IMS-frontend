@@ -1,103 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    FlatList,
-    Dimensions,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
-
-const { width } = Dimensions.get('window');
-
-/* ================== MOCK DATA ================== */
-const FEE_STRUCTURE = {
-    total: 85000,
-    paid: 45000,
-    due: 40000,
-    dueDate: '15th Feb, 2026',
-};
-
-const FEE_HEADS = [
-    { id: '1', title: 'Tuition Fee', amount: 60000, paid: 30000 },
-    { id: '2', title: 'Transport Fee', amount: 15000, paid: 7500 },
-    { id: '3', title: 'Hostel Fee', amount: 0, paid: 0, optOut: true },
-    { id: '4', title: 'Annual Charges', amount: 10000, paid: 7500 },
-];
-
-const TRANSACTIONS = [
-    { id: 'tx1', date: '10 Jan, 2026', amount: 15000, mode: 'UPI', status: 'Success' },
-    { id: 'tx2', date: '15 Sep, 2025', amount: 30000, mode: 'Bank Transfer', status: 'Success' },
-];
+import { StudentService } from '../../src/services/studentService';
+import { StudentFee } from '../../src/types/models';
+import { useAuth } from '../../src/hooks/useAuth';
+import * as Haptics from 'expo-haptics';
 
 export default function FeesScreen() {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<'breakdown' | 'history'>('breakdown');
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [fees, setFees] = useState<StudentFee[]>([]);
+    const [summary, setSummary] = useState({
+        total_due: 0,
+        total_paid: 0,
+        balance: 0
+    });
 
-    const renderFeeItem = ({ item }: { item: typeof FEE_HEADS[0] }) => {
-        if (item.optOut) return null;
-        const due = item.amount - item.paid;
-        const percent = (item.paid / item.amount) * 100;
+    useEffect(() => {
+        loadData();
+    }, [user?.id]);
+
+    const loadData = async () => {
+        if (!user?.id || user.role !== 'student') return;
+        try {
+            // Get Student Profile first to get the correct Student ID
+            const student = await StudentService.getProfile();
+            if (!student?.id) return;
+
+            const feeData = await StudentService.getFees(student.id);
+            setFees(feeData.fees || []);
+            setSummary(feeData.summary || { total_due: 0, total_paid: 0, balance: 0 });
+
+        } catch (error) {
+            console.error('Failed to load fees:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        loadData();
+    };
+
+    const renderFeeItem = ({ item }: { item: StudentFee }) => {
+        const dueAmount = item.amount_due - item.discount;
+        const percent = dueAmount > 0 ? (item.amount_paid / dueAmount) * 100 : 0;
 
         return (
             <View style={styles.feeCard}>
                 <View style={styles.feeHeader}>
-                    <Text style={styles.feeTitle}>{item.title}</Text>
-                    <Text style={styles.feeAmount}>₹{item.amount.toLocaleString()}</Text>
+                    <Text style={styles.feeTitle}>{item.fee_type}</Text>
+                    <Text style={styles.feeAmount}>₹{dueAmount.toLocaleString()}</Text>
                 </View>
 
                 {/* Progress Bar */}
                 <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
+                    <View style={[styles.progressBarFill, { width: `${Math.min(percent, 100)}%` }]} />
                 </View>
 
                 <View style={styles.feeFooter}>
-                    <Text style={styles.paidText}>Paid: ₹{item.paid.toLocaleString()}</Text>
-                    <Text style={styles.dueText}>Due: ₹{due.toLocaleString()}</Text>
+                    <Text style={styles.paidText}>Paid: ₹{item.amount_paid.toLocaleString()}</Text>
+                    <Text style={styles.dueText}>Due: ₹{(dueAmount - item.amount_paid).toLocaleString()}</Text>
                 </View>
+                <Text style={[styles.statusText, { color: item.status === 'paid' ? '#22c55e' : '#f59e0b' }]}>
+                    {item.status.toUpperCase()}
+                </Text>
             </View>
         );
     };
 
-    const renderTransaction = ({ item }: { item: typeof TRANSACTIONS[0] }) => (
-        <View style={styles.txCard}>
-            <View style={styles.txLeft}>
-                <View style={styles.txIconBox}>
-                    <Ionicons name="checkmark-circle" size={24} color="#22c55e" />
+    if (loading) {
+        return (
+            <ScreenLayout>
+                <StudentHeader title="Fees" />
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#4F46E5" />
                 </View>
-                <View>
-                    <Text style={styles.txMode}>{item.mode}</Text>
-                    <Text style={styles.txDate}>{item.date}</Text>
-                </View>
-            </View>
-            <View style={styles.txRight}>
-                <Text style={styles.txAmount}>- ₹{item.amount.toLocaleString()}</Text>
-                <TouchableOpacity style={styles.downloadBtn}>
-                    <Ionicons name="download-outline" size={18} color="#4f46e5" />
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
+            </ScreenLayout>
+        );
+    }
 
     return (
         <ScreenLayout>
             <StudentHeader title="Fees" />
 
-            <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-
+            <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+            >
                 {/* SUMMARY CARD */}
                 <View style={styles.summaryCard}>
                     <View style={styles.summaryRow}>
                         <View>
                             <Text style={styles.summaryLabel}>Total Due</Text>
-                            <Text style={styles.summaryValue}>₹{FEE_STRUCTURE.due.toLocaleString()}</Text>
+                            <Text style={styles.summaryValue}>₹{summary.balance.toLocaleString()}</Text>
                         </View>
-                        <View style={styles.payBtnMock}>
-                            <Text style={styles.payBtnText}>Pay Now</Text>
-                        </View>
+                        {summary.balance > 0 && (
+                            <View style={styles.payBtnMock}>
+                                <Text style={styles.payBtnText}>Pay Now</Text>
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.divider} />
@@ -105,22 +123,17 @@ export default function FeesScreen() {
                     <View style={styles.statsRow}>
                         <View>
                             <Text style={styles.statLabel}>Total Fee</Text>
-                            <Text style={styles.statValue}>₹{FEE_STRUCTURE.total.toLocaleString()}</Text>
+                            <Text style={styles.statValue}>₹{summary.total_due.toLocaleString()}</Text>
                         </View>
                         <View style={styles.verticalDivider} />
                         <View>
                             <Text style={styles.statLabel}>Paid</Text>
-                            <Text style={styles.statValueSuccess}>₹{FEE_STRUCTURE.paid.toLocaleString()}</Text>
+                            <Text style={styles.statValueSuccess}>₹{summary.total_paid.toLocaleString()}</Text>
                         </View>
-                    </View>
-
-                    <View style={styles.alertBox}>
-                        <Ionicons name="alert-circle" size={16} color="#c2410c" />
-                        <Text style={styles.alertText}>Next Due Date: {FEE_STRUCTURE.dueDate}</Text>
                     </View>
                 </View>
 
-                {/* TABS */}
+                {/* TABS (Visual only for now) */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'breakdown' && styles.activeTab]}
@@ -130,33 +143,16 @@ export default function FeesScreen() {
                             Breakdown
                         </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-                        onPress={() => setActiveTab('history')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>
-                            History
-                        </Text>
-                    </TouchableOpacity>
                 </View>
 
                 {/* CONTENT */}
                 <View style={styles.contentSection}>
-                    {activeTab === 'breakdown' ? (
-                        <View>
-                            {FEE_HEADS.map(item => (
-                                <View key={item.id}>{renderFeeItem({ item })}</View>
-                            ))}
-                        </View>
+                    {fees.length === 0 ? (
+                        <Text style={styles.emptyText}>No fee records found.</Text>
                     ) : (
-                        <View>
-                            {TRANSACTIONS.map(item => (
-                                <View key={item.id}>{renderTransaction({ item })}</View>
-                            ))}
-                            {TRANSACTIONS.length === 0 && (
-                                <Text style={styles.emptyText}>No transactions found</Text>
-                            )}
-                        </View>
+                        fees.map(item => (
+                            <View key={item.id}>{renderFeeItem({ item })}</View>
+                        ))
                     )}
                 </View>
 
@@ -238,22 +234,6 @@ const styles = StyleSheet.create({
         width: 1,
         backgroundColor: '#334155',
     },
-    alertBox: {
-        marginTop: 16,
-        backgroundColor: '#ffedd5',
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 8,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-    },
-    alertText: {
-        color: '#c2410c',
-        fontSize: 12,
-        fontWeight: '700',
-        marginLeft: 6,
-    },
-
     /* Tabs */
     tabContainer: {
         flexDirection: 'row',
@@ -282,7 +262,6 @@ const styles = StyleSheet.create({
         color: '#4338ca',
         fontWeight: '700',
     },
-
     /* Fee Item */
     contentSection: {
         flex: 1,
@@ -340,49 +319,11 @@ const styles = StyleSheet.create({
         color: '#ef4444', // red
         fontWeight: '600',
     },
-
-    /* Transactions */
-    txCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    txLeft: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    txIconBox: {
-        marginRight: 12,
-        opacity: 0.8,
-    },
-    txMode: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#1e293b',
-    },
-    txDate: {
-        fontSize: 12,
-        color: '#64748b',
-    },
-    txRight: {
-        alignItems: 'flex-end',
-    },
-    txAmount: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#dc2626',
-        marginBottom: 4,
-    },
-    downloadBtn: {
-        padding: 4,
-        backgroundColor: '#e0e7ff',
-        borderRadius: 6,
+    statusText: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginTop: 8,
+        alignSelf: 'flex-end',
     },
     emptyText: {
         textAlign: 'center',
@@ -390,3 +331,5 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
     },
 });
+
+

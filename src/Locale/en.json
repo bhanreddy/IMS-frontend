@@ -124,6 +124,11 @@
     },
     "staff_dashboard": {
         "title": "Staff Portal",
+        "attendance": "Attendance",
+        "timetable": "Timetable",
+        "results": "Results",
+        "leaves": "Leaves",
+        "welcome": "Welcome",
         "mark_attendance": "Mark Attendance",
         "my_timetable": "My Timetable",
         "upload_marks": "Upload Marks",

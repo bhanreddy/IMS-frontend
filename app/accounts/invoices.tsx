@@ -1,117 +1,113 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, StatusBar, Alert } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const INVOICES_DATA = [
-    { id: 'INV-2024-001', name: 'Rohan Sharma', date: '02 Jan 2024', amount: '₹12,000', type: 'Tuition Fee' },
-    { id: 'INV-2024-002', name: 'Anjali Gupta', date: '01 Jan 2024', amount: '₹5,000', type: 'Transport Fee' },
-    { id: 'INV-2024-003', name: 'Vikram Singh', date: '28 Dec 2023', amount: '₹18,500', type: 'Term Fee' },
-];
+import { useInvoices } from '../../src/hooks/useInvoices';
+import { generateInvoicePDF } from '../../src/utils/pdfGenerator';
+import { Invoice } from '../../src/types/invoices';
 
 export default function AccountsInvoices() {
+    const { invoices, loading, error, hasMore, loadMore, refresh } = useInvoices();
 
-    const renderItem = ({ item, index }: { item: typeof INVOICES_DATA[0], index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
+    const handleDownload = async (invoice: Invoice) => {
+        try {
+            await generateInvoicePDF(invoice);
+        } catch (err) {
+            Alert.alert('Error', 'Failed to generate PDF. Please try again.');
+        }
+    };
+
+    const renderItem = ({ item }: { item: Invoice }) => {
+        // Derived Invoice Number
+        const invoiceNo = `INV-${new Date(item.created_at).getFullYear()}-${item.id.slice(0, 5).toUpperCase()}`;
+        const studentName = item.student?.person?.display_name || 'Student';
+        const feeName = item.fee_structure?.fee_type?.name || 'Fee';
+
+        return (
             <View style={styles.card}>
-                <View style={styles.leftSection}>
-                    <View style={styles.iconBox}>
-                        <Ionicons name="document-text" size={24} color="#4F46E5" />
-                    </View>
-                    <View>
-                        <Text style={styles.ids}>{item.id}</Text>
-                        <Text style={styles.name}>{item.name}</Text>
-                        <Text style={styles.meta}>{item.date} • {item.type}</Text>
-                    </View>
+                <View style={styles.iconBox}>
+                    <Ionicons name="document-text" size={24} color="#6366F1" />
                 </View>
-                <View style={styles.rightSection}>
-                    <Text style={styles.amount}>{item.amount}</Text>
-                    <TouchableOpacity style={styles.downloadBtn}>
-                        <MaterialIcons name="file-download" size={20} color="#4F46E5" />
+
+                <View style={styles.info}>
+                    <Text style={styles.invoiceNo}>{invoiceNo}</Text>
+                    <Text style={styles.name}>{studentName}</Text>
+                    <Text style={styles.date}>
+                        {new Date(item.created_at).toLocaleDateString('en-GB')} • {feeName}
+                    </Text>
+                </View>
+
+                <View style={styles.amountBox}>
+                    <Text style={styles.amount}>₹{item.amount_due.toLocaleString('en-IN')}</Text>
+                    <TouchableOpacity onPress={() => handleDownload(item)} style={styles.downloadBtn}>
+                        <MaterialIcons name="file-download" size={22} color="#4F46E5" />
                     </TouchableOpacity>
                 </View>
             </View>
-        </Animated.View>
-    );
+        );
+    };
+
+    const renderFooter = () => {
+        if (!loading) return null;
+        return <ActivityIndicator style={{ margin: 20 }} color="#4F46E5" />;
+    };
 
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <AdminHeader title="Invoices" showBackButton={true} />
 
+            {error && (
+                <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>Error loading invoices: {error}</Text>
+                </View>
+            )}
+
             <FlatList
-                data={INVOICES_DATA}
+                data={invoices}
                 keyExtractor={item => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                onEndReached={hasMore ? loadMore : null}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={renderFooter}
+                ListEmptyComponent={
+                    !loading ? (
+                        <View style={styles.centered}>
+                            <Text style={styles.emptyText}>No invoices found</Text>
+                        </View>
+                    ) : null
+                }
+                refreshing={loading && invoices.length === 0}
+                onRefresh={refresh}
             />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F3F4F6',
-    },
-    listContent: {
-        padding: 20,
-    },
+    container: { flex: 1, backgroundColor: '#F3F4F6' },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
+    listContent: { padding: 20 },
     card: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 15,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-        elevation: 1,
-    },
-    leftSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
+        backgroundColor: '#fff', borderRadius: 16, padding: 15, marginBottom: 15,
+        flexDirection: 'row', alignItems: 'center',
+        shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
     },
     iconBox: {
-        width: 45,
-        height: 45,
-        borderRadius: 12,
-        backgroundColor: '#EEF2FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
+        width: 45, height: 45, borderRadius: 12, backgroundColor: '#EEF2FF',
+        justifyContent: 'center', alignItems: 'center', marginRight: 15
     },
-    ids: {
-        fontSize: 12,
-        color: '#6B7280',
-        fontWeight: 'bold',
-        marginBottom: 2,
-    },
-    name: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#1F2937',
-    },
-    meta: {
-        fontSize: 12,
-        color: '#9CA3AF',
-    },
-    rightSection: {
-        alignItems: 'flex-end',
-    },
-    amount: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#1F2937',
-        marginBottom: 8,
-    },
-    downloadBtn: {
-        padding: 5,
-    },
+    info: { flex: 1 },
+    invoiceNo: { fontSize: 12, color: '#6B7280', marginBottom: 2 },
+    name: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
+    date: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+    amountBox: { alignItems: 'flex-end', justifyContent: 'space-between', height: 45 },
+    amount: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+    downloadBtn: { padding: 4 },
+    emptyText: { color: '#9CA3AF', fontSize: 16 },
+    errorBox: { padding: 10, backgroundColor: '#FECACA', margin: 20, borderRadius: 8 },
+    errorText: { color: '#991B1B' }
 });

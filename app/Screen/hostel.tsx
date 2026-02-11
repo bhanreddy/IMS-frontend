@@ -10,7 +10,10 @@ import {
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
 
+import { useAuth } from '../../src/hooks/useAuth';
+
 const HostelProfileScreen = () => {
+    const { user } = useAuth();
     return (
         <ScreenLayout>
 
@@ -30,10 +33,10 @@ const HostelProfileScreen = () => {
                 <Text style={styles.sectionTitle}>Student Hostel Information</Text>
 
                 <View style={styles.infoCard}>
-                    <InfoRow label="Name" value="xyz" />
-                    <InfoRow label="Hostel No" value="H-02" />
+                    <InfoRow label="Name" value={user?.name || 'Student'} />
+                    <InfoRow label="Hostel No" value={(user as any)?.hostelBlock || 'N/A'} />
                     <InfoRow label="Warden No" value="**********" />
-                    <InfoRow label="Hostel Name" value="Boys Hostel" />
+                    <InfoRow label="Hostel Name" value={(user as any)?.hostelName || 'Not Assigned'} />
                 </View>
 
                 {/* ===== HOSTEL DETAILS ===== */}
@@ -204,3 +207,5 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
 });
+
+

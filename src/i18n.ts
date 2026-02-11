@@ -1,7 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './Locale/en.json';
-import te from './Locale/te.json';
+import { TranslationService } from './services/translationService'; // Import service
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,7 +18,7 @@ const languageDetector = {
             }
             return callback('en');
         } catch (error) {
-            console.log('Error reading language', error);
+            console.error('Error reading language', error);
             callback('en');
         }
     },
@@ -27,7 +27,7 @@ const languageDetector = {
         try {
             await AsyncStorage.setItem(MODULE_ID, language);
         } catch (error) {
-            console.log('Error saving language', error);
+            console.error('Error saving language', error);
         }
     },
 };
@@ -38,7 +38,7 @@ i18n
     .init({
         resources: {
             en: { translation: en },
-            te: { translation: te },
+            // Telugu will be loaded dynamically
         },
         fallbackLng: 'en',
         interpolation: {
@@ -48,5 +48,14 @@ i18n
             useSuspense: false,
         }
     });
+
+// Dynamically load Telugu translations in background
+TranslationService.translateToTelugu(en).then((teResources) => {
+    i18n.addResourceBundle('te', 'translation', teResources, true, true);
+    // If language was detected as 'te' but resources weren't ready, this update might trigger a re-render
+    // or we might need to change language again if it didn't verify resources first.
+    // However, i18n normally handles adding resources gracefully.
+
+});
 
 export default i18n;

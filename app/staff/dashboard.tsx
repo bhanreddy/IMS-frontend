@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     View,
@@ -10,8 +10,9 @@ import {
     StatusBar,
     Pressable,
     Image,
+    BackHandler,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -19,11 +20,34 @@ import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } fr
 import StaffHeader from '@/src/components/StaffHeader';
 import StaffFooter from '@/src/components/StaffFooter';
 import { useAuth } from '@/src/hooks/useAuth';
-import { StudentService } from '@/src/services/student.service';
-import { AttendanceService } from '@/src/services/attendance.service';
+import { StudentService } from '@/src/services/studentService';
+import { AttendanceService } from '@/src/services/attendanceService';
+import { LeaveService, LeaveApplication } from '@/src/services/commonServices';
+import type { DailyAttendance } from '@/src/types/schema';
+import { useTheme } from '@/src/hooks/useTheme';
+
+// Types
+interface DashboardMetrics {
+    totalStudents: number;
+    presentToday: number;
+    absentToday: number;
+    pendingLeaves: number;
+}
+
+interface GridItemProps {
+    item: {
+        title: string;
+        icon: string;
+        library: any;
+        route: any;
+        color: string[];
+    };
+    index: number;
+    router: any;
+}
 
 // Interactive Grid Item with Haptics + Scale Animation
-const GridItem = ({ item, index, router }: { item: any, index: number, router: any }) => {
+const GridItem = ({ item, index, router, styles }: GridItemProps & { styles: any }) => {
     const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -79,38 +103,71 @@ export default function StaffDashboard() {
     const router = useRouter();
     const { t } = useTranslation();
     const { user } = useAuth();
-    const [dashboardData, setDashboardData] = useState<any>(null);
+    const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
+    const { theme, isDark } = useTheme();
 
     useEffect(() => {
         const loadData = async () => {
             if (!user) return;
             try {
-                // If user has a class assigned (e.g. user.classId or specific field)
-                // Assuming user object has 'classId' if they are a class teacher
-                // If not, fetch all related students?
-                // For now, assuming classId is stored in user profile.
+                // Determine classId from user object safely
+                const classId = (user as any)?.classId;
 
-                // Mock classId if missing for dev
-                const classId = (user as any).classId || 'class_10_a';
+                // Initialize base data (leaves apply to all staff)
+                const pendingLeaves = await LeaveService.getAll({ status: 'pending' });
 
-                const students = await StudentService.getByClass(classId);
-                const todaysAttendance = await AttendanceService.getByDate(new Date().toISOString().split('T')[0], classId);
+                let studentCount = 0;
+                let presentCount = 0;
+                let absentCount = 0;
+
+                // Only fetch class-specific data if a valid classId is present
+                if (classId) {
+                    const studentsResponse = await StudentService.getAll({ class_section_id: classId, limit: 100 });
+                    const students = studentsResponse.data;
+                    const date = new Date().toISOString().split('T')[0];
+                    const todaysAttendance = await AttendanceService.getClassAttendance(classId, date);
+
+                    studentCount = studentsResponse.meta?.total || 0;
+                    presentCount = todaysAttendance.filter((a: DailyAttendance) => a.status === 'present').length;
+                    absentCount = todaysAttendance.filter((a: DailyAttendance) => a.status === 'absent').length;
+                }
 
                 setDashboardData({
-                    totalStudents: students.length,
-                    presentToday: todaysAttendance.filter(a => a.status === 'present').length,
-                    absentToday: todaysAttendance.filter(a => a.status === 'absent').length,
-                    pendingLeaves: 2 // Mock/Placeholder until LeaveService
+                    totalStudents: studentCount,
+                    presentToday: presentCount,
+                    absentToday: absentCount,
+                    pendingLeaves: pendingLeaves.length
                 });
             } catch (e) {
-                console.error(e);
+                console.error("Error loading dashboard data:", e);
+                // Set zero state on error to prevent crash
+                setDashboardData({
+                    totalStudents: 0,
+                    presentToday: 0,
+                    absentToday: 0,
+                    pendingLeaves: 0
+                });
             } finally {
                 setLoading(false);
             }
         };
         loadData();
     }, [user]);
+
+    // Handle Hardware Back Button
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBackPress = () => {
+                BackHandler.exitApp();
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
+        }, [])
+    );
 
     const menuItems = [
         { title: t('staff_dashboard.attendance'), icon: 'calendar-check', library: FontAwesome5, route: '/staff/manage-students', color: ['#6366f1', '#818cf8'] },
@@ -119,6 +176,8 @@ export default function StaffDashboard() {
         { title: t('staff_dashboard.leaves'), icon: 'calendar-minus', library: FontAwesome5, route: '/staff/leaves', color: ['#ec4899', '#f472b6'] }, // Changed route to leaves page
         { title: "Complaints", icon: "chatbubble-ellipses", library: Ionicons, route: "/staff/complaints", color: ['#8B5CF6', '#A78BFA'] }, // New complaints tile
     ];
+
+    const styles = useMemo(() => getStyles(theme, isDark), [theme, isDark]);
 
     return (
         <View style={styles.container}>
@@ -129,7 +188,7 @@ export default function StaffDashboard() {
                 <View style={styles.welcomeSection}>
                     <View>
                         <Text style={styles.welcomeText}>{t('staff_dashboard.welcome')},</Text>
-                        <Text style={styles.teacherName}>{user?.name || 'Teacher'}</Text>
+                        <Text style={styles.teacherName}>{user?.display_name || 'Teacher'}</Text>
                     </View>
                     <Image
                         source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3429/3429440.png' }}
@@ -139,23 +198,23 @@ export default function StaffDashboard() {
 
                 {/* Info Cards Row */}
                 <View style={styles.infoCardsRow}>
-                    <View style={[styles.infoCard, { backgroundColor: '#EEF2FF' }]}>
-                        <Text style={styles.infoValue}>{dashboardData?.totalStudents || 0}</Text>
+                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#EEF2FF' }]}>
+                        <Text style={[styles.infoValue, { color: theme.colors.text }]}>{dashboardData?.totalStudents || 0}</Text>
                         <Text style={styles.infoLabel}>My Students</Text>
                     </View>
-                    <View style={[styles.infoCard, { backgroundColor: '#ECFDF5' }]}>
-                        <Text style={[styles.infoValue, { color: '#059669' }]}>{dashboardData?.presentToday || 0}</Text>
+                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#ECFDF5' }]}>
+                        <Text style={[styles.infoValue, { color: theme.colors.success }]}>{dashboardData?.presentToday || 0}</Text>
                         <Text style={styles.infoLabel}>Present</Text>
                     </View>
-                    <View style={[styles.infoCard, { backgroundColor: '#FEF2F2' }]}>
-                        <Text style={[styles.infoValue, { color: '#DC2626' }]}>{dashboardData?.absentToday || 0}</Text>
+                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#FEF2F2' }]}>
+                        <Text style={[styles.infoValue, { color: theme.colors.danger }]}>{dashboardData?.absentToday || 0}</Text>
                         <Text style={styles.infoLabel}>Absent</Text>
                     </View>
                 </View>
 
                 <View style={styles.gridContainer}>
                     {menuItems.map((item, index) => (
-                        <GridItem key={index} item={item} index={index} router={router} />
+                        <GridItem key={index} item={item} index={index} router={router} styles={styles} />
                     ))}
                 </View>
 
@@ -165,10 +224,10 @@ export default function StaffDashboard() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FA',
+        backgroundColor: theme.colors.background,
     },
     content: {
         padding: 20,
@@ -179,7 +238,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 25,
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.card,
         padding: 20,
         borderRadius: 20,
         shadowColor: 'rgba(0,0,0,0.05)',
@@ -187,22 +246,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 1,
         shadowRadius: 10,
         elevation: 3,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     welcomeText: {
         fontSize: 16,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         marginBottom: 4,
     },
     teacherName: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: theme.colors.text,
     },
     avatar: {
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#EFF6FF',
     },
     infoCardsRow: {
         flexDirection: 'row',
@@ -215,16 +276,18 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     infoValue: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: theme.colors.text,
         marginBottom: 4,
     },
     infoLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
     },
     gridContainer: {
         flexDirection: 'row',
@@ -269,3 +332,5 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.15)',
     },
 });
+
+

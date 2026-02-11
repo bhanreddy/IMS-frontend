@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,10 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInRight, Layout } from 'react-native-reanimated';
+import { api } from '../../src/services/apiClient';
+import { TimetableService } from '../../src/services/timetableService';
+import { useAuth } from '../../src/hooks/useAuth';
+import { ActivityIndicator } from 'react-native';
 
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
@@ -83,7 +87,63 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const TimeTableScreen = () => {
     const { t } = useTranslation();
-    const [selectedDay, setSelectedDay] = useState('Mon');
+    const [selectedDay, setSelectedDay] = useState(DAYS[0]);
+    const [timetable, setTimetable] = useState<any>({});
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadTimetable = async () => {
+            if (!user || user.role !== 'student') return;
+            try {
+                setLoading(true);
+                // 1. Get profile to find section
+                const profile = await api.get<any>('/students/profile/me');
+
+                if (profile?.current_enrollment?.class_section_id) {
+                    const slots = await TimetableService.getClassSlots(profile.current_enrollment.class_section_id);
+
+                    const normalized: any = {};
+                    const dayMap: Record<string, string> = {
+                        'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed',
+                        'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
+                    };
+
+                    // Group slots by day
+                    slots.forEach((slot) => {
+                        const shortKey = dayMap[slot.day_of_week.toLowerCase()];
+                        if (!shortKey) return;
+
+                        if (!normalized[shortKey]) {
+                            normalized[shortKey] = [];
+                        }
+
+                        normalized[shortKey].push({
+                            id: slot.id,
+                            type: 'class',
+                            time: `${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}`,
+                            subject: slot.subject_name || 'N/A',
+                            teacher: slot.teacher_name || 'N/A',
+                            room: 'N/A', // Room info not in slot data yet
+                            icon: 'book'
+                        });
+                    });
+
+                    // Sort slots by time
+                    Object.keys(normalized).forEach(day => {
+                        normalized[day].sort((a: any, b: any) => a.time.localeCompare(b.time));
+                    });
+
+                    setTimetable(normalized);
+                }
+            } catch (err) {
+                console.error("Failed to load timetable", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadTimetable();
+    }, [user]);
 
     const renderScheduleItem = ({ item, index }: { item: ScheduleItem; index: number }) => {
         if (item.type === 'break' || item.type === 'lunch') {
@@ -188,14 +248,23 @@ const TimeTableScreen = () => {
 
                 {/* --- Timeline --- */}
                 <View style={styles.timelineContainer}>
-                    <FlatList
-                        data={TIMETABLE_DATA[selectedDay] || []}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderScheduleItem}
-                        contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}
-                        showsVerticalScrollIndicator={false}
-                        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-                    />
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
+                    ) : (
+                        <FlatList
+                            data={timetable[selectedDay] || []}
+                            keyExtractor={(item) => item.id}
+                            renderItem={renderScheduleItem}
+                            contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}
+                            showsVerticalScrollIndicator={false}
+                            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+                            ListEmptyComponent={() => (
+                                <Text style={{ textAlign: 'center', color: '#9CA3AF', marginTop: 50 }}>
+                                    No classes scheduled for this day
+                                </Text>
+                            )}
+                        />
+                    )}
                 </View>
             </View>
         </ScreenLayout>
@@ -369,3 +438,5 @@ const styles = StyleSheet.create({
 });
 
 export default TimeTableScreen;
+
+

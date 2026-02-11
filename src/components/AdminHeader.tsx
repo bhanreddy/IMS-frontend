@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ADMIN_THEME } from '../constants/adminTheme';
+import { SCHOOL_CONFIG } from '../constants/schoolConfig';
 
 interface AdminHeaderProps {
     title: string;
@@ -14,20 +15,37 @@ interface AdminHeaderProps {
     showNotification?: boolean;
 }
 
+import { useAuth } from '../hooks/useAuth';
+
 const AdminHeader: React.FC<AdminHeaderProps> = ({
-    title,
+    title = SCHOOL_CONFIG.name,
     showMenuButton = true,
     showProfileButton = true,
     showBackButton = false,
     showNotification = false
 }) => {
     const router = useRouter();
+    const { user } = useAuth();
 
     const handleBack = () => {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.push('/admin/dashboard' as any);
+            // Fallback based on role
+            if (user?.role === 'accountant') router.push('/accounts/dashboard');
+            else router.push('/admin/dashboard');
+        }
+    };
+
+    const handleSettings = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (user?.role === 'accountant') {
+            router.push('/accounts/settings');
+        } else if (user?.role === 'staff' || user?.role === 'teacher') {
+            // Assuming staff has a settings or profile page, otherwise dashboard
+            router.push('/staff/dashboard');
+        } else {
+            router.push('/admin/settings');
         }
     };
 
@@ -82,10 +100,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         )}
                         {showProfileButton && (
                             <TouchableOpacity
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    router.push('/admin/settings' as any);
-                                }}
+                                onPress={handleSettings}
                                 style={styles.iconButton}
                                 activeOpacity={0.7}
                             >

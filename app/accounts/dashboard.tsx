@@ -16,7 +16,8 @@ import * as Haptics from 'expo-haptics';
 import AdminHeader from '../../src/components/AdminHeader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../src/hooks/useAuth'; // Updated hook
-import { FeesService } from '../../src/services/fees.service'; // Updated Service
+import { FeeService as FeesService } from '../../src/services/feeService';
+import { useTheme } from '../../src/hooks/useTheme';
 
 // Interactive Grid Item with Haptics + Scale Animation
 const GridItem = ({ item, index, router }: { item: any, index: number, router: any }) => {
@@ -86,13 +87,25 @@ export default function AccountsDashboard() {
         if (!user) return;
         setLoading(true);
         try {
-            // Parallel fetch
-            const [sData, tData] = await Promise.all([
-                FeesService.getStats(),
-                FeesService.getRecentTransactions()
-            ]);
-            setStatsData(sData);
-            setTransactions(tData);
+            const data = await FeesService.getDashboardStats();
+
+            setStatsData({
+                totalCollection: `₹${data.monthly_collection.toLocaleString()}`,
+                todaysCollection: `₹${data.today_collection.toLocaleString()}`,
+                pendingDues: `₹${data.pending_dues.toLocaleString()}`
+            });
+
+            // Map transactions to UI format
+            const mappedTransactions = data.recent_transactions.map((tx: any) => ({
+                id: tx.id,
+                name: tx.student_name,
+                class: tx.class_name || 'N/A',
+                type: tx.fee_type || 'Fee',
+                amount: `+₹${tx.amount.toLocaleString()}`,
+                time: new Date(tx.collected_at).toLocaleDateString()
+            }));
+
+            setTransactions(mappedTransactions);
         } catch (e) {
             console.error("Failed to load accounts data", e);
         } finally {
@@ -119,46 +132,91 @@ export default function AccountsDashboard() {
 
     const quickActions = [
         {
-            id: 'fees',
-            title: t('accounts_dashboard.collect_fees'),
+            id: 'collect',
+            title: t('accounts_dashboard.collect_fees', 'Collect Fees'),
             icon: 'cash',
-            color: ['#10B981', '#059669'],
-            route: '/accounts/fees', // Ensure this route exists or update to fees logical route
-            library: Ionicons
-        },
-        // ... kept other actions same ...
-        {
-            id: 'manage',
-            title: t('accounts_dashboard.manage_users', 'Manage Users'),
-            icon: 'people-circle',
-            color: ['#3B82F6', '#2563EB'],
-            route: '/accounts/manage-users',
+            color: ['#10B981', '#059669'], // Green
+            route: '/accounts/fees',
             library: Ionicons
         },
         {
-            id: 'student',
-            title: t('accounts_dashboard.addStudent'),
-            icon: 'school',
-            color: ['#F43F5E', '#E11D48'],
-            route: '/accounts/addStudent',
+            id: 'expenses',
+            title: t('accounts_dashboard.expenses', 'Expenses'),
+            icon: 'receipt', // or document-text
+            color: ['#EF4444', '#B91C1C'], // Red
+            route: '/accounts/expenses',
+            library: Ionicons
+        },
+        {
+            id: 'payroll',
+            title: t('accounts_dashboard.payroll', 'Payroll'),
+            icon: 'people',
+            color: ['#6366F1', '#4338CA'], // Indigo (Payroll)
+            route: '/accounts/payroll',
+            library: Ionicons
+        },
+        {
+            id: 'defaulters',
+            title: t('accounts_dashboard.defaulters', 'Defaulters'),
+            icon: 'alert-circle',
+            color: ['#F59E0B', '#D97706'], // Orange
+            route: '/accounts/defaulters',
+            library: Ionicons
+        },
+        {
+            id: 'invoices',
+            title: t('accounts_dashboard.invoices', 'Invoices'),
+            icon: 'document-text',
+            color: ['#3B82F6', '#2563EB'], // Blue
+            route: '/accounts/invoices',
+            library: Ionicons
+        },
+        {
+            id: 'receipts',
+            title: t('accounts_dashboard.receipts', 'Receipts'),
+            icon: 'documents',
+            color: ['#0EA5E9', '#0284C7'], // Sky Blue
+            route: '/accounts/receipts',
             library: Ionicons
         },
         {
             id: 'staff',
-            title: t('accounts_dashboard.addStaff'),
+            title: t('accounts_dashboard.addStaff', 'Add Staff'),
             icon: 'person-add',
-            color: ['#8B5CF6', '#7C3AED'],
+            color: ['#8B5CF6', '#7C3AED'], // Purple
             route: '/accounts/addStaff',
+            library: Ionicons
+        },
+        {
+            id: 'student',
+            title: t('accounts_dashboard.addStudent', 'Add Student'),
+            icon: 'school',
+            color: ['#F43F5E', '#E11D48'], // Pink/Red
+            route: '/accounts/addStudent',
+            library: Ionicons
+        },
+        {
+            id: 'pending_enrollments',
+            title: t('accounts_dashboard.pending_enrollments', 'Pending Enrollments'), // New Action
+            icon: 'person-add-outline',
+            color: ['#8B5CF6', '#7C3AED'], // Violet
+            route: '/accounts/pending-enrollments',
             library: Ionicons
         },
     ];
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
             <AdminHeader title="Accounts" />
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+                {/* GREETING */}
+                <View style={styles.greetingContainer}>
+                    <Text style={styles.greetingText}>Hello, {user?.first_name || 'Admin'} 👋</Text>
+                    <Text style={styles.greetingSubText}>{t('accounts_dashboard.welcome_back', 'Here is your financial overview')}</Text>
+                </View>
+
                 {/* MAIN STAT */}
                 <Animated.View entering={FadeInDown.duration(600)} style={styles.mainCard}>
                     <View style={styles.mainIcon}>
@@ -234,17 +292,19 @@ export default function AccountsDashboard() {
     );
 }
 
+const { theme, isDark } = useTheme();
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: theme.colors.background,
     },
     scroll: {
         padding: 20,
         paddingBottom: 40,
     },
     mainCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.colors.card,
         borderRadius: 22,
         height: 120,
         width: '100%',
@@ -252,17 +312,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 18,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.06,
         shadowRadius: 14,
         elevation: 4,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     mainIcon: {
         width: 52,
         height: 52,
         borderRadius: 16,
-        backgroundColor: '#DBEAFE',
+        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#DBEAFE',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -270,12 +332,12 @@ const styles = StyleSheet.create({
     mainValue: {
         fontSize: 26,
         fontWeight: '800',
-        color: '#111827',
+        color: theme.colors.text,
     },
     mainLabel: {
         marginTop: 2,
         fontSize: 13,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '500',
     },
     statsRow: {
@@ -285,14 +347,16 @@ const styles = StyleSheet.create({
     },
     statCard: {
         width: '48%',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.colors.card,
         borderRadius: 20,
         padding: 16,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
         elevation: 3,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     statIcon: {
         width: 40,
@@ -305,18 +369,18 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#111827',
+        color: theme.colors.text,
         marginBottom: 2,
     },
     statLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '500',
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: theme.colors.text,
         marginBottom: 14,
     },
     gridContainer: {
@@ -338,7 +402,7 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 20,
         overflow: 'hidden',
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.5,
         shadowRadius: 16,
@@ -365,18 +429,20 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.1)',
     },
     txCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.colors.card,
         borderRadius: 16,
         padding: 14,
         marginBottom: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 6,
         elevation: 2,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     txLeft: {
         flexDirection: 'row',
@@ -386,7 +452,7 @@ const styles = StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#E0E7FF',
+        backgroundColor: isDark ? 'rgba(79, 70, 229, 0.2)' : '#E0E7FF',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -394,16 +460,16 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#4F46E5',
+        color: '#4F46E5', // Keep brand color
     },
     txName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#111827',
+        color: theme.colors.text,
     },
     txSub: {
         fontSize: 12,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         marginTop: 1,
     },
     txRight: {
@@ -412,11 +478,29 @@ const styles = StyleSheet.create({
     txAmount: {
         fontSize: 15,
         fontWeight: '700',
-        color: '#10B981',
+        color: theme.colors.success,
     },
     txTime: {
         fontSize: 11,
-        color: '#9CA3AF',
+        color: theme.colors.textSecondary,
         marginTop: 2,
     },
+    greetingContainer: {
+        marginBottom: 24,
+        marginTop: 10,
+    },
+    greetingText: {
+        fontSize: 26,
+        fontWeight: '800',
+        color: theme.colors.text,
+        letterSpacing: -0.5,
+    },
+    greetingSubText: {
+        fontSize: 15,
+        color: theme.colors.textSecondary,
+        marginTop: 6,
+        fontWeight: '500',
+    },
 });
+
+

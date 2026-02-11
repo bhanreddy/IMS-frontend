@@ -4,26 +4,52 @@ import {
     Text,
     StyleSheet,
     FlatList,
-    ScrollView,
     ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
 import { useAuth } from '../../src/hooks/useAuth';
-import { AttendanceService } from '../../src/services/attendance.service';
-import { Attendance } from '../../src/types/models';
+import { StudentService } from '../../src/services/studentService';
+import { AttendanceRecord, AttendanceSummary } from '../../src/types/models';
+
+const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+        case 'present': return '#16a34a';
+        case 'absent': return '#dc2626';
+        case 'holiday': return '#9333ea';
+        case 'half_day':
+        case 'leave': return '#f59e0b';
+        case 'late': return '#ca8a04';
+        default: return '#6b7280';
+    }
+};
+
+const getStatusIcon = (status: string): keyof typeof Ionicons.glyphMap => {
+    switch (status.toLowerCase()) {
+        case 'present': return 'checkmark-circle';
+        case 'absent': return 'close-circle';
+        case 'holiday': return 'calendar';
+        case 'half_day':
+        case 'leave': return 'time';
+        case 'late': return 'alert-circle';
+        default: return 'help-circle';
+    }
+};
 
 export default function AttendanceScreen() {
     const { t } = useTranslation();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [records, setRecords] = useState<Attendance[]>([]);
-    const [stats, setStats] = useState({ present: 0, absent: 0, leave: 0, percentage: 0 });
+    const [refreshing, setRefreshing] = useState(false);
+    const [records, setRecords] = useState<AttendanceRecord[]>([]);
+    const [stats, setStats] = useState<AttendanceSummary>({ present: 0, absent: 0, late: 0, total: 0 });
 
     useEffect(() => {
         loadAttendance();
@@ -31,65 +57,33 @@ export default function AttendanceScreen() {
 
     const loadAttendance = async () => {
         if (!user) return;
-        setLoading(true);
         try {
-            // Fetch records and stats
-            // In a real app we might paginate or limit to current month
-            const [data, statData] = await Promise.all([
-                AttendanceService.getByStudent(user.uid),
-                AttendanceService.getStudentStats(user.uid)
-            ]);
-
-            // Sort manually if index missing
-            const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setRecords(sorted);
-
-            // Map stats or use statData
-            // If statData is robust use it, else calc local
-            setStats({
-                present: statData.present || sorted.filter(r => r.status === 'present').length,
-                absent: statData.absent || sorted.filter(r => r.status === 'absent').length,
-                leave: sorted.filter(r => r.status === 'leave' || r.status === 'holiday').length, // Assuming 'leave' in enum logic or status
-                percentage: statData.percentage || 0
-            });
-
+            const data = await StudentService.getAttendance(user.id || '');
+            setRecords(data.records);
+            setStats(data.summary);
         } catch (error) {
-            console.log("Failed to load attendance", error);
+            console.error("Failed to load attendance", error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'present': return '#16a34a';
-            case 'absent': return '#dc2626';
-            case 'holiday': return '#9333ea';
-            case 'leave': return '#f59e0b';
-            case 'late': return '#ca8a04';
-            default: return '#6b7280';
-        }
+    const onRefresh = () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        loadAttendance();
     };
 
-    const getStatusIcon = (status: string): keyof typeof Ionicons.glyphMap => {
-        switch (status.toLowerCase()) {
-            case 'present': return 'checkmark-circle';
-            case 'absent': return 'close-circle';
-            case 'holiday': return 'calendar';
-            case 'leave': return 'time';
-            default: return 'help-circle';
-        }
-    };
-
-    const renderItem = ({ item, index }: { item: Attendance, index: number }) => {
+    const renderItem = React.useCallback(({ item, index }: { item: AttendanceRecord, index: number }) => {
         const color = getStatusColor(item.status);
-        const dateObj = new Date(item.date);
+        const dateObj = new Date(item.attendance_date);
         const day = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
         const dayNum = dateObj.getDate();
 
         return (
             <Animated.View
-                entering={FadeInDown.delay(index * 100).duration(500)}
+                entering={FadeInDown.delay(index * 50).duration(500)} // Faster delay
                 style={styles.card}
             >
                 {/* Date Side - Left */}
@@ -108,7 +102,10 @@ export default function AttendanceScreen() {
                 </View>
             </Animated.View>
         );
-    };
+    }, []);
+
+    // Calculate percentage safely
+    const percentage = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
 
     return (
         <ScreenLayout>
@@ -123,10 +120,16 @@ export default function AttendanceScreen() {
                         end={{ x: 1, y: 1 }}
                         style={styles.summaryCard}
                     >
-                        <Text style={styles.summaryTitle}>{t('attendance_screen.stats', 'Statistics')}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                            <Text style={styles.summaryTitle}>{t('attendance_screen.stats', 'Statistics')}</Text>
+                            <View style={styles.percentBadge}>
+                                <Text style={styles.percentText}>{percentage}%</Text>
+                            </View>
+                        </View>
+
                         <View style={styles.statRow}>
                             <View style={styles.statItem}>
-                                <Text style={styles.statVal}>{stats.percentage}%</Text>
+                                <Text style={styles.statVal}>{stats.present}</Text>
                                 <Text style={styles.statLabel}>{t('attendance_screen.present', 'Present')}</Text>
                             </View>
                             <View style={styles.divider} />
@@ -136,8 +139,8 @@ export default function AttendanceScreen() {
                             </View>
                             <View style={styles.divider} />
                             <View style={styles.statItem}>
-                                <Text style={styles.statVal}>{stats.leave}</Text>
-                                <Text style={styles.statLabel}>{t('attendance_screen.leave', 'Leave')}</Text>
+                                <Text style={styles.statVal}>{stats.late}</Text>
+                                <Text style={styles.statLabel}>{t('attendance_screen.late', 'Late')}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -149,10 +152,13 @@ export default function AttendanceScreen() {
                 ) : (
                     <FlatList
                         data={records}
-                        keyExtractor={(item) => item.id || item.date}
+                        keyExtractor={(item) => item.attendance_date}
                         renderItem={renderItem}
                         contentContainerStyle={styles.list}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" />
+                        }
                         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No attendance records found.</Text>}
                     />
                 )}
@@ -183,9 +189,19 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.9)',
         fontSize: 14,
         fontWeight: '600',
-        marginBottom: 15,
         textTransform: 'uppercase',
         letterSpacing: 1,
+    },
+    percentBadge: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    percentText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16
     },
     statRow: {
         flexDirection: 'row',

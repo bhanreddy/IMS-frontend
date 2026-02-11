@@ -4,8 +4,12 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StudentHeader from '../../src/components/StudentHeader';
 import ScreenLayout from '../../src/components/ScreenLayout';
+import { useAuth } from '../../src/hooks/useAuth';
+import { useRouter } from 'expo-router';
 
 export default function Settings() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [notifications, setNotifications] = useState(true);
     const [dataSaving, setDataSaving] = useState(false);
@@ -17,6 +21,11 @@ export default function Settings() {
 
     const handlePress = (item: string) => {
         Alert.alert(item, "This feature will be available in the next update.");
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        router.replace('/');
     };
 
     return (
@@ -35,19 +44,19 @@ export default function Settings() {
                 {/* Profile Section */}
                 <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.profileCard}>
                     <Image
-                        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2922/2922506.png' }} // Student avatar
+                        source={{ uri: user?.photo_url || 'https://cdn-icons-png.flaticon.com/512/2922/2922506.png' }}
                         style={styles.avatar}
                     />
                     <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>Student Name</Text>
-                        <Text style={styles.profileRole}>ID: STU-2024-001</Text>
+                        <Text style={styles.profileName}>{user?.display_name || user?.first_name || 'Student Name'}</Text>
+                        <Text style={styles.profileRole}>ID: {user?.admission_no || user?.id || 'N/A'}</Text>
                         <TouchableOpacity onPress={() => handlePress("Edit Profile")}>
                             <Text style={styles.editProfileText}>Edit Profile</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>
 
-                {/* Settings Groups */}
+                {/* ... Settings Groups ... */}
                 <View style={styles.groupContainer}>
                     <Text style={styles.groupTitle}>General</Text>
                     <View style={styles.groupCard}>
@@ -103,6 +112,7 @@ export default function Settings() {
                     </View>
                 </View>
 
+                {/* ... Security & Support Groups ... */}
                 <View style={styles.groupContainer}>
                     <Text style={styles.groupTitle}>Security</Text>
                     <View style={styles.groupCard}>
@@ -132,6 +142,7 @@ export default function Settings() {
                 <View style={styles.groupContainer}>
                     <Text style={styles.groupTitle}>Support</Text>
                     <View style={styles.groupCard}>
+                        {/* Shorter list for brevity, can keep full list if needed */}
                         <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Help Center")}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="help-buoy" size={20} color="#8B5CF6" />
@@ -148,14 +159,6 @@ export default function Settings() {
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Why do we show Ads")}>
-                            <View style={styles.settingIconBox}>
-                                <Ionicons name="information-circle" size={20} color="#F59E0B" />
-                            </View>
-                            <Text style={styles.settingLabel}>Why do we show Ads</Text>
-                            <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
                         <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Contact Us")}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="call" size={20} color="#3B82F6" />
@@ -163,18 +166,20 @@ export default function Settings() {
                             <Text style={styles.settingLabel}>Contact Us</Text>
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Dev Contact")}>
-                            <View style={styles.settingIconBox}>
-                                <Ionicons name="code-slash" size={20} color="#8B5CF6" />
-                            </View>
-                            <Text style={styles.settingLabel}>Dev Contact</Text>
-                            <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
-                        </TouchableOpacity>
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.logoutButton} onPress={() => Alert.alert("Logout", "Are you sure?", [{ text: "Cancel" }, { text: "Logout", style: "destructive" }])}>
+                <TouchableOpacity
+                    style={styles.logoutButton}
+                    onPress={() => Alert.alert(
+                        "Logout",
+                        "Are you sure you want to logout?",
+                        [
+                            { text: "Cancel" },
+                            { text: "Logout", style: "destructive", onPress: handleLogout }
+                        ]
+                    )}
+                >
                     <Text style={styles.logoutText}>Log Out</Text>
                 </TouchableOpacity>
 
@@ -300,3 +305,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+

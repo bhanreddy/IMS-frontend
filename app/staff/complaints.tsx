@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,33 +6,146 @@ import {
     ScrollView,
     TouchableOpacity,
     TextInput,
-    Dimensions,
-    FlatList
+    Alert,
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import StaffHeader from '../../src/components/StaffHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { MOCK_COMPLAINTS, Complaint } from '../../src/data/mockComplaints';
-import { BlurView } from 'expo-blur';
 
-const { width } = Dimensions.get('window');
+// Components
+import StaffHeader from '../../src/components/StaffHeader';
+
+// Services
+import { ComplaintService, Complaint } from '../../src/services/commonServices';
+import { StudentService } from '../../src/services/studentService';
+import { StudentWithDetails } from '../../src/types/schema';
+
+// Extended interface for UI
+interface UIComplaint extends Complaint {
+    color?: string;
+    target?: string;
+    date?: string;
+}
+
+interface Student {
+    id: string;
+    display_name: string; // From Person
+    admission_no: string;
+}
 
 export default function StaffComplaints() {
     const [activeTab, setActiveTab] = useState<'MY_REPORTS' | 'FILE_NEW'>('MY_REPORTS');
+    const [loading, setLoading] = useState(false);
+    const [complaints, setComplaints] = useState<UIComplaint[]>([]);
+    const [filterType, setFilterType] = useState<'ALL' | 'DISCIPLINARY' | 'FACILITY'>('ALL');
 
     // Form State
-    const [selectedStudent, setSelectedStudent] = useState('');
+    const [studentSearch, setStudentSearch] = useState('');
+    const [studentsList, setStudentsList] = useState<Student[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
-    const [filterType, setFilterType] = useState<'ALL' | 'DISCIPLINARY' | 'FACILITY'>('ALL');
     const [severity, setSeverity] = useState<'Low' | 'Medium' | 'High'>('Low');
+    const [isSearching, setIsSearching] = useState(false);
 
-    // Filter Mock Data for Staff View (Displaying reports filed BY staff OR related to their class)
-    const staffReports = MOCK_COMPLAINTS.filter(c => {
-        const isStaffRelated = c.filedBy.includes('Sarah') || c.reporterRole === 'STAFF';
-        const typeMatch = filterType === 'ALL' || c.type === filterType;
-        return isStaffRelated && typeMatch;
+    useEffect(() => {
+        if (activeTab === 'MY_REPORTS') {
+            fetchComplaints();
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab === 'FILE_NEW' && studentSearch.length > 2) {
+            const delayDebounceFn = setTimeout(() => {
+                searchStudents();
+            }, 500);
+            return () => clearTimeout(delayDebounceFn);
+        } else {
+            setStudentsList([]);
+        }
+    }, [studentSearch, activeTab]);
+
+    const fetchComplaints = async () => {
+        try {
+            setLoading(true);
+            const data = await ComplaintService.getAll();
+            // Transform data if needed or Map colors
+            const mappedData: UIComplaint[] = data.map(item => ({
+                ...item,
+                color: getCategoryColor(item.category || ''),
+                target: item.raised_for_student_id || 'N/A', // TODO: Fetch student name
+                date: new Date(item.created_at).toLocaleDateString()
+            }));
+            setComplaints(mappedData);
+        } catch (error) {
+            console.error('Error fetching complaints:', error);
+            Alert.alert('Error', 'Failed to load complaints');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const searchStudents = async () => {
+        try {
+            setIsSearching(true);
+            const response = await StudentService.getAll<StudentWithDetails>({ search: studentSearch, limit: 5 });
+            const mappedStudents = response.data.map((s: StudentWithDetails) => ({
+                id: s.id,
+                display_name: s.person.display_name || `${s.person.first_name} ${s.person.last_name}`,
+                admission_no: s.admission_no
+            }));
+            setStudentsList(mappedStudents);
+        } catch (error) {
+            console.error('Error searching students:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (!title || !desc || !selectedStudent) {
+            Alert.alert('Error', 'Please fill all fields and select a student');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await ComplaintService.create({
+                title,
+                description: desc,
+                category: 'disciplinary', // Defaulting for 'Sudent Disciplinary' page context
+                priority: severity.toLowerCase(),
+                raised_for_student_id: selectedStudent.id
+            });
+            Alert.alert('Success', 'Complaint submitted successfully');
+            // Reset form
+            setTitle('');
+            setDesc('');
+            setStudentSearch('');
+            setSelectedStudent(null);
+            setSeverity('Low');
+            setActiveTab('MY_REPORTS');
+        } catch (error) {
+            console.error('Submit error:', error);
+            Alert.alert('Error', 'Failed to submit complaint');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getCategoryColor = (category: string) => {
+        switch (category?.toLowerCase()) {
+            case 'disciplinary': return '#EF4444';
+            case 'academic': return '#3B82F6';
+            case 'facility': return '#F59E0B';
+            default: return '#6B7280';
+        }
+    };
+
+    const filteredComplaints = complaints.filter(c => {
+        if (filterType === 'ALL') return true;
+        return c.category?.toUpperCase() === filterType;
     });
 
     const renderHeader = () => (
@@ -61,41 +174,43 @@ export default function StaffComplaints() {
         </View>
     );
 
-    const renderComplaintItem = ({ item, index }: { item: Complaint, index: number }) => (
+    const renderComplaintItem = ({ item, index }: { item: UIComplaint, index: number }) => (
         <Animated.View
             entering={FadeInDown.delay(index * 100).springify()}
             style={styles.cardWrapper}
         >
             <View style={styles.card}>
-                <View style={[styles.urgencyLine, { backgroundColor: item.color }]} />
+                <View style={[styles.urgencyLine, { backgroundColor: item.color || '#ccc' }]} />
 
                 <View style={styles.cardHeader}>
                     <View style={styles.studentInfo}>
-                        <View style={[styles.avatarStats, { backgroundColor: `${item.color}15` }]}>
-                            <Text style={[styles.avatarText, { color: item.color }]}>
-                                {item.target.split(' ').map(n => n[0]).join('')}
+                        <View style={[styles.avatarStats, { backgroundColor: `${item.color || '#ccc'}15` }]}>
+                            <Text style={[styles.avatarText, { color: item.color || '#666' }]}>
+                                #
                             </Text>
                         </View>
                         <View>
-                            <Text style={styles.studentName}>{item.target}</Text>
-                            <Text style={styles.rollNo}>ID: {item.targetID || 'N/A'}</Text>
+                            <Text style={styles.studentName}>{item.ticket_no}</Text>
+                            {/* Backend might not return student name directly in list unless joined, checking implementation */}
+                            <Text style={styles.rollNo}>{item.category}</Text>
                         </View>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: `${item.color}15`, borderColor: `${item.color}30` }]}>
-                        <Text style={[styles.badgeText, { color: item.color }]}>{item.severity}</Text>
+                    <View style={[styles.badge, { backgroundColor: `${item.color || '#ccc'}15`, borderColor: `${item.color || '#ccc'}30` }]}>
+                        <Text style={[styles.badgeText, { color: item.color || '#666' }]}>{item.priority}</Text>
                     </View>
                 </View>
 
                 <View style={styles.contentBody}>
                     <Text style={styles.reportTitle}>{item.title}</Text>
-                    <Text style={styles.reportDesc}>{item.description}</Text>
+                    {/* Description might be long, optionally truncate */}
+                    <Text style={styles.reportDesc} numberOfLines={2}>{item.description || 'No description'}</Text>
                 </View>
 
                 <View style={styles.footer}>
-                    <Text style={styles.date}>{item.date}</Text>
+                    <Text style={styles.date}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
                     <View style={[styles.statusDot,
-                    item.status === 'Resolved' ? { backgroundColor: '#10B981' } :
-                        item.status === 'Escalated' ? { backgroundColor: '#EF4444' } :
+                    item.status === 'resolved' ? { backgroundColor: '#10B981' } :
+                        (item.status as string) === 'escalated' ? { backgroundColor: '#EF4444' } :
                             { backgroundColor: '#F59E0B' }
                     ]}>
                         <Text style={styles.statusText}>{item.status}</Text>
@@ -109,13 +224,42 @@ export default function StaffComplaints() {
         <Animated.View entering={FadeInDown.duration(500)} style={styles.formContainer}>
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Student Name / Roll No</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Search student..."
-                    placeholderTextColor="#9CA3AF"
-                    value={selectedStudent}
-                    onChangeText={setSelectedStudent}
-                />
+                {selectedStudent ? (
+                    <View style={styles.selectedStudentChip}>
+                        <Text style={styles.selectedStudentText}>{selectedStudent.display_name} ({selectedStudent.admission_no})</Text>
+                        <TouchableOpacity onPress={() => { setSelectedStudent(null); setStudentSearch(''); }} style={{ marginLeft: 8 }}>
+                            <Ionicons name="close-circle" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Search student..."
+                            placeholderTextColor="#9CA3AF"
+                            value={studentSearch}
+                            onChangeText={setStudentSearch}
+                        />
+                        {isSearching && <ActivityIndicator style={{ position: 'absolute', right: 10, top: 40 }} />}
+                        {studentSearch.length > 2 && studentsList.length > 0 && (
+                            <View style={styles.suggestionsContainer}>
+                                {studentsList.map((s) => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        style={styles.suggestionItem}
+                                        onPress={() => {
+                                            setSelectedStudent(s);
+                                            setStudentsList([]);
+                                            setStudentSearch('');
+                                        }}
+                                    >
+                                        <Text style={styles.suggestionText}>{s.display_name} ({s.admission_no})</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+                    </>
+                )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -145,7 +289,7 @@ export default function StaffComplaints() {
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Severity Level</Text>
                 <View style={styles.severityRow}>
-                    {['Low', 'Medium', 'High'].map((lvl) => (
+                    {(['Low', 'Medium', 'High'] as const).map((lvl) => (
                         <TouchableOpacity
                             key={lvl}
                             style={[
@@ -155,7 +299,7 @@ export default function StaffComplaints() {
                                     lvl === 'Medium' ? { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' } :
                                         { backgroundColor: '#DBEAFE', borderColor: '#3B82F6' })
                             ]}
-                            onPress={() => setSeverity(lvl as any)}
+                            onPress={() => setSeverity(lvl)}
                         >
                             <Text style={[
                                 styles.severityText,
@@ -168,13 +312,17 @@ export default function StaffComplaints() {
                 </View>
             </View>
 
-            <TouchableOpacity style={styles.submitBtn}>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
                 <LinearGradient
                     colors={['#10B981', '#059669']}
                     style={styles.submitGradient}
                 >
-                    <Text style={styles.submitText}>Submit Report</Text>
-                    <Ionicons name="send" size={18} color="#fff" />
+                    {loading ? <ActivityIndicator color="#fff" /> : (
+                        <>
+                            <Text style={styles.submitText}>Submit Report</Text>
+                            <Ionicons name="send" size={18} color="#fff" />
+                        </>
+                    )}
                 </LinearGradient>
             </TouchableOpacity>
         </Animated.View>
@@ -190,11 +338,11 @@ export default function StaffComplaints() {
                 {activeTab === 'MY_REPORTS' ? (
                     <View style={styles.listContainer}>
                         <View style={styles.filterTabs}>
-                            {['ALL', 'DISCIPLINARY', 'FACILITY'].map((type) => (
+                            {(['ALL', 'DISCIPLINARY', 'FACILITY'] as const).map((type) => (
                                 <TouchableOpacity
                                     key={type}
                                     style={[styles.filterChip, filterType === type && styles.activeFilterChip]}
-                                    onPress={() => setFilterType(type as any)}
+                                    onPress={() => setFilterType(type)}
                                 >
                                     <Text style={[styles.filterText, filterType === type && styles.activeFilterText]}>
                                         {type}
@@ -202,7 +350,10 @@ export default function StaffComplaints() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                        {staffReports.map((item, index) => renderComplaintItem({ item, index }))}
+                        {loading ? <ActivityIndicator size="large" color="#10B981" /> :
+                            filteredComplaints.length === 0 ? <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No complaints found.</Text> :
+                                filteredComplaints.map((item, index) => renderComplaintItem({ item, index }))
+                        }
                     </View>
                 ) : (
                     renderForm()
@@ -380,6 +531,7 @@ const styles = StyleSheet.create({
     },
     inputGroup: {
         marginBottom: 20,
+        position: 'relative',
     },
     label: {
         fontSize: 14,
@@ -469,4 +621,42 @@ const styles = StyleSheet.create({
     activeFilterText: {
         color: '#fff',
     },
+    suggestionsContainer: {
+        marginTop: 4,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        maxHeight: 150,
+        zIndex: 10,
+        elevation: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    suggestionItem: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+    },
+    suggestionText: {
+        fontSize: 14,
+        color: '#374151'
+    },
+    selectedStudentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ECFDF5',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#10B981',
+        alignSelf: 'flex-start'
+    },
+    selectedStudentText: {
+        color: '#047857',
+        fontWeight: '600'
+    }
 });

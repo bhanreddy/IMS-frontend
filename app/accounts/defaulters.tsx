@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useState, useEffect } from 'react';
-import { FeesService } from '../../src/services/fees.service';
+import { FeeService as FeesService } from '../../src/services/feeService';
 import { useAuth } from '../../src/hooks/useAuth';
 
 export default function AccountsDefaulters() {
@@ -18,7 +18,7 @@ export default function AccountsDefaulters() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await FeesService.getPendingFees();
+            const data = await FeesService.getDefaulters();
             // Data is Fee[]
             // We need to group by student or just list them.
             // Assumption: we need student details. 
@@ -27,12 +27,12 @@ export default function AccountsDefaulters() {
             // Adding a mocked fetch or assume Fee doc has studentName snapshot
 
             const uiData = data.map((d: any) => ({
-                id: d.id,
-                name: d.studentName || 'Student Name', // Assuming FeesService returns populated or we add it
-                class: d.classId || 'Class',
-                due: `₹${d.amount}`,
-                parent: 'Parent Name', // Placeholder
-                phone: '1234567890'
+                id: d.student_id, // API returns student_id, but list key is id
+                name: d.student_name || 'Student Name',
+                class: d.class_name || 'Class',
+                due: `₹${d.total_due}`,
+                parent: 'Parent Name', // Still placeholder as API doesn't return parent yet
+                phone: 'N/A'
             }));
             setDefaulters(uiData);
         } catch (e) {
@@ -177,3 +177,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
+
+

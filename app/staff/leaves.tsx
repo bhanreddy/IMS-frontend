@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StaffHeader from '../../src/components/StaffHeader';
 import { useAuth } from '../../src/hooks/useAuth';
-import { LeaveService } from '../../src/services/leave.service';
+import { LeaveService, LeaveApplication } from '../../src/services/commonServices';
 
 export default function ApplyLeave() {
     const { user } = useAuth();
@@ -22,13 +22,15 @@ export default function ApplyLeave() {
     const loadLeaves = async () => {
         try {
             if (user) {
-                const data = await LeaveService.getByUser(user.uid);
+                // Assuming getAll returns all leaves, we might need a filter for "my leaves"
+                // but usually the backend filters based on token.
+                const data = await LeaveService.getAll();
                 // Map to UI
-                const formatted = data.map((l: any) => ({
+                const formatted = data.map((l: LeaveApplication) => ({
                     id: l.id,
-                    type: l.leaveType || 'Leave',
-                    range: `${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()}`,
-                    days: calculateDays(l.startDate, l.endDate),
+                    type: l.leave_type || 'Leave',
+                    range: `${new Date(l.start_date).toLocaleDateString()} - ${new Date(l.end_date).toLocaleDateString()}`,
+                    days: calculateDays(l.start_date, l.end_date),
                     status: l.status,
                     color: getStatusColor(l.status)
                 }));
@@ -64,12 +66,17 @@ export default function ApplyLeave() {
         try {
             setLoading(true);
             if (user) {
-                await LeaveService.applyLeave({
-                    leaveType,
-                    startDate: fromDate,
-                    endDate: toDate,
+                const typeMap: Record<string, string> = {
+                    'Sick Leave': 'sick',
+                    'Casual Leave': 'casual',
+                    'Emergency': 'other'
+                };
+
+                await LeaveService.create({
+                    leave_type: typeMap[leaveType] || 'other',
+                    start_date: fromDate,
+                    end_date: toDate,
                     reason,
-                    submitterId: user.uid
                 });
                 Alert.alert("Success", "Leave application submitted successfully!");
                 loadLeaves();
@@ -334,3 +341,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+

@@ -1,41 +1,105 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, StatusBar } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const LEAVE_REQUESTS = [
-    { id: '1', name: 'Priya Sharma', role: 'Science Teacher', type: 'Sick Leave', duration: '2 Days', dates: '10-11 Jan', reason: 'Suffering from high fever.', image: 'https://cdn-icons-png.flaticon.com/512/3135/3135768.png' },
-    { id: '2', name: 'Amit Kumar', role: 'English Teacher', type: 'Casual Leave', duration: '1 Day', dates: '15 Jan', reason: 'Personal work.', image: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' },
-];
+import { LeaveService, LeaveApplication } from '../../src/services/commonServices';
 
 export default function AdminLeaves() {
+    const [leaves, setLeaves] = useState<LeaveApplication[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const renderItem = ({ item, index }: { item: typeof LEAVE_REQUESTS[0], index: number }) => (
+    useEffect(() => {
+        fetchLeaves();
+    }, []);
+
+    const fetchLeaves = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const data = await LeaveService.getAll({ status: 'pending' });
+            setLeaves(data);
+        } catch (error) {
+            console.error('Failed to fetch leaves:', error);
+            setError('Failed to load leave requests');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAction = async (id: string, action: 'approved' | 'rejected') => {
+        try {
+            if (action === 'approved') {
+                await LeaveService.approve(id);
+            } else {
+                await LeaveService.reject(id);
+            }
+            Alert.alert('Success', `Leave request ${action}`);
+            fetchLeaves(); // Refresh list
+        } catch (error) {
+            console.error(`Failed to ${action} leave:`, error);
+            Alert.alert('Error', `Failed to ${action} request`);
+        }
+    };
+
+    // ... (helper functions remain same)
+
+    const calculateDuration = (start: string, end: string) => {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
+    };
+
+    const formatDateRange = (start: string, end: string) => {
+        const startDate = new Date(start).toLocaleDateString();
+        const endDate = new Date(end).toLocaleDateString();
+        if (startDate === endDate) return startDate;
+        return `${startDate} - ${endDate}`;
+    };
+
+    const renderItem = ({ item, index }: { item: LeaveApplication, index: number }) => (
         <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
             <View style={styles.card}>
                 <View style={styles.headerRow}>
-                    <Image source={{ uri: item.image }} style={styles.avatar} />
+                    <Image
+                        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                        style={styles.avatar}
+                    />
                     <View style={styles.info}>
-                        <Text style={styles.name}>{item.name}</Text>
-                        <Text style={styles.role}>{item.role}</Text>
+                        <Text style={styles.name}>{item.applicant_name || 'Unknown User'}</Text>
+                        <Text style={styles.role}>
+                            {item.applicant_role ?
+                                item.applicant_role.charAt(0).toUpperCase() + item.applicant_role.slice(1)
+                                : 'Staff/Student'}
+                        </Text>
                     </View>
                     <View style={styles.durationBadge}>
-                        <Text style={styles.durationText}>{item.duration}</Text>
+                        <Text style={styles.durationText}>{calculateDuration(item.start_date, item.end_date)}</Text>
                     </View>
                 </View>
 
                 <View style={styles.reasonBox}>
-                    <Text style={styles.leaveType}>{item.type} • {item.dates}</Text>
+                    <Text style={styles.leaveType}>
+                        {item.leave_type.toUpperCase()} • {formatDateRange(item.start_date, item.end_date)}
+                    </Text>
                     <Text style={styles.reasonText}>"{item.reason}"</Text>
                 </View>
 
                 <View style={styles.actionRow}>
-                    <TouchableOpacity style={[styles.actionButton, styles.rejectBtn]}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.rejectBtn]}
+                        onPress={() => handleAction(item.id, 'rejected')}
+                    >
                         <Ionicons name="close-circle" size={18} color="#EF4444" />
                         <Text style={[styles.actionText, { color: '#EF4444' }]}>Reject</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionButton, styles.approveBtn]}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.approveBtn]}
+                        onPress={() => handleAction(item.id, 'approved')}
+                    >
                         <Ionicons name="checkmark-circle" size={18} color="#10B981" />
                         <Text style={[styles.actionText, { color: '#10B981' }]}>Approve</Text>
                     </TouchableOpacity>
@@ -49,14 +113,31 @@ export default function AdminLeaves() {
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <AdminHeader title="Leave Management" showBackButton={true} />
 
-            <FlatList
-                data={LEAVE_REQUESTS}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                ListHeaderComponent={<Text style={styles.sectionTitle}>Pending Requests (2)</Text>}
-            />
+            {loading ? (
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#6366F1" />
+                </View>
+            ) : error ? (
+                <View style={styles.centerContainer}>
+                    <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+                    <Text style={[styles.emptyText, { marginBottom: 20 }]}>{error}</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={fetchLeaves}>
+                        <Text style={styles.retryText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <FlatList
+                    data={leaves}
+                    keyExtractor={item => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={leaves.length > 0 ? <Text style={styles.sectionTitle}>Pending Requests ({leaves.length})</Text> : null}
+                    ListEmptyComponent={<Text style={styles.emptyText}>No pending leave requests</Text>}
+                    refreshing={loading}
+                    onRefresh={fetchLeaves}
+                />
+            )}
         </View>
     );
 }
@@ -65,6 +146,22 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F3F4F6',
+    },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    retryButton: {
+        backgroundColor: '#6366F1',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    retryText: {
+        color: '#fff',
+        fontWeight: 'bold',
     },
     listContent: {
         padding: 20,
@@ -98,6 +195,7 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 25,
         marginRight: 15,
+        backgroundColor: '#F3F4F6',
     },
     info: {
         flex: 1,
@@ -162,4 +260,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginLeft: 6,
     },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#9CA3AF',
+        fontSize: 16,
+    },
 });
+
+

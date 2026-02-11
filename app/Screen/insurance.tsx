@@ -9,8 +9,10 @@ import {
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
+import { useAuth } from '../../src/hooks/useAuth';
 
 export default function InsuranceScreen() {
+    const { user } = useAuth();
     return (
         <ScreenLayout>
             <StudentHeader showBackButton={true} title="Insurance" />
@@ -22,7 +24,7 @@ export default function InsuranceScreen() {
 
                     <View style={styles.planRow}>
                         <Text style={styles.label}>Student Name</Text>
-                        <Text style={styles.value}>Rahul Kumar</Text>
+                        <Text style={styles.value}>{user?.name || 'Student'}</Text>
                     </View>
 
                     <View style={styles.planRow}>
@@ -235,3 +237,5 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
 });
+
+

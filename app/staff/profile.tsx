@@ -16,9 +16,11 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import StaffHeader from '../../src/components/StaffHeader';
+import { useAuth } from '../../src/hooks/useAuth';
 
 const StaffProfileScreen = () => {
     const router = useRouter();
+    const { user } = useAuth();
 
     const handleCall = (number: string) => {
         Haptics.selectionAsync();
@@ -75,7 +77,7 @@ const StaffProfileScreen = () => {
                     <View style={styles.profileContent}>
                         <View style={styles.avatarContainer}>
                             <Image
-                                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
+                                source={{ uri: user?.photoUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }}
                                 style={styles.avatar}
                             />
                             <View style={styles.statusBadge}>
@@ -84,9 +86,9 @@ const StaffProfileScreen = () => {
                             </View>
                         </View>
 
-                        <Text style={styles.name}>Rahul Reddy</Text>
-                        <Text style={styles.designation}>Senior Mathematics Teacher</Text>
-                        <Text style={styles.staffId}>ID: STF-2024-001</Text>
+                        <Text style={styles.name}>{user?.name || 'Staff Member'}</Text>
+                        <Text style={styles.designation}>{user?.role ? user?.role.charAt(0).toUpperCase() + user?.role.slice(1) : 'Staff'}</Text>
+                        <Text style={styles.staffId}>ID: {user?.id || 'N/A'}</Text>
 
                         <View style={styles.quickStatsRow}>
                             <View style={styles.quickStat}>
@@ -114,35 +116,35 @@ const StaffProfileScreen = () => {
                         <InfoRow
                             icon="mail-outline"
                             label="Email Address"
-                            value="rahul.reddy@school.edu"
+                            value={user?.email || 'N/A'}
                             isLink
-                            onPress={() => handleEmail('rahul.reddy@school.edu')}
+                            onPress={() => user?.email && handleEmail(user.email)}
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon="call-outline"
                             label="Phone Number"
-                            value="+91 98765 43210"
+                            value={user?.phone || 'N/A'}
                             isLink
-                            onPress={() => handleCall('+919876543210')}
+                            onPress={() => user?.phone && handleCall(user.phone)}
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon="calendar-outline"
                             label="Date of Birth"
-                            value="15 Aug, 1985"
+                            value="-"
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon="water-outline"
                             label="Blood Group"
-                            value="O+"
+                            value="-"
                         />
                         <View style={styles.divider} />
                         <InfoRow
                             icon="location-outline"
                             label="Current Address"
-                            value="Flat 101, Sunshine Apts, Hitech City, Hyderabad - 500081"
+                            value="-"
                         />
                     </View>
                 </Animated.View>
@@ -389,3 +391,5 @@ const styles = StyleSheet.create({
 });
 
 export default StaffProfileScreen;
+
+

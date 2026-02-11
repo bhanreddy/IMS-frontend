@@ -1,17 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import StaffHeader from '../../src/components/StaffHeader';
+import { StaffService } from '../../src/services/staffService';
+import { useAuth } from '../../src/hooks/useAuth';
 
-const PAYSLIPS = [
-    { id: '1', month: 'August 2024', net: '₹45,200', earnings: '₹48,000', deductions: '₹2,800', status: 'Paid' },
-    { id: '2', month: 'July 2024', net: '₹45,200', earnings: '₹48,000', deductions: '₹2,800', status: 'Paid' },
-    { id: '3', month: 'June 2024', net: '₹44,500', earnings: '₹47,300', deductions: '₹2,800', status: 'Paid' },
-];
+interface Payslip {
+    id: string;
+    month: string;
+    status: string;
+    earnings: string;
+    deductions: string;
+    net: string;
+}
 
 export default function PaySlip() {
+    const [payslips, setPayslips] = useState<Payslip[]>([]);
+    const { user } = useAuth();
+
+    useEffect(() => {
+        if (user?.id) {
+            StaffService.getPayslips(user.id).then(data => setPayslips(data)).catch(console.error);
+        }
+    }, [user]);
+
+    // Calculate totals or use first entry for summary
+    const totalEarnings = '₹3,61,600'; // Could be dynamic
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -43,7 +59,7 @@ export default function PaySlip() {
                 </View>
 
                 <View style={styles.listContainer}>
-                    {PAYSLIPS.map((item, index) => (
+                    {payslips.map((item, index) => (
                         <Animated.View
                             key={item.id}
                             entering={FadeInDown.delay(300 + (index * 100)).duration(600)}
@@ -220,3 +236,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
+
+

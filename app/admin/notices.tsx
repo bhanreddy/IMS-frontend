@@ -1,45 +1,161 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, TextInput } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const NOTICES_DATA = [
-    { id: '1', title: 'Exam Schedule Released', date: '2 mins ago', audience: 'Students', priority: 'High', content: 'The final exam schedule for Class X and XII has been released.' },
-    { id: '2', title: 'Staff Meeting Rescheduled', date: '1 hour ago', audience: 'Staff', priority: 'Medium', content: 'The weekly staff meeting is moved to Friday 3 PM.' },
-    { id: '3', title: 'Holiday Announcement', date: '5 hours ago', audience: 'All', priority: 'Low', content: 'School will remain closed on Monday due to heavy rains.' },
-];
+import { NoticeService, Notice, CreateNoticeRequest } from '../../src/services/commonServices';
+import { ClassService, ClassInfo } from '../../src/services/classService';
+import { Modal, Switch, ScrollView } from 'react-native';
 
 export default function AdminNotices() {
+    const [notices, setNotices] = useState<Notice[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const renderItem = ({ item, index }: { item: typeof NOTICES_DATA[0], index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
-            <TouchableOpacity style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <View style={[styles.priorityBadge,
-                    item.priority === 'High' ? styles.pHigh :
-                        item.priority === 'Medium' ? styles.pMedium : styles.pLow
-                    ]}>
-                        <Text style={[styles.priorityText,
-                        item.priority === 'High' ? { color: '#991B1B' } :
-                            item.priority === 'Medium' ? { color: '#92400E' } : { color: '#1E40AF' }
-                        ]}>{item.priority}</Text>
-                    </View>
-                </View>
+    // Create Modal States
+    const [modalVisible, setModalVisible] = useState(false);
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [audience, setAudience] = useState<'all' | 'students' | 'staff' | 'parents' | 'class'>('all');
+    const [priority, setPriority] = useState('medium');
+    const [targetClassId, setTargetClassId] = useState('');
+    const [isPinned, setIsPinned] = useState(false);
+    const [classes, setClasses] = useState<ClassInfo[]>([]);
+    const [creating, setCreating] = useState(false);
 
-                <Text style={styles.content} numberOfLines={2}>{item.content}</Text>
+    useEffect(() => {
+        fetchNotices();
+        fetchClasses();
+    }, []);
 
-                <View style={styles.footer}>
-                    <View style={styles.audienceRow}>
-                        <Ionicons name="people" size={14} color="#6B7280" />
-                        <Text style={styles.audienceText}>{item.audience}</Text>
-                    </View>
-                    <Text style={styles.dateText}>{item.date}</Text>
-                </View>
-            </TouchableOpacity>
-        </Animated.View>
+    const fetchClasses = async () => {
+        try {
+            const data = await ClassService.getClasses();
+            setClasses(data);
+        } catch (e) {
+            console.warn('Failed to fetch classes', e);
+        }
+    };
+
+    const fetchNotices = async () => {
+        try {
+            setLoading(true);
+            const data = await NoticeService.getAll();
+            setNotices(data);
+        } catch (error) {
+            console.error('Failed to fetch notices:', error);
+            Alert.alert('Error', 'Failed to load notices');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatTimeAgo = (dateString: string) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return Math.floor(seconds) + " seconds ago";
+    };
+
+    const getPriorityColor = (priority?: string) => {
+        switch ((priority || '').toLowerCase()) {
+            case 'high': return { bg: '#FEE2E2', text: '#991B1B' };
+            case 'medium': return { bg: '#FEF3C7', text: '#92400E' };
+            case 'low': return { bg: '#DBEAFE', text: '#1E40AF' };
+            default: return { bg: '#F3F4F6', text: '#374151' };
+        }
+    };
+
+    const filteredNotices = notices.filter(notice =>
+        notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        notice.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleCreate = async () => {
+        if (!title.trim() || !content.trim()) {
+            Alert.alert('Error', 'Title and Content are required');
+            return;
+        }
+
+        if (audience === 'class' && !targetClassId) {
+            Alert.alert('Error', 'Please select a target class');
+            return;
+        }
+
+        try {
+            setCreating(true);
+            const payload: CreateNoticeRequest = {
+                title,
+                content,
+                audience,
+                priority,
+                is_pinned: isPinned,
+                target_class_id: audience === 'class' ? targetClassId : undefined
+            };
+
+            await NoticeService.create(payload);
+            Alert.alert('Success', 'Notice created successfully');
+            setModalVisible(false);
+            resetForm();
+            fetchNotices();
+        } catch (error: any) {
+            Alert.alert('Error', error.response?.data?.error || 'Failed to create notice');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const resetForm = () => {
+        setTitle('');
+        setContent('');
+        setAudience('all');
+        setPriority('medium');
+        setTargetClassId('');
+        setIsPinned(false);
+    };
+
+    const renderItem = ({ item, index }: { item: Notice, index: number }) => {
+        const priorityColors = getPriorityColor(item.priority);
+
+        return (
+            <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
+                <TouchableOpacity style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Text style={styles.title}>{item.title}</Text>
+                        <View style={[styles.priorityBadge, { backgroundColor: priorityColors.bg }]}>
+                            <Text style={[styles.priorityText, { color: priorityColors.text }]}>
+                                {(item.priority || 'Normal').charAt(0).toUpperCase() + (item.priority || 'Normal').slice(1)}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <Text style={styles.content} numberOfLines={2}>{item.content}</Text>
+
+                    <View style={styles.footer}>
+                        <View style={styles.audienceRow}>
+                            <Ionicons name="people" size={14} color="#6B7280" />
+                            <Text style={styles.audienceText}>
+                                {item.audience.charAt(0).toUpperCase() + item.audience.slice(1)}
+                            </Text>
+                        </View>
+                        <Text style={styles.dateText}>{formatTimeAgo(item.published_at || item.created_at)}</Text>
+                    </View>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -48,20 +164,140 @@ export default function AdminNotices() {
 
             <View style={styles.searchContainer}>
                 <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-                <TextInput style={styles.searchInput} placeholder="Search notices..." />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search notices..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
             </View>
 
-            <FlatList
-                data={NOTICES_DATA}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-            />
+            {loading ? (
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color="#EC4899" />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredNotices}
+                    keyExtractor={item => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshing={loading}
+                    onRefresh={fetchNotices}
+                    ListEmptyComponent={<Text style={styles.emptyText}>No notices found</Text>}
+                />
+            )}
 
-            <TouchableOpacity style={styles.fab}>
+            <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
                 <Ionicons name="create" size={28} color="#fff" />
             </TouchableOpacity>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Create Notice</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                            <Text style={styles.label}>Title</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Notice Title"
+                                value={title}
+                                onChangeText={setTitle}
+                            />
+
+                            <Text style={styles.label}>Content</Text>
+                            <TextInput
+                                style={[styles.input, styles.textArea]}
+                                placeholder="Notice Details..."
+                                value={content}
+                                onChangeText={setContent}
+                                multiline
+                                numberOfLines={4}
+                                textAlignVertical="top"
+                            />
+
+                            <Text style={styles.label}>Audience</Text>
+                            <View style={styles.pillContainer}>
+                                {['all', 'students', 'staff', 'parents', 'class'].map((a) => (
+                                    <TouchableOpacity
+                                        key={a}
+                                        style={[styles.pill, audience === a && styles.activePill]}
+                                        onPress={() => setAudience(a as any)}
+                                    >
+                                        <Text style={[styles.pillText, audience === a && styles.activePillText]}>
+                                            {a.charAt(0).toUpperCase() + a.slice(1)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {audience === 'class' && (
+                                <View style={{ marginTop: 10 }}>
+                                    <Text style={styles.label}>Select Class</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                                        {classes.map(c => (
+                                            <TouchableOpacity
+                                                key={c.id}
+                                                style={[styles.pill, targetClassId === c.id && styles.activePill]}
+                                                onPress={() => setTargetClassId(c.id)}
+                                            >
+                                                <Text style={[styles.pillText, targetClassId === c.id && styles.activePillText]}>
+                                                    {c.name}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            )}
+
+                            <Text style={styles.label}>Priority</Text>
+                            <View style={styles.pillContainer}>
+                                {['low', 'medium', 'high'].map((p) => (
+                                    <TouchableOpacity
+                                        key={p}
+                                        style={[styles.pill, priority === p && styles.activePill]}
+                                        onPress={() => setPriority(p)}
+                                    >
+                                        <Text style={[styles.pillText, priority === p && styles.activePillText]}>
+                                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <View style={styles.rowBetween}>
+                                <Text style={styles.label}>Pin to Top</Text>
+                                <Switch
+                                    value={isPinned}
+                                    onValueChange={setIsPinned}
+                                    trackColor={{ false: "#767577", true: "#EC4899" }}
+                                    thumbColor={isPinned ? "#fff" : "#f4f3f4"}
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={[styles.createBtn, creating && styles.disabledBtn]}
+                                onPress={handleCreate}
+                                disabled={creating}
+                            >
+                                {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Publish Notice</Text>}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -70,6 +306,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F3F4F6',
+    },
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     searchContainer: {
         flexDirection: 'row',
@@ -128,9 +369,6 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 6,
     },
-    pHigh: { backgroundColor: '#FEE2E2' },
-    pMedium: { backgroundColor: '#FEF3C7' },
-    pLow: { backgroundColor: '#DBEAFE' },
     priorityText: {
         fontSize: 10,
         fontWeight: '700',
@@ -176,4 +414,103 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 50,
+        color: '#9CA3AF',
+        fontSize: 16,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        maxHeight: '85%',
+        elevation: 10,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#1F2937',
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#374151',
+        marginBottom: 8,
+        marginTop: 8,
+    },
+    input: {
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
+        color: '#1F2937',
+    },
+    textArea: {
+        height: 100,
+    },
+    pillContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 10,
+    },
+    pill: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    activePill: {
+        backgroundColor: '#EC4899',
+        borderColor: '#EC4899',
+    },
+    pillText: {
+        fontSize: 14,
+        color: '#4B5563',
+        fontWeight: '500',
+    },
+    activePillText: {
+        color: '#fff',
+    },
+    rowBetween: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    createBtn: {
+        backgroundColor: '#EC4899',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    createBtnText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    disabledBtn: {
+        opacity: 0.7,
+    },
 });
+
+

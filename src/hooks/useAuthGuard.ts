@@ -2,23 +2,100 @@ import { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { useAuth } from './useAuth';
 
+// List of public routes that don't require authentication
+// Note: '/' is the 4-login-options index page.
+// 'login', 'staff-login' etc are specific login forms.
+const PUBLIC_ROUTES = ['index', 'login', 'signup', 'staff-login', 'admin-login', 'accounts-login'];
+
 export function useAuthGuard() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const segments = useSegments();
 
     useEffect(() => {
+        if (__DEV__) console.log('[AuthGuard] Run:', { user: user?.role, loading, segments });
         if (loading) return;
 
-        // Cast validation for stricter TS environments
-        const segmentGroup = segments[0] as string;
-        const inAuthGroup = segmentGroup === '(auth)';
+        const currentSegment = segments[0] as string || 'index';
 
-        // If not authenticated and not in auth group, redirect to login
-        if (!user && !inAuthGroup) {
-            router.replace('/login');
-        } else if (user && inAuthGroup) {
-            router.replace('/(tabs)/home');
+        // Check if we are in a public route group
+        const inAuthGroup = PUBLIC_ROUTES.includes(currentSegment);
+
+        // Check specific groups
+        const inTabsGroup = segments[0] === '(tabs)';
+        const inAdminGroup = segments[0] === 'admin';
+        const inStaffGroup = segments[0] === 'staff';
+        const inAccountsGroup = segments[0] === 'accounts';
+
+        // 1. User IS logged in
+        if (user) {
+            // Strictly prevent loop if already on the correct dashboard
+            const homeRoute = getHomeRoute(user.role);
+            const normalizedHome = homeRoute.replace(/^\//, '');
+
+            // Check if current route matches home route to avoid infinite replacement
+            // Check if current route matches home route to avoid infinite replacement
+            const currentRoute = segments.join('/');
+
+            // debug logs
+            if (__DEV__) console.log('[AuthGuard] Check:', { currentRoute, normalizedHome, userRole: user.role });
+
+            // Only stop if we are strictly at the home route
+            if (currentRoute === normalizedHome) {
+                return;
+            }
+
+            // Strict Segment Guarding for Role Based Access
+            if (inAdminGroup && user.role !== 'admin') {
+                router.replace(homeRoute);
+                return;
+            }
+
+            if (inStaffGroup && !['staff', 'teacher'].includes(user.role)) {
+                router.replace(homeRoute);
+                return;
+            }
+
+            if (inAccountsGroup && user.role !== 'accountant') {
+                router.replace(homeRoute);
+                return;
+            }
+
+            // Redirect from public/auth screens to dashboard if logged in
+            if (inAuthGroup) {
+                router.replace(homeRoute);
+            }
+
+            // CHECK FOR MISSING PROFILES (Safety Net)
+            // If user is stuck in a role that requires a profile they don't have
+            if (user.role === 'student' && user.has_student_profile === false) {
+                router.replace('/no-profile');
+            } else if ((user.role === 'staff' || user.role === 'teacher') && user.has_staff_profile === false) {
+                router.replace('/no-profile');
+            }
+
+        } else {
+            // 2. User is NOT logged in
+            // If trying to access protected areas, redirect to login
+            if (inTabsGroup || inAdminGroup || inStaffGroup || inAccountsGroup) {
+                if (__DEV__) console.log('[AuthGuard] Unauthenticated on protected route. Redirecting to /', { segments });
+                // Check if we are already engaging with a login flow to avoid fighting
+                // But generally, if we're in a protected group and not logged in, we MUST go to root.
+                router.replace('/');
+            } else {
+                if (__DEV__) console.log('[AuthGuard] Unauthenticated but on public route:', segments);
+            }
         }
+
     }, [user, loading, segments]);
 }
+
+const getHomeRoute = (role: string) => {
+    switch (role) {
+        case 'admin': return '/admin/dashboard';
+        case 'accountant': return '/accounts/dashboard';
+        case 'staff':
+        case 'teacher': return '/staff/dashboard';
+        default: return '/(tabs)/home';
+    }
+};

@@ -3,8 +3,12 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AdminHeader from '../../../src/components/AdminHeader';
 import { useAuth } from '../../../src/hooks/useAuth';
-import { FeesService } from '../../../src/services/fees.service';
+import { FeeService as FeesService } from '../../../src/services/feeService';
+import { useTheme } from '../../../src/hooks/useTheme';
+import { generateReceiptPDF } from '../../../src/utils/pdfGenerator';
 
+// No changes here, just using this tool call to 'yield' to check the next steps. but wait, I can't do that.
+// I will actually replace the export default to include useTheme and styles inside.
 export default function CollectFeesScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -14,6 +18,8 @@ export default function CollectFeesScreen() {
     // Params from list
     const feeId = params.feeId as string;
     const studentName = params.name as string;
+    const admissionNo = params.admissionNo as string;
+    const feeType = params.feeType as string;
     const dueAmount = params.due as string;
 
     const [amount, setAmount] = useState('');
@@ -21,33 +27,67 @@ export default function CollectFeesScreen() {
     const [remarks, setRemarks] = useState('');
 
     const handleCollect = async () => {
-        if (!amount) {
-            Alert.alert("Error", "Please enter amount");
+        const amountNum = parseFloat(amount);
+        if (!amount || isNaN(amountNum) || amountNum <= 0) {
+            Alert.alert("Invalid Amount", "Please enter a valid amount greater than zero.");
             return;
         }
 
         if (!feeId) {
-            Alert.alert("Error", "Fee ID is required");
+            Alert.alert("Error", "Fee record identifier is missing.");
             return;
         }
 
-        setLoading(true);
-        try {
-            await FeesService.payFee(feeId, {
-                amount: parseFloat(amount),
-                method: mode.toLowerCase(),
-                remarks,
-                collectedBy: user?.uid
-            });
+        // Financial Confirmation Flow
+        Alert.alert(
+            "Confirm Payment",
+            `Are you sure you want to record a payment of ₹${amountNum} via ${mode}? This action is permanent and will be logged.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Confirm & Record",
+                    onPress: async () => {
+                        setLoading(true);
+                        try {
+                            const result = await FeesService.collectFee({
+                                student_fee_id: feeId,
+                                amount: amountNum,
+                                payment_method: mode.toLowerCase() as any,
+                                remarks
+                            });
 
-            Alert.alert("Success", "Fee collected successfully!", [
-                { text: "OK", onPress: () => router.back() }
-            ]);
-        } catch (error) {
-            Alert.alert("Error", "Failed to collect fee");
-        } finally {
-            setLoading(false);
-        }
+                            Alert.alert(
+                                "Payment Successful",
+                                `Receipt Reference: ${result.transaction_ref || result.id}\n\nThe ledger has been updated.`,
+                                [
+                                    {
+                                        text: "Print Receipt",
+                                        onPress: async () => {
+                                            await generateReceiptPDF({
+                                                ...result,
+                                                student_name: studentName,
+                                                admission_no: admissionNo,
+                                                fee_type: feeType,
+                                                paid_at: new Date().toISOString() // Current time since we just paid
+                                            });
+                                            router.back();
+                                        }
+                                    },
+                                    { text: "Done", onPress: () => router.back() }
+                                ]
+                            );
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Financial Mutation Failed",
+                                error.message || "The payment could not be processed. Please check backend logs."
+                            );
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     return (
@@ -115,16 +155,18 @@ export default function CollectFeesScreen() {
     );
 }
 
+const { theme, isDark } = useTheme();
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: theme.colors.background,
     },
     content: {
         padding: 20,
     },
     infoCard: {
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.card,
         padding: 20,
         borderRadius: 16,
         marginBottom: 20,
@@ -133,47 +175,51 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 5,
         elevation: 2,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     label: {
         fontSize: 13,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         marginBottom: 4,
     },
     value: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: theme.colors.text,
     },
     divider: {
         height: 1,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: theme.colors.border,
         marginVertical: 15,
     },
     form: {
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.card,
         padding: 20,
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 20,
-        color: '#111827',
+        color: theme.colors.text,
     },
     inputLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#374151',
+        color: theme.colors.text,
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: isDark ? theme.colors.background : '#F9FAFB',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: theme.colors.border,
         borderRadius: 10,
         padding: 12,
         fontSize: 16,
-        color: '#1F2937',
+        color: theme.colors.text,
         marginBottom: 20,
     },
     modeRow: {
@@ -185,21 +231,22 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 10,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: theme.colors.border,
         borderRadius: 8,
         alignItems: 'center',
+        backgroundColor: theme.colors.card,
     },
     modeBtnActive: {
-        backgroundColor: '#EFF6FF',
+        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#EFF6FF',
         borderColor: '#3B82F6',
     },
     modeText: {
         fontSize: 14,
-        color: '#6B7280',
+        color: theme.colors.textSecondary,
         fontWeight: '500',
     },
     modeTextActive: {
-        color: '#3B82F6',
+        color: '#3B82F6', // Keep primary color for active state indication
         fontWeight: '700',
     },
     payBtn: {
@@ -215,3 +262,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
+
+
