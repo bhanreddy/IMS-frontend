@@ -1,5 +1,5 @@
-import translate from 'translate-google-api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from './apiClient';
 
 const TRANSLATION_CACHE_KEY = 'cached_telugu_translations';
 const VERSION_KEY = 'translation_version';
@@ -47,21 +47,15 @@ export const TranslationService = {
             // 1. Check local cache first
             const cached = await AsyncStorage.getItem(TRANSLATION_CACHE_KEY);
             if (cached) {
-
                 return JSON.parse(cached);
             }
-
-
 
             // 2. Flatten object to get all strings
             const flatEn = flattenObject(enResource);
             const keys = Object.keys(flatEn);
             const values = Object.values(flatEn);
 
-            // 3. Translate in chunks to avoid API limits (if any, though library handles some)
-            // The library accepts an array of strings.
-            // Note: usage is translate(text, { to: 'te' })
-
+            // 3. Translate in chunks to avoid API limits
             const translatedValues: string[] = [];
 
             // Process in chunks of 50 to be safe
@@ -69,14 +63,15 @@ export const TranslationService = {
             for (let i = 0; i < values.length; i += CHUNK_SIZE) {
                 const chunk = values.slice(i, i + CHUNK_SIZE);
                 try {
-                    const result = await translate(chunk, {
-                        tld: "com",
-                        to: "te",
-                    });
-                    // Result is array of strings
-                    translatedValues.push(...result);
+                    const result = await api.post<{ translations: string[] }>('/ai/translate', { texts: chunk }, { silent: true });
+
+                    if (result && result.translations) {
+                        translatedValues.push(...result.translations);
+                    } else {
+                        translatedValues.push(...chunk);
+                    }
                 } catch (err) {
-                    console.warn('Translation unavailable (offline or blocked). Using English.');
+                    console.warn(`Translation chunk ${i} unavailable. Using English:`, err);
                     // Fallback: keep english for this chunk if failed
                     translatedValues.push(...chunk);
                 }
@@ -85,7 +80,7 @@ export const TranslationService = {
             // 4. Reconstruct object
             const flatTe: FlatMap = {};
             keys.forEach((key, index) => {
-                flatTe[key] = translatedValues[index] || values[index]; // Fallback to English if missing
+                flatTe[key] = translatedValues[index] || values[index]; // Default back to English just in case
             });
 
             const teResource = unflattenObject(flatTe);
@@ -96,8 +91,24 @@ export const TranslationService = {
             return teResource;
 
         } catch (error) {
-            console.warn('Translation service error (offline/blocked):', error);
+            console.warn('Translation service error:', error);
             return enResource; // Fallback to English on critical failure
+        }
+    },
+
+    /**
+     * Translates a single text string on demand.
+     */
+    translateText: async (text: string): Promise<string> => {
+        try {
+            const result = await api.post<{ translations: string[] }>('/ai/translate', { texts: [text] }, { silent: true });
+            if (result && result.translations && result.translations.length > 0) {
+                return result.translations[0];
+            }
+            return text;
+        } catch (error) {
+            console.warn('Translate API error:', error);
+            return text;
         }
     },
 

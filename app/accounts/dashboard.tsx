@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -20,7 +20,7 @@ import { FeeService as FeesService } from '../../src/services/feeService';
 import { useTheme } from '../../src/hooks/useTheme';
 
 // Interactive Grid Item with Haptics + Scale Animation
-const GridItem = ({ item, index, router }: { item: any, index: number, router: any }) => {
+const GridItem = ({ item, index, router, styles }: { item: any, index: number, router: any, styles: any }) => {
     const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -74,7 +74,9 @@ const GridItem = ({ item, index, router }: { item: any, index: number, router: a
 export default function AccountsDashboard() {
     const router = useRouter();
     const { t } = useTranslation();
-    const { user } = useAuth(); // Use Auth Hook
+    const { user } = useAuth();
+    const { theme, isDark } = useTheme();
+    const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<any>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -253,7 +255,7 @@ export default function AccountsDashboard() {
                 <Text style={styles.sectionTitle}>{t('dashboard.quick_actions', 'Quick Actions')}</Text>
                 <View style={styles.gridContainer}>
                     {quickActions.map((action, index) => (
-                        <GridItem key={action.id} item={action} index={index} router={router} />
+                        <GridItem key={action.id} item={action} index={index} router={router} styles={styles} />
                     ))}
                 </View>
 
@@ -292,9 +294,7 @@ export default function AccountsDashboard() {
     );
 }
 
-const { theme, isDark } = useTheme();
-
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#4F46E5', // Keep brand color
+        color: '#4F46E5',
     },
     txName: {
         fontSize: 15,
@@ -502,5 +502,4 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
 });
-
 

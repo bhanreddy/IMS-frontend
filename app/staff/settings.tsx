@@ -3,17 +3,22 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Switch
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import StaffHeader from '../../src/components/StaffHeader';
-import StaffFooter from '../../src/components/StaffFooter';
+
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useTheme } from '../../src/hooks/useTheme';
+import { useBiometric } from '../../src/hooks/useBiometric';
+import { ThemeColors } from '../../src/theme/themes';
 
 export default function StaffSettings() {
     const router = useRouter();
     const { user, logout } = useAuth();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { theme, isDark, toggleTheme } = useTheme();
+    const isDarkMode = isDark;
+    const styles = React.useMemo(() => getStyles(theme.colors), [theme.colors]);
     const [notifications, setNotifications] = useState(true);
     const [dataSaving, setDataSaving] = useState(false);
-    const [biometric, setBiometric] = useState(false);
+    const { isBiometricAvailable, isBiometricEnabled, isLoading: biometricLoading, toggleBiometric } = useBiometric();
 
     const toggleSwitch = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
         setter(previousState => !previousState);
@@ -37,7 +42,7 @@ export default function StaffSettings() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
             <StaffHeader title="Settings" showBackButton={true} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -67,9 +72,9 @@ export default function StaffSettings() {
                             </View>
                             <Text style={styles.settingLabel}>Dark Mode</Text>
                             <Switch
-                                trackColor={{ false: "#E5E7EB", true: "#818CF8" }}
-                                thumbColor={isDarkMode ? "#fff" : "#f4f3f4"}
-                                onValueChange={() => toggleSwitch(setIsDarkMode)}
+                                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                                thumbColor={"#fff"}
+                                onValueChange={toggleTheme}
                                 value={isDarkMode}
                             />
                         </View>
@@ -120,16 +125,19 @@ export default function StaffSettings() {
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="finger-print" size={20} color="#EC4899" />
                             </View>
-                            <Text style={styles.settingLabel}>Biometric Login</Text>
+                            <Text style={styles.settingLabel}>
+                                {isBiometricAvailable ? 'Biometric Login' : 'Biometric (Not Available)'}
+                            </Text>
                             <Switch
                                 trackColor={{ false: "#E5E7EB", true: "#F472B6" }}
-                                thumbColor={biometric ? "#fff" : "#f4f3f4"}
-                                onValueChange={() => toggleSwitch(setBiometric)}
-                                value={biometric}
+                                thumbColor={isBiometricEnabled ? "#fff" : "#f4f3f4"}
+                                onValueChange={toggleBiometric}
+                                value={isBiometricEnabled}
+                                disabled={!isBiometricAvailable || biometricLoading}
                             />
                         </View>
                         <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Change Password")}>
+                        <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/change-password')}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="lock-closed" size={20} color="#3B82F6" />
                             </View>
@@ -220,15 +228,15 @@ export default function StaffSettings() {
                 </TouchableOpacity>
 
             </ScrollView >
-            <StaffFooter />
+
         </View >
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.background,
     },
     scrollContent: {
         padding: 20,
@@ -237,7 +245,7 @@ const styles = StyleSheet.create({
     profileCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         padding: 20,
         borderRadius: 20,
         marginBottom: 25,
@@ -252,7 +260,7 @@ const styles = StyleSheet.create({
         height: 70,
         borderRadius: 35,
         borderWidth: 3,
-        borderColor: '#F3F4F6',
+        borderColor: colors.borderLight,
     },
     profileInfo: {
         marginLeft: 20,
@@ -261,16 +269,16 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#111827',
+        color: colors.textStrong,
     },
     profileRole: {
         fontSize: 14,
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginBottom: 8,
     },
     editProfileText: {
         fontSize: 14,
-        color: '#3B82F6',
+        color: colors.primary,
         fontWeight: '600',
     },
     groupContainer: {
@@ -279,13 +287,13 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: colors.textTertiary,
         marginBottom: 10,
         marginLeft: 10,
         textTransform: 'uppercase',
     },
     groupCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 20,
         overflow: 'hidden',
         shadowColor: "#000",
@@ -304,7 +312,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 10,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.alertBgInfo,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
@@ -312,7 +320,7 @@ const styles = StyleSheet.create({
     settingLabel: {
         flex: 1,
         fontSize: 16,
-        color: '#1F2937',
+        color: colors.text,
         fontWeight: '500',
     },
     rowRight: {
@@ -321,23 +329,23 @@ const styles = StyleSheet.create({
     },
     valueText: {
         fontSize: 14,
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginRight: 5,
     },
     divider: {
         height: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.border,
         marginLeft: 70, // Align with text
     },
     logoutButton: {
-        backgroundColor: '#FEE2E2',
+        backgroundColor: colors.alertBgDanger,
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: 'center',
         marginTop: 10,
     },
     logoutText: {
-        color: '#EF4444',
+        color: colors.alertTextDanger,
         fontSize: 16,
         fontWeight: 'bold',
     },

@@ -1,25 +1,33 @@
 import { Database } from '@nozbe/watermelondb'
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite'
+import { Platform } from 'react-native'
 
 import schema from './schema'
 import { modelClasses } from './models'
 
-// First, create the adapter to the underlying database:
-const adapter = new SQLiteAdapter({
-    schema,
-    // (You might want to comment out the migration for the initial version)
-    // migrations, 
-    // (optional database name or file system path)
-    // dbName: 'myapp',
-    // (recommended option, should work flawlessly out of the box on iOS. On Android,
-    // additional installation steps have to be taken - prevent JSI issues)
-    jsi: true, /* Platform.OS === 'ios' */
+let adapter: any
 
-    onSetUpError: error => {
-        // Database failed to load -- offer the user to reload the app or log out
-        console.error('Database setup failed', error)
-    }
-})
+if (Platform.OS === 'web') {
+    // Use LokiJS adapter for web
+    const LokiJSAdapter = require('@nozbe/watermelondb/adapters/lokijs').default
+    adapter = new LokiJSAdapter({
+        schema,
+        useWebWorker: false,
+        useIncrementalIndexedDB: true,
+        onSetUpError: (error: any) => {
+            console.error('Database setup failed', error)
+        }
+    })
+} else {
+    // Use SQLite adapter for native platforms
+    const SQLiteAdapter = require('@nozbe/watermelondb/adapters/sqlite').default
+    adapter = new SQLiteAdapter({
+        schema,
+        jsi: true,
+        onSetUpError: (error: any) => {
+            console.error('Database setup failed', error)
+        }
+    })
+}
 
 // Then, make a Watermelon database from it!
 const database = new Database({

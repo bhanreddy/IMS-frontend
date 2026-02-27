@@ -6,14 +6,19 @@ import StudentHeader from '../../src/components/StudentHeader';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../src/hooks/useTheme';
+import { ThemeColors } from '../../src/theme/themes';
+import { useTranslation } from 'react-i18next';
 
 export default function Settings() {
     const { user, logout } = useAuth();
     const router = useRouter();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { theme, isDark, toggleTheme } = useTheme();
+    const { t, i18n } = useTranslation();
+    const isDarkMode = isDark;
+    const styles = React.useMemo(() => getStyles(theme.colors), [theme.colors]);
     const [notifications, setNotifications] = useState(true);
     const [dataSaving, setDataSaving] = useState(false);
-    const [biometric, setBiometric] = useState(false);
 
     const toggleSwitch = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
         setter(previousState => !previousState);
@@ -30,11 +35,11 @@ export default function Settings() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
 
             {/* Using the generic Header component */}
             <StudentHeader
-                title="Settings"
+                title={t('settings.title', 'Settings')}
                 showBackButton={true}
                 showSettingsButton={false}
             />
@@ -58,17 +63,17 @@ export default function Settings() {
 
                 {/* ... Settings Groups ... */}
                 <View style={styles.groupContainer}>
-                    <Text style={styles.groupTitle}>General</Text>
+                    <Text style={styles.groupTitle}>{t('settings.general', 'General')}</Text>
                     <View style={styles.groupCard}>
                         <View style={styles.settingRow}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="moon" size={20} color="#6366F1" />
                             </View>
-                            <Text style={styles.settingLabel}>Dark Mode</Text>
+                            <Text style={styles.settingLabel}>{t('settings.dark_mode', 'Dark Mode')}</Text>
                             <Switch
-                                trackColor={{ false: "#E5E7EB", true: "#818CF8" }}
-                                thumbColor={isDarkMode ? "#fff" : "#f4f3f4"}
-                                onValueChange={() => toggleSwitch(setIsDarkMode)}
+                                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                                thumbColor={"#fff"}
+                                onValueChange={toggleTheme}
                                 value={isDarkMode}
                             />
                         </View>
@@ -77,7 +82,7 @@ export default function Settings() {
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="notifications" size={20} color="#F59E0B" />
                             </View>
-                            <Text style={styles.settingLabel}>Notifications</Text>
+                            <Text style={styles.settingLabel}>{t('settings.notifications', 'Notifications')}</Text>
                             <Switch
                                 trackColor={{ false: "#E5E7EB", true: "#FCD34D" }}
                                 thumbColor={notifications ? "#fff" : "#f4f3f4"}
@@ -90,7 +95,7 @@ export default function Settings() {
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="cellular" size={20} color="#10B981" />
                             </View>
-                            <Text style={styles.settingLabel}>Data Saving Mode</Text>
+                            <Text style={styles.settingLabel}>{t('settings.data_saving', 'Data Saving Mode')}</Text>
                             <Switch
                                 trackColor={{ false: "#E5E7EB", true: "#34D399" }}
                                 thumbColor={dataSaving ? "#fff" : "#f4f3f4"}
@@ -99,55 +104,44 @@ export default function Settings() {
                             />
                         </View>
                         <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Language")}>
+                        <View style={styles.settingRow}>
                             <View style={styles.settingIconBox}>
-                                <Ionicons name="language" size={20} color="#10B981" />
+                                <Ionicons name="language" size={20} color="#3B82F6" />
                             </View>
-                            <Text style={styles.settingLabel}>Language</Text>
-                            <View style={styles.rowRight}>
-                                <Text style={styles.valueText}>English</Text>
-                                <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
-                            </View>
-                        </TouchableOpacity>
+                            <Text style={styles.settingLabel}>{t('settings.language_telugu', 'Language (Telugu)')}</Text>
+                            <Switch
+                                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                                thumbColor={"#fff"}
+                                onValueChange={(val) => { i18n.changeLanguage(val ? 'te' : 'en'); }}
+                                value={i18n.language === 'te'}
+                            />
+                        </View>
                     </View>
                 </View>
 
                 {/* ... Security & Support Groups ... */}
                 <View style={styles.groupContainer}>
-                    <Text style={styles.groupTitle}>Security</Text>
+                    <Text style={styles.groupTitle}>{t('settings.security', 'Security')}</Text>
                     <View style={styles.groupCard}>
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingIconBox}>
-                                <Ionicons name="finger-print" size={20} color="#EC4899" />
-                            </View>
-                            <Text style={styles.settingLabel}>Biometric Login</Text>
-                            <Switch
-                                trackColor={{ false: "#E5E7EB", true: "#F472B6" }}
-                                thumbColor={biometric ? "#fff" : "#f4f3f4"}
-                                onValueChange={() => toggleSwitch(setBiometric)}
-                                value={biometric}
-                            />
-                        </View>
-                        <View style={styles.divider} />
-                        <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Change Password")}>
+                        <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/change-password')}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="lock-closed" size={20} color="#3B82F6" />
                             </View>
-                            <Text style={styles.settingLabel}>Change Password</Text>
+                            <Text style={styles.settingLabel}>{t('settings.change_password', 'Change Password')}</Text>
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 <View style={styles.groupContainer}>
-                    <Text style={styles.groupTitle}>Support</Text>
+                    <Text style={styles.groupTitle}>{t('settings.support', 'Support')}</Text>
                     <View style={styles.groupCard}>
                         {/* Shorter list for brevity, can keep full list if needed */}
                         <TouchableOpacity style={styles.settingRow} onPress={() => handlePress("Help Center")}>
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="help-buoy" size={20} color="#8B5CF6" />
                             </View>
-                            <Text style={styles.settingLabel}>Help Center</Text>
+                            <Text style={styles.settingLabel}>{t('settings.help_center', 'Help Center')}</Text>
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
@@ -155,7 +149,7 @@ export default function Settings() {
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="shield-checkmark" size={20} color="#06B6D4" />
                             </View>
-                            <Text style={styles.settingLabel}>Privacy Policy</Text>
+                            <Text style={styles.settingLabel}>{t('settings.privacy_policy', 'Privacy Policy')}</Text>
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
@@ -163,7 +157,7 @@ export default function Settings() {
                             <View style={styles.settingIconBox}>
                                 <Ionicons name="call" size={20} color="#3B82F6" />
                             </View>
-                            <Text style={styles.settingLabel}>Contact Us</Text>
+                            <Text style={styles.settingLabel}>{t('settings.contact_us', 'Contact Us')}</Text>
                             <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                     </View>
@@ -180,7 +174,7 @@ export default function Settings() {
                         ]
                     )}
                 >
-                    <Text style={styles.logoutText}>Log Out</Text>
+                    <Text style={styles.logoutText}>{t('settings.log_out', 'Log Out')}</Text>
                 </TouchableOpacity>
 
             </ScrollView>
@@ -188,10 +182,10 @@ export default function Settings() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.background,
     },
     scrollContent: {
         padding: 20,
@@ -200,7 +194,7 @@ const styles = StyleSheet.create({
     profileCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         padding: 20,
         borderRadius: 20,
         marginBottom: 25,
@@ -215,7 +209,7 @@ const styles = StyleSheet.create({
         height: 70,
         borderRadius: 35,
         borderWidth: 3,
-        borderColor: '#F3F4F6',
+        borderColor: colors.borderLight,
     },
     profileInfo: {
         marginLeft: 20,
@@ -224,16 +218,16 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#111827',
+        color: colors.textStrong,
     },
     profileRole: {
         fontSize: 14,
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginBottom: 8,
     },
     editProfileText: {
         fontSize: 14,
-        color: '#3B82F6',
+        color: colors.primary,
         fontWeight: '600',
     },
     groupContainer: {
@@ -242,13 +236,13 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: colors.textTertiary,
         marginBottom: 10,
         marginLeft: 10,
         textTransform: 'uppercase',
     },
     groupCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         borderRadius: 20,
         overflow: 'hidden',
         shadowColor: "#000",
@@ -267,7 +261,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 10,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.alertBgInfo,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
@@ -275,7 +269,7 @@ const styles = StyleSheet.create({
     settingLabel: {
         flex: 1,
         fontSize: 16,
-        color: '#1F2937',
+        color: colors.text,
         fontWeight: '500',
     },
     rowRight: {
@@ -284,23 +278,23 @@ const styles = StyleSheet.create({
     },
     valueText: {
         fontSize: 14,
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginRight: 5,
     },
     divider: {
         height: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.border,
         marginLeft: 70,
     },
     logoutButton: {
-        backgroundColor: '#FEE2E2',
+        backgroundColor: colors.alertBgDanger,
         paddingVertical: 16,
         borderRadius: 16,
         alignItems: 'center',
         marginTop: 10,
     },
     logoutText: {
-        color: '#EF4444',
+        color: colors.alertTextDanger,
         fontSize: 16,
         fontWeight: 'bold',
     },

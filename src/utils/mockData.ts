@@ -1,7 +1,7 @@
 
 import { User, Student, Notice, AttendanceRecord } from '../types/models';
 
-export const MOCK_USERS: Record<string, User> = {
+export const MOCK_USERS: Record<string, any> = {
     'admin-1': {
         uid: 'admin-1',
         name: 'Admin User',
@@ -32,7 +32,7 @@ export const MOCK_USERS: Record<string, User> = {
     }
 };
 
-export const MOCK_STUDENTS: Student[] = [
+export const MOCK_STUDENTS: any[] = [
     {
         id: 'student-1',
         name: 'John Student',
@@ -78,7 +78,7 @@ export const MOCK_CLASSES = [
     { id: 'class-2', name: 'Class 9-B', grade: '9', section: 'B', teacherId: 'staff-2' }
 ];
 
-export const MOCK_NOTICES: Notice[] = [
+export const MOCK_NOTICES: any[] = [
     {
         id: 'notice-1',
         title: 'School Closed Tomorrow',
@@ -91,7 +91,7 @@ export const MOCK_NOTICES: Notice[] = [
     }
 ];
 
-export const MOCK_ATTENDANCE: AttendanceRecord[] = [
+export const MOCK_ATTENDANCE: any[] = [
     {
         id: 'att-1',
         studentId: 'student-1',

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { LayoutAnimation, Platform, UIManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabaseConfig'; // Assuming you have a supabase client export
@@ -17,6 +18,10 @@ export const ThemeContext = createContext<ThemeContextProps>({
     toggleTheme: () => { },
     setTheme: () => { },
 });
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
@@ -72,6 +77,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
     const setTheme = async (mode: 'light' | 'dark') => {
         const newIsDark = mode === 'dark';
+
+        // Add smooth animation when theme changes
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
         setIsDark(newIsDark);
         try {
             await AsyncStorage.setItem('app_theme', mode);

@@ -184,6 +184,44 @@
         "holiday": "Holiday",
         "late": "Late",
         "legend": "Legend",
-        "stats": "Monthly Stats"
+        "stats": "Yearly Stats"
+    },
+    "admin_dashboard_v2": {
+        "title": "Dashboard",
+        "total_students": "Total Students",
+        "staff_present": "Staff Present",
+        "collection": "Collection",
+        "complaints": "Complaints",
+        "manage_staff": "Manage Staff",
+        "academic_structure": "Academic Structure",
+        "timetable_manager": "Timetable Manager",
+        "fee_structure": "Fee Structure",
+        "add_accounts_staff": "Add Accounts Staff",
+        "transport": "Transport",
+        "expense_tracker": "Expense Tracker",
+        "notices": "Notices",
+        "leaves": "Leaves",
+        "view_reports": "View Reports",
+        "certificates": "Certificates",
+        "manage_content": "Manage Content",
+        "progress_reports": "Progress Reports",
+        "smart_insights": "Smart Insights"
+    },
+    "settings": {
+        "title": "Settings",
+        "general": "General",
+        "dark_mode": "Dark Mode",
+        "notifications": "Notifications",
+        "data_saving": "Data Saving Mode",
+        "language_telugu": "Language (Telugu)",
+        "security": "Security",
+        "biometric_login": "Biometric Login",
+        "change_password": "Change Password",
+        "support": "Support",
+        "help_center": "Help Center",
+        "privacy_policy": "Privacy Policy",
+        "contact_us": "Contact Us",
+        "log_out": "Log Out",
+        "edit_profile": "Edit Profile"
     }
 }

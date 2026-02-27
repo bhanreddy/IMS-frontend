@@ -17,8 +17,11 @@ export interface ClassSection {
     class_id: string;
     section_id: string;
     academic_year_id: string;
-    class_name?: string;
-    section_name?: string;
+    class_name: string;
+    section_name: string;
+    academic_year: string;
+    class_teacher_id?: string;
+    class_teacher_name?: string;
 }
 
 export interface AcademicYear {

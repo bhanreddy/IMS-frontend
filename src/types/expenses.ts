@@ -2,7 +2,6 @@ export type ExpenseStatus = 'pending' | 'approved' | 'paid';
 
 export interface Expense {
     id: string;
-    school_id: string;
     created_by: string;
     title: string;
     category: string;

@@ -17,7 +17,7 @@ export const EnrollmentService = {
 
             return data;
         } catch (err: any) {
-            console.error('Enrollment Service Error:', err);
+            console.error('Enrollment Service Error:', JSON.stringify(err, null, 2), err);
             throw err;
         }
     }

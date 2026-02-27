@@ -5,11 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 const ScreenLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <SafeAreaProvider>
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          {children}
-        </View>
-      </SafeAreaProvider>
+      <View style={styles.container}>
+        {children}
+      </View>
     </SafeAreaProvider>
   );
 };
@@ -19,6 +17,6 @@ export default ScreenLayout;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F8FAFC',
   },
 });

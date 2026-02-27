@@ -18,10 +18,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useTheme } from '../src/hooks/useTheme';
+import { Theme } from '../src/theme/themes';
+
 
 const { width } = Dimensions.get('window');
 
 const ForgotPasswordScreen: React.FC = () => {
+    const { theme, isDark } = useTheme();
+    const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
     const router = useRouter();
     const [email, setEmail] = useState<string>('');
 
@@ -121,10 +126,17 @@ const ForgotPasswordScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+
+
+export default ForgotPasswordScreen;
+
+
+
+
+const getStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.colors.background,
     },
     /* Header Styles */
     headerWrapper: {
@@ -157,11 +169,11 @@ const styles = StyleSheet.create({
         width: 90,
         height: 90,
         borderRadius: 45,
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.background,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
-        shadowColor: "#000",
+        shadowColor: theme.colors.text,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -170,7 +182,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 26,
         fontWeight: '800',
-        color: '#fff',
+        color: theme.colors.background,
         letterSpacing: 0.5,
         textShadowColor: 'rgba(0,0,0,0.1)',
         textShadowOffset: { width: 0, height: 2 },
@@ -182,7 +194,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 30,
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.background,
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
     },
@@ -195,7 +207,7 @@ const styles = StyleSheet.create({
     },
     subtitleText: {
         fontSize: 16,
-        color: '#666',
+        color: theme.colors.textSecondary,
         textAlign: 'center',
         marginBottom: 40,
         lineHeight: 24,
@@ -207,10 +219,10 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: theme.colors.card,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: theme.colors.border,
         height: 60,
         paddingHorizontal: 20,
     },
@@ -243,13 +255,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     loginButtonText: {
-        color: '#FFFFFF',
+        color: theme.colors.background,
         fontSize: 16,
         fontWeight: '800',
         letterSpacing: 1,
     },
 });
-
-export default ForgotPasswordScreen;
-
-

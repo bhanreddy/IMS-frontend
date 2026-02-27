@@ -1,5 +1,5 @@
 // Core Role Types
-export type Role = 'admin' | 'staff' | 'teacher' | 'student' | 'parent' | 'accountant';
+export type Role = 'admin' | 'staff' | 'teacher' | 'student' | 'parent' | 'accountant' | 'driver';
 
 // ================= AUTH & USER =================
 export interface User {
@@ -9,13 +9,20 @@ export interface User {
     readonly first_name: string;
     readonly last_name: string;
     readonly display_name: string;
+    readonly name?: string;
     readonly photo_url?: string;
+    readonly photoUrl?: string; // App expects photoUrl in some places
+    readonly phone?: string; // App expects phone in staff profile
     readonly role: Role;
     readonly roles: readonly string[];
     readonly permissions: readonly string[];
     readonly admission_no?: string;
+    readonly rollNo?: string; // App expects rollNo in some places
     readonly has_student_profile?: boolean;
     readonly has_staff_profile?: boolean;
+    readonly classId?: string; // Mapped from class_section_id
+    readonly class_section_id?: string;
+    readonly staff_id?: string;
 }
 
 export interface AccountsUser extends User {
@@ -57,6 +64,7 @@ export interface StudentEnrollment {
     readonly section_name: string;
     readonly section_id: string;
     readonly academic_year: string;
+    readonly class_teacher?: string;
 }
 
 export interface Parent {
@@ -77,6 +85,7 @@ export interface Student {
     readonly middle_name?: string;
     readonly last_name: string;
     readonly display_name: string;
+    readonly name?: string;
     readonly gender_id: number;
     readonly dob: string;
     readonly status: string;
@@ -160,6 +169,14 @@ export interface FeeStructure {
     readonly frequency: string;
 }
 
+export interface FeeType {
+    readonly id: string;
+    readonly name: string;
+    readonly description?: string;
+    readonly frequency?: string;
+    readonly is_active?: boolean;
+}
+
 export interface StudentFee {
     readonly id: string;
     readonly student_id: string;
@@ -194,7 +211,9 @@ export interface FeeReceipt {
 export interface AccountsDashboardStats {
     readonly today_collection: number;
     readonly monthly_collection: number;
+    readonly collected_total: number;
     readonly pending_dues: number;
+    readonly defaulter_count: number;
     readonly recent_transactions: FeeTransaction[];
 }
 
@@ -245,6 +264,7 @@ export interface AdminDashboardStats {
     readonly totalStaff: number;
     readonly complaints: number;
     readonly collection: number;
+    readonly todayCollection?: number;
 }
 
 export interface AdminUser {
@@ -379,4 +399,22 @@ export interface FinancialAuditLog {
     readonly performed_by: string; // user_id
     readonly performed_by_name?: string; // Joined view
     readonly performed_at: string;
+}
+
+// ================= COMPLAINTS =================
+export interface Complaint {
+    readonly id: string;
+    readonly ticket_no: string;
+    readonly title: string;
+    readonly description: string;
+    readonly category?: 'academic' | 'fee' | 'transport' | 'hostel' | 'other';
+    readonly priority?: 'low' | 'medium' | 'high' | 'urgent';
+    readonly status: 'open' | 'in_progress' | 'resolved' | 'closed';
+    readonly raised_by: string;
+    readonly raised_by_name?: string;
+    readonly raised_for_student_id?: string;
+    readonly assigned_to?: string;
+    readonly resolution?: string;
+    readonly created_at: string;
+    readonly resolved_at?: string;
 }

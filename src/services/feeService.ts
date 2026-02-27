@@ -5,8 +5,11 @@ import {
     FeeResponse,
     AccountsDashboardStats,
     FeeReceipt,
-    FeeStructure
+    FeeStructure,
+    FeeType
 } from '../types/models';
+
+export { FeeType };
 
 export interface CollectFeeRequest {
     student_fee_id: string;
@@ -37,7 +40,8 @@ export const FeeService = {
      * Create fee structure
      */
     createStructure: async (data: Partial<FeeStructure>): Promise<FeeStructure> => {
-        return api.post<FeeStructure>('/fees/structure', data);
+        const response = await api.post<{ structure: FeeStructure }>('/fees/structure', data);
+        return response.structure;
     },
 
     /**
@@ -51,7 +55,8 @@ export const FeeService = {
      * Collect fee payment
      */
     collectFee: async (data: CollectFeeRequest): Promise<FeeTransaction> => {
-        return api.post<FeeTransaction>('/fees/collect', data);
+        const response = await api.post<{ transaction: FeeTransaction }>('/fees/collect', data);
+        return response.transaction;
     },
 
     /**

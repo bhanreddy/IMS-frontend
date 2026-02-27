@@ -10,7 +10,6 @@ export interface CreateUserRequest {
     password: string;
     name: string;
     role: 'staff' | 'student' | 'teacher' | 'admin';
-    schoolId?: string;
     phone?: string;
     designation?: string;
     department?: string;
@@ -26,7 +25,6 @@ export interface UpdateUserRequest {
     designation?: string;
     department?: string;
     salary?: string;
-    schoolId?: string;
 }
 
 export interface UserResponse {

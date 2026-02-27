@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuth } from '../../src/hooks/useAuth';
 import { View, ActivityIndicator, Alert } from 'react-native';
+import { ErrorBoundary } from '../../src/components/ErrorBoundary';
 
 export default function AccountsLayout() {
     const { user, loading, logout } = useAuth();
@@ -41,11 +42,13 @@ export default function AccountsLayout() {
     }
 
     return (
-        <Stack
-            screenOptions={{
-                headerShown: false,
-                animation: 'fade',
-            }}
-        />
+        <ErrorBoundary>
+            <Stack
+                screenOptions={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                }}
+            />
+        </ErrorBoundary>
     );
 }

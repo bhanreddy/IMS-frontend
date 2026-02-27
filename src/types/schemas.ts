@@ -212,7 +212,6 @@ export const LegacyUserSchema = z.object({
     name: z.string(),
     email: z.string().email().optional(),
     phone: z.string().optional(),
-    schoolId: z.string().optional(),
     createdAt: z.any().optional(),
 });
 

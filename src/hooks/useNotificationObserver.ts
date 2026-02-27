@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, getInitialNotification, onNotificationOpenedApp } from '@react-native-firebase/messaging';
 import { useRouter } from 'expo-router';
+import { Platform } from 'react-native';
 import { useAuth } from './useAuth';
 
 // Global variable to store deep link if user is not logged in
@@ -11,13 +13,17 @@ export function useNotificationObserver() {
     const { user, loading } = useAuth();
 
     useEffect(() => {
+        if (Platform.OS === 'web') return;
+
         let isMounted = true;
+        const app = getApp();
+        const msg = getMessaging(app);
 
         // 1. Handle Initial Launch from Killed State
         const checkInitialNotification = async () => {
-            const response = await Notifications.getLastNotificationResponseAsync();
-            if (response && isMounted) {
-                const deepLink = response.notification.request.content.data?.deepLink;
+            const remoteMessage = await getInitialNotification(msg);
+            if (remoteMessage && isMounted) {
+                const deepLink = remoteMessage.data?.deepLink as string | undefined;
                 if (deepLink) {
                     console.log('[NotificationObserver] Found initial deep link:', deepLink);
                     handleDeepLink(deepLink);
@@ -27,9 +33,9 @@ export function useNotificationObserver() {
 
         checkInitialNotification();
 
-        // 2. Handle Background/Foreground Taps
-        const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-            const deepLink = response.notification.request.content.data?.deepLink;
+        // 2. Handle Background Taps (app was in background, user tapped notification)
+        const unsubscribe = onNotificationOpenedApp(msg, (remoteMessage) => {
+            const deepLink = remoteMessage.data?.deepLink as string | undefined;
             if (deepLink) {
                 console.log('[NotificationObserver] Received deep link tap:', deepLink);
                 handleDeepLink(deepLink);
@@ -38,7 +44,7 @@ export function useNotificationObserver() {
 
         return () => {
             isMounted = false;
-            subscription.remove();
+            unsubscribe();
         };
     }, []);
 
@@ -62,17 +68,12 @@ export function useNotificationObserver() {
         PendingNavigation = path;
 
         // If already logged in and not loading, navigate immediately
-        // Note: The Effect dependency [user, loading] handles the "wait for login" case.
-        // But if we are ALREADY logged in, the effect won't re-trigger just because PendingNavigation changed (it's not a state).
-        // So we need to explicit check here.
         if (user && !loading) {
             console.log('[NotificationObserver] User active, navigating immediately.');
             PendingNavigation = null;
             router.replace(path as any);
         } else {
             console.log('[NotificationObserver] User not ready, queuing navigation.');
-            // if not logged in, we let the auth guard redirect to login (or user navigates manually),
-            // and then the useEffect [user] will fire and see PendingNavigation.
         }
     };
 }

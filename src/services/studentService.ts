@@ -41,8 +41,24 @@ export const StudentService = {
     /**
      * Get paginated list of students
      */
-    getAll: async <T = Student>(params?: any): Promise<{ data: T[]; meta?: any }> => {
+    getAll: async <T = Student>(params?: {
+        search?: string;
+        limit?: number;
+        page?: number;
+        class_id?: string;
+        section_id?: string;
+        status_id?: number | string;
+        sort_by?: 'name' | 'roll_number' | 'admission_no';
+        sort_order?: 'asc' | 'desc';
+    }): Promise<{ data: T[]; meta?: { total: number; page: number; limit: number; total_pages: number } }> => {
         return api.get<{ data: T[]; meta?: any }>('/students', params);
+    },
+
+    /**
+     * Get all available student statuses
+     */
+    getStatuses: async (): Promise<{ id: number; name: string }[]> => {
+        return api.get<{ id: number; name: string }[]>('/students/statuses');
     },
 
     /**
@@ -123,6 +139,13 @@ export const StudentService = {
      */
     enrollStudent: async (studentId: number, data: { class_id: number, section_id: number, academic_year_id?: number }): Promise<any> => {
         return api.post<any>(`/students/${studentId}/enrollments`, data);
+    },
+
+    /**
+     * Delete a student
+     */
+    delete: async (id: string): Promise<any> => {
+        return api.delete(`/students/${id}`);
     },
 
     /**

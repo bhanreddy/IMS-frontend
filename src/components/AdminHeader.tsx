@@ -7,12 +7,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ADMIN_THEME } from '../constants/adminTheme';
 import { SCHOOL_CONFIG } from '../constants/schoolConfig';
 
+import Animated, { SharedValue, useAnimatedStyle, interpolateColor, interpolate, Extrapolation } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 interface AdminHeaderProps {
     title: string;
     showMenuButton?: boolean;
     showProfileButton?: boolean;
     showBackButton?: boolean;
     showNotification?: boolean;
+    rightAction?: {
+        icon: keyof typeof Ionicons.glyphMap;
+        onPress: () => void;
+    };
+    scrollY?: SharedValue<number>;
 }
 
 import { useAuth } from '../hooks/useAuth';
@@ -22,10 +30,13 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     showMenuButton = true,
     showProfileButton = true,
     showBackButton = false,
-    showNotification = false
+    showNotification = false,
+    rightAction,
+    scrollY
 }) => {
     const router = useRouter();
     const { user } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const handleBack = () => {
         if (router.canGoBack()) {
@@ -42,75 +53,118 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
         if (user?.role === 'accountant') {
             router.push('/accounts/settings');
         } else if (user?.role === 'staff' || user?.role === 'teacher') {
-            // Assuming staff has a settings or profile page, otherwise dashboard
             router.push('/staff/dashboard');
         } else {
             router.push('/admin/settings');
         }
     };
 
+    const animatedStyle = useAnimatedStyle(() => {
+        if (!scrollY) return { backgroundColor: ADMIN_THEME.colors.background.surface, borderBottomColor: ADMIN_THEME.colors.border, shadowOpacity: 0.1 };
+
+        const bgColor = interpolateColor(
+            scrollY.value,
+            [0, 50],
+            ['rgba(255,255,255,0)', 'rgba(255,255,255,0.95)']
+        );
+        const borderColor = interpolateColor(
+            scrollY.value,
+            [0, 50],
+            ['rgba(226,232,240,0)', ADMIN_THEME.colors.border]
+        );
+        const shadowOpacity = interpolate(
+            scrollY.value,
+            [0, 50],
+            [0, 0.1],
+            Extrapolation.CLAMP
+        );
+
+        return {
+            backgroundColor: bgColor,
+            borderBottomColor: borderColor,
+            shadowOpacity,
+        };
+    });
+
+    const isAbsolute = !!scrollY;
+
     return (
-        <View style={styles.container}>
-            <SafeAreaView edges={['top']} style={styles.safeArea}>
-                <View style={styles.content}>
-                    {/* Left: Back or Menu */}
-                    <View style={styles.leftContainer}>
-                        {showBackButton ? (
+        <Animated.View style={[
+            styles.container,
+            { paddingTop: insets.top },
+            isAbsolute && styles.absoluteHeader,
+            animatedStyle
+        ]}>
+            <View style={styles.content}>
+                {/* Left: Back or Menu */}
+                <View style={styles.leftContainer}>
+                    {showBackButton ? (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                handleBack();
+                            }}
+                            style={styles.iconButton}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="arrow-back" size={22} color={ADMIN_THEME.colors.text.primary} />
+                        </TouchableOpacity>
+                    ) : (
+                        showMenuButton && (
                             <TouchableOpacity
                                 onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    handleBack();
                                 }}
                                 style={styles.iconButton}
                                 activeOpacity={0.7}
                             >
-                                <Ionicons name="arrow-back" size={22} color={ADMIN_THEME.colors.text.primary} />
+                                <Feather name="menu" size={22} color={ADMIN_THEME.colors.text.primary} />
                             </TouchableOpacity>
-                        ) : (
-                            showMenuButton && (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    }}
-                                    style={styles.iconButton}
-                                    activeOpacity={0.7}
-                                >
-                                    <Feather name="menu" size={22} color={ADMIN_THEME.colors.text.primary} />
-                                </TouchableOpacity>
-                            )
-                        )}
-                    </View>
-
-                    {/* Center: Title */}
-                    <Text style={styles.title}>{title}</Text>
-
-                    {/* Right: Settings/Profile */}
-                    <View style={styles.rightContainer}>
-                        {showNotification && (
-                            <TouchableOpacity
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    router.push('/admin/notifications' as any);
-                                }}
-                                style={[styles.iconButton, { marginRight: 8 }]}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="notifications-outline" size={22} color={ADMIN_THEME.colors.text.secondary} />
-                            </TouchableOpacity>
-                        )}
-                        {showProfileButton && (
-                            <TouchableOpacity
-                                onPress={handleSettings}
-                                style={styles.iconButton}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="settings-outline" size={22} color={ADMIN_THEME.colors.text.secondary} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                        )
+                    )}
                 </View>
-            </SafeAreaView>
-        </View>
+
+                {/* Center: Title */}
+                <Text style={styles.title}>{title}</Text>
+
+                {/* Right: Settings/Profile */}
+                <View style={styles.rightContainer}>
+                    {rightAction && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                rightAction.onPress();
+                            }}
+                            style={[styles.iconButton, { marginRight: 8 }]}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name={rightAction.icon} size={22} color={ADMIN_THEME.colors.text.primary} />
+                        </TouchableOpacity>
+                    )}
+                    {showNotification && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push('/admin/notifications' as any);
+                            }}
+                            style={[styles.iconButton, { marginRight: 8 }]}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="notifications-outline" size={22} color={ADMIN_THEME.colors.text.secondary} />
+                        </TouchableOpacity>
+                    )}
+                    {showProfileButton && (
+                        <TouchableOpacity
+                            onPress={handleSettings}
+                            style={styles.iconButton}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="settings-outline" size={22} color={ADMIN_THEME.colors.text.secondary} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+        </Animated.View>
     );
 };
 
@@ -154,6 +208,13 @@ const styles = StyleSheet.create({
     leftContainer: {
         width: 40,
         alignItems: 'flex-start',
+    },
+    absoluteHeader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
     }
 });
 

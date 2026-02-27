@@ -7,30 +7,49 @@ export async function sync() {
         database,
         pullChanges: async ({ lastPulledAt, schemaVersion, migration }) => {
             // 1. Fetch changes from backend
+            try { await api.post('/log', { msg: 'Sync: pullChanges started', lastPulledAt }, { silent: true }); } catch (e) { }
+            // We need an endpoint that returns { changes: { diary_entries: { created, updated, deleted } }, timestamp }
             // We need an endpoint that returns { changes: { diary_entries: { created, updated, deleted } }, timestamp }
             // Since we might not have a dedicated sync endpoint yet, we will construct a valid response
             // from standard endpoints for now (or minimal implementation).
 
-            // For this "First Pass", let's assume we pull *all* recent diary entries and user profile
-            // and format them as 'updated' to let WatermelonDB merge them.
-
             const timestamp = Date.now()
 
-            // Fetch Diary
-            // Limiting to recent for performance if no incremental sync available
-            const diaryEntries = await api.get<any[]>('/diary', { updated_since: lastPulledAt || 0 });
+            // Fetch User (Self) first to get class_section_id
+            let userProfile = null;
+            try {
+                userProfile = await api.get<any>('/auth/me', undefined, { silent: true });
+            } catch (e) {
+                console.warn("Sync: Failed to fetch user profile", e);
+            }
 
-            // Fetch User (Self)
-            const userProfile = await api.get<any>('/auth/me'); // or similar
+            // Fetch Diary
+            // Use class_section_id from user profile if available (for students)
+            const classSectionId = userProfile?.class_section_id || userProfile?.classId;
+            const diaryParams: any = {
+                updated_since: String(lastPulledAt || 0),
+                is_sync: 'true',
+                // If student, filter by class
+                ...(classSectionId ? { class_section_id: classSectionId } : {})
+            };
+
+            let diaryEntries: any[] = [];
+            try {
+                // If we have a class_section_id, we can fetch specific entries
+                // Otherwise (e.g. teacher), it might fetch their created entries or all
+                diaryEntries = await api.get<any[]>('/diary', diaryParams);
+            } catch (e) {
+                console.warn("Sync: Failed to fetch diary", e);
+            }
 
             return {
                 changes: {
                     diary_entries: {
                         created: [], // If we can't distinguish, we can treat all as updated (upsert)
-                        updated: diaryEntries.map(d => ({
+                        updated: Array.isArray(diaryEntries) ? diaryEntries.map(d => ({
                             id: d.id,
                             class_section_id: d.class_section_id,
-                            entry_date: d.entry_date,
+                            entry_date: new Date(d.entry_date).toISOString().split('T')[0],
                             subject_id: d.subject_id,
                             title: d.title,
                             content: d.content,
@@ -39,22 +58,23 @@ export async function sync() {
                             subject_name: d.subject_name,
                             created_by: d.created_by,
                             created_at: new Date(d.created_at).getTime(),
-                            updated_at: new Date(d.created_at).getTime(), // Fallback if no updated_at
-                        })),
+                            updated_at: new Date(d.updated_at || d.created_at).getTime(),
+                        })) : [],
                         deleted: [], // We need a way to track deletions
                     },
                     users: {
                         created: [],
-                        updated: [userProfile].map(u => ({
-                            id: u.id, // Ensure ID matches
-                            email: u.email,
-                            first_name: u.first_name,
-                            last_name: u.last_name,
-                            display_name: u.display_name,
-                            role: u.role,
-                            photo_url: u.photo_url,
-                            permissions: u.permissions
-                        })),
+                        updated: userProfile ? [{
+                            id: userProfile.id,
+                            email: userProfile.email,
+                            first_name: userProfile.first_name,
+                            last_name: userProfile.last_name,
+                            display_name: userProfile.display_name,
+                            role: userProfile.role || (userProfile.roles && userProfile.roles[0]),
+                            photo_url: userProfile.photo_url,
+                            permissions: userProfile.permissions,
+                            class_section_id: userProfile.class_section_id || userProfile.classId
+                        }] : [],
                         deleted: [],
                     },
                 },
@@ -84,6 +104,7 @@ export async function sync() {
 
             // Users are typically read-only or handled separately
         },
-        migrationsEnabledAtVersion: 1,
+        // migrationsEnabledAtVersion: 1,
+        sendCreatedAsUpdated: true,
     })
 }

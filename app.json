@@ -2,19 +2,24 @@
   "expo": {
     "name": "testapp",
     "slug": "testapp",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "platforms": [
-      "android"
+      "android",
+      "ios",
+      "web"
     ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "testapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.testapp.native",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.testapp.app",
@@ -41,20 +46,10 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/android-icon-monochrome.png",
-          "sounds": [
-            "./assets/sounds/voice_alert.wav",
-            "./assets/sounds/emergency.wav",
-            "./assets/sounds/exam.wav",
-            "./assets/sounds/fee_reminder.wav",
-            "./assets/sounds/attendance_absent_alert.wav"
-          ]
-        }
-      ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

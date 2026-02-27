@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { supabase } from './supabaseConfig';
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api/v1').trim();
 console.log('DEBUG: API_BASE_URL is:', API_BASE_URL);
@@ -50,13 +51,14 @@ export class APIError extends Error {
 // Generic API request function
 export interface APIOptions extends RequestInit {
     silent?: boolean;
+    _isRetry?: boolean;
 }
 
 export async function apiRequest<T>(
     endpoint: string,
     options: APIOptions = {}
 ): Promise<T> {
-    const { silent, ...fetchOptions } = options;
+    const { silent, _isRetry, ...fetchOptions } = options;
     const token = await getAccessToken();
 
     const headers: Record<string, string> = {
@@ -82,6 +84,67 @@ export async function apiRequest<T>(
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
 
+            // Handle unauthorized (401)
+            if (response.status === 401) {
+                console.log(`[API] 401 Unauthorized at ${endpoint}. Request ID: ${requestId}`);
+                console.log(`[API] 401 Error Body:`, JSON.stringify(errorData));
+
+                // 1. IGNORE Login/Refresh endpoints (invalid credentials, not session expiry)
+                if (endpoint.includes('/login') || endpoint.includes('/refresh')) {
+                    if (!silent) Alert.alert('Login Failed', errorData.error || 'Invalid credentials');
+                    throw new APIError(
+                        errorData.error || 'Invalid credentials',
+                        401,
+                        undefined,
+                        requestId
+                    );
+                }
+
+                // 2. TOKEN REFRESH LOGIC (Infinity Session)
+                // If it's a 401 and NOT a retry, attempt to refresh the session
+                if (!_isRetry) {
+                    if (__DEV__) console.log('[API] Attempting token refresh after 401...');
+
+                    try {
+                        const { data, error: refreshError } = await supabase.auth.refreshSession();
+
+                        if (!refreshError && data.session) {
+                            if (__DEV__) console.log('[API] Token refresh successful. Retrying original request.');
+
+                            // Update local storage tokens
+                            await setTokens(data.session.access_token, data.session.refresh_token);
+
+                            // Retry the original request with new token
+                            return await apiRequest<T>(endpoint, {
+                                ...options,
+                                _isRetry: true,
+                                headers: {
+                                    ...options.headers,
+                                    'Authorization': `Bearer ${data.session.access_token}`
+                                }
+                            });
+                        } else {
+                            console.error('[API] Refresh failed:', refreshError);
+                            if (!data?.session) console.error('[API] No session returned after refresh.');
+                        }
+                    } catch (refreshErr) {
+                        console.error('[API] Unexpected error during token refresh:', refreshErr);
+                    }
+                }
+
+                // 3. Trigger Global Logout if refresh fails or it was already a retry
+                if (logoutCallback) {
+                    if (!silent) console.warn('[API] Session expired or refresh failed, triggering global logout.');
+                    logoutCallback(); // Fire and forget
+                }
+
+                if (silent) {
+                    return null as T;
+                }
+
+                throw new APIError('Session expired. Please login again.', 401, undefined, requestId);
+            }
+
             // Handle validation errors (422)
             if (response.status === 422 || response.status === 400) {
                 const message = errorData.message || errorData.error || 'Validation failed';
@@ -96,35 +159,6 @@ export async function apiRequest<T>(
                 );
             }
 
-            // Handle unauthorized (401)
-            if (response.status === 401) {
-                // 1. IGNORE Login/Refresh endpoints (invalid credentials, not session expiry)
-                if (endpoint.includes('/login') || endpoint.includes('/refresh')) {
-                    if (!silent) Alert.alert('Login Failed', errorData.error || 'Invalid credentials');
-                    throw new APIError(
-                        errorData.error || 'Invalid credentials',
-                        401,
-                        undefined,
-                        requestId
-                    );
-                }
-
-                // 2. Trigger Global Logout only for Session Expiry 
-                // (Generic 401s on protected routes usually mean this)
-                if (logoutCallback) {
-                    if (!silent) console.warn('[API] Session expired (401), triggering global logout.');
-                    logoutCallback(); // Fire and forget
-                }
-
-                if (silent) {
-                    // Suppress error throw to avoid "ERROR" log in console
-                    return null as T;
-                }
-
-                // Abort further processing
-                throw new APIError('Session expired. Please login again.', 401, undefined, requestId);
-            }
-
             // Handle Rate Limit (429)
             if (response.status === 429) {
                 const message = errorData.error || errorData.message || 'Rate limit exceeded. Please try again later.';
@@ -135,8 +169,9 @@ export async function apiRequest<T>(
 
             // Handle forbidden (403)
             if (response.status === 403) {
-                if (!silent) Alert.alert('Access Denied', 'You do not have permission to perform this action.');
-                throw new APIError('Access denied', 403, undefined, requestId);
+                const message = errorData.error || errorData.message || 'Access denied';
+                if (!silent) Alert.alert('Access Denied', message);
+                throw new APIError(message, 403, undefined, requestId);
             }
 
             // Generic error

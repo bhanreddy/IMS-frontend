@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AdminHeader from '../../../src/components/AdminHeader';
@@ -6,13 +6,19 @@ import { useAuth } from '../../../src/hooks/useAuth';
 import { FeeService as FeesService } from '../../../src/services/feeService';
 import { useTheme } from '../../../src/hooks/useTheme';
 import { generateReceiptPDF } from '../../../src/utils/pdfGenerator';
+export const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
 
-// No changes here, just using this tool call to 'yield' to check the next steps. but wait, I can't do that.
-// I will actually replace the export default to include useTheme and styles inside.
 export default function CollectFeesScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { user } = useAuth();
+    const { theme, isDark } = useTheme();
+    const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
     const [loading, setLoading] = useState(false);
 
     // Params from list
@@ -23,13 +29,26 @@ export default function CollectFeesScreen() {
     const dueAmount = params.due as string;
 
     const [amount, setAmount] = useState('');
-    const [mode, setMode] = useState('Cash'); // Cash, UPI, Cheque
+    const [mode, setMode] = useState('Cash');
     const [remarks, setRemarks] = useState('');
 
     const handleCollect = async () => {
         const amountNum = parseFloat(amount);
         if (!amount || isNaN(amountNum) || amountNum <= 0) {
             Alert.alert("Invalid Amount", "Please enter a valid amount greater than zero.");
+            return;
+        }
+
+        // Overpayment protection
+        const dueNum = parseFloat(dueAmount);
+        if (!isNaN(dueNum) && amountNum > dueNum) {
+            Alert.alert("Overpayment", `Amount ₹${amountNum} exceeds due amount ₹${dueNum}. Please enter a valid amount.`);
+            return;
+        }
+
+        // Max cap safety
+        if (amountNum > 1000000) {
+            Alert.alert("Invalid Amount", "Amount exceeds maximum limit of ₹10,00,000.");
             return;
         }
 
@@ -53,6 +72,7 @@ export default function CollectFeesScreen() {
                                 student_fee_id: feeId,
                                 amount: amountNum,
                                 payment_method: mode.toLowerCase() as any,
+                                transaction_ref: generateUUID(),
                                 remarks
                             });
 
@@ -155,9 +175,7 @@ export default function CollectFeesScreen() {
     );
 }
 
-const { theme, isDark } = useTheme();
-
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -246,7 +264,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     modeTextActive: {
-        color: '#3B82F6', // Keep primary color for active state indication
+        color: '#3B82F6',
         fontWeight: '700',
     },
     payBtn: {
@@ -262,5 +280,3 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
-
-

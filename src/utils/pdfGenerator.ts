@@ -27,7 +27,8 @@ export const generateReceiptPDF = async (transaction: FeeTransaction) => {
   try {
     const studentName = transaction.student_name || 'Student';
     const admissionNo = transaction.admission_no || 'N/A';
-    const date = new Date(transaction.paid_at).toLocaleDateString('en-IN', {
+    const paidAtStr = transaction.paid_at || new Date().toISOString();
+    const date = new Date(paidAtStr).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -35,9 +36,10 @@ export const generateReceiptPDF = async (transaction: FeeTransaction) => {
       minute: '2-digit'
     });
     const feeName = transaction.fee_type || 'School Fee';
-    const amount = transaction.amount.toLocaleString('en-IN');
+    const amountNum = Number(transaction.amount || 0);
+    const amount = amountNum.toLocaleString('en-IN');
     const paymentMethod = (transaction.payment_method || 'Cash').toUpperCase();
-    const receiptNo = transaction.transaction_ref || transaction.id.slice(0, 8).toUpperCase();
+    const receiptNo = transaction.transaction_ref || (transaction.id ? transaction.id.slice(0, 8).toUpperCase() : 'N/A');
 
     // Load Logo
     const logoBase64 = await loadLogoAsBase64(SCHOOL_CONFIG.logo);

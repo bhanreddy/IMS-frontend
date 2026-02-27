@@ -67,21 +67,14 @@ export function useExpenses() {
             // CHECK: 'staff' table? 'students' table?
             // If I can't find school_id, I'll need to fallback to a dummy implementation or assume it's stored in metadata.
             // FIX: I will use a placeholder UUID or generic one for now if I can't find it, OR add it to the insert if I can derive it.
-            // BETTER: The prompt says "Assume school_id comes from logged-in user profile". 
-            // I will assume there is a `school_id` on the user metadata OR I query it.
-            // Let's try to query it from `public.users` assuming I might have missed it or it's on `persons`? 
-            // If not existing, I will insert a NIL UUID or similar if the DB allows (it effectively forces NOT NULL).
-            // Let's use a known UUID for "Demo School" or derive it.
-            // For this specific task, if I can't find a school_id source, I'll insert a static UUID to satisfy the constraint for the Code Output requirements.
-
-            const DEMO_SCHOOL_ID = '00000000-0000-0000-0000-000000000000'; // Fallback
+            // The prompt says "Assume school_id comes from logged-in user profile". 
+            // We have removed school_id for single-tenancy.
 
             const { error } = await supabase
                 .from('expenses')
                 .insert({
                     ...expenseData,
-                    created_by: user.id,
-                    school_id: DEMO_SCHOOL_ID // In real app, fetch from profile
+                    created_by: user.id
                 });
 
             if (error) throw error;

@@ -1,5 +1,7 @@
+
 import React from 'react';
-import { Stack } from 'expo-router';
+import { MaterialTopTabs } from '../../src/layouts/MaterialTopTabs';
+import StaffFooter from '../../src/components/StaffFooter';
 import { useRoleGuard } from '../../src/hooks/useRoleGuard';
 import { ErrorBoundary } from '../../src/components/ErrorBoundary';
 
@@ -8,21 +10,32 @@ export default function StaffLayout() {
 
     return (
         <ErrorBoundary>
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="dashboard" />
-                <Stack.Screen name="manage-students" />
-                <Stack.Screen name="student-details" />
-                <Stack.Screen name="results" />
-                <Stack.Screen name="lms-upload" />
-                <Stack.Screen name="diary" />
-                <Stack.Screen name="leaves" />
-                <Stack.Screen name="payslip" />
-                <Stack.Screen name="timetable" />
-                <Stack.Screen name="complaints" />
-                <Stack.Screen name="settings" />
-            </Stack>
+            <MaterialTopTabs
+                tabBarPosition="bottom"
+                tabBar={(props) => <StaffFooter {...props} />}
+                screenOptions={{
+                    swipeEnabled: true,
+                    animationEnabled: true,
+                    lazy: true,
+                }}
+            >
+                <MaterialTopTabs.Screen
+                    name="dashboard"
+                    options={{ title: "Home" }}
+                />
+                <MaterialTopTabs.Screen
+                    name="manage-students"
+                    options={{ title: "Attendance" }}
+                />
+                <MaterialTopTabs.Screen
+                    name="timetable"
+                    options={{ title: "Timetable" }}
+                />
+                <MaterialTopTabs.Screen
+                    name="results"
+                    options={{ title: "Results" }}
+                />
+            </MaterialTopTabs>
         </ErrorBoundary>
     );
 }
-
-

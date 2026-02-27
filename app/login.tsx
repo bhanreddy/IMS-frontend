@@ -1,74 +1,55 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  StatusBar,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, KeyboardAvoidingView, Platform, ScrollView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { useTranslation } from 'react-i18next'; // 1. Import
-import { useAuth } from '@/src/hooks/useAuth'; // Import useAuth
-import { SCHOOL_CONFIG } from '@/src/constants/schoolConfig';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/src/hooks/useAuth';
+import AnimatedInput from '@/src/components/AnimatedInput';
+import PremiumButton from '@/src/components/PremiumButton';
+import AuthHeader from '@/src/components/AuthHeader';
+import { ActivityIndicator, Alert } from 'react-native';
+import AuthService from '@/src/services/authService';
 
 const { width } = Dimensions.get('window');
 
-import AuthService from '@/src/services/authService';
-import { ActivityIndicator, Alert } from 'react-native';
-
-const LoginScreen: React.FC = () => {
+const StudentLoginScreen: React.FC = () => {
   const router = useRouter();
   const { t } = useTranslation();
   const [loading, setLoading] = useState<boolean>(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  /* New Auth Check */
-  const { user, loading: authLoading } = useAuth(); // Import useAuth hook
+  const { user, loading: authLoading } = useAuth();
 
-  // If we are checking auth or user is already logged in, show spinner to avoid flicker before redirect
   if (authLoading || user) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3a1c71" />
+        <ActivityIndicator size="large" color="#06B6D4" />
       </SafeAreaView>
     );
   }
 
   const handleLogin = async () => {
     if (!email || !password) {
+      setError(true);
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
-
     setLoading(true);
     try {
       const response = await AuthService.login(email, password);
-      // userRole check is still good to keep as a secondary gate, 
-      // though AuthGuard will also redirect if they land on the wrong dashboard.
       const userRole = response.user.role;
 
-      // Strict Student Check
       if (userRole === 'student') {
-        // Redirection handled by AuthGuard
-        console.log("Login success, waiting for AuthGuard...");
+        if (__DEV__) console.log("Login success, waiting for AuthGuard...");
       } else {
-        // Prevent staff/admin from logging in via student portal
         Alert.alert('Access Restricted', 'This login is for students only. Please use the Staff or Admin login.');
         await AuthService.logout();
       }
-
     } catch (error: any) {
       console.error("Login Error Details:", error);
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
@@ -78,262 +59,136 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#3a1c71" />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false} bounces={false}>
 
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#3a1c71", "#d76d77", "#ffaf7b"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* Unified Premium Header */}
+          <AuthHeader
+            title={t('login.login_to') || "Student Portal"}
+            subtitle="Access your grades, timetable, and campus services."
+            glowColor="rgba(6,182,212,0.15)"
+          />
 
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>{t('login.login_to')}</Text>
-            <View style={styles.schoolInfoContainer}>
-              <Image source={SCHOOL_CONFIG.logo} style={styles.schoolIcon} />
-              <Text style={styles.schoolNameText}>
-                {SCHOOL_CONFIG.name}
-              </Text>
+          {/* Overlapping Form Body */}
+          <View style={styles.bodyContainer}>
+            <View style={styles.overlapSection}>
+
+              <Animated.View entering={FadeInDown.delay(200).duration(600).springify()} style={styles.formCard}>
+                <Text style={styles.welcomeBackText}>Welcome Back</Text>
+                <Text style={styles.subtitleText}>Sign in to continue</Text>
+
+                <View style={styles.inputWrapper}>
+                  <AnimatedInput
+                    icon={({ color }) => <Ionicons name="mail-outline" size={20} color={color} style={styles.inputIcon} />}
+                    placeholder="Email Address"
+                    value={email}
+                    onChangeText={(text) => { setEmail(text); setError(false); }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={error && !email}
+                    accentColor="#06B6D4"
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <AnimatedInput
+                    icon={({ color }) => <Ionicons name="lock-closed-outline" size={20} color={color} style={styles.inputIcon} />}
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={(text) => { setPassword(text); setError(false); }}
+                    secureTextEntry={!showPassword}
+                    error={error && !password}
+                    accentColor="#06B6D4"
+                    rightAccessory={
+                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                        <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#94A3B8" />
+                      </TouchableOpacity>
+                    }
+                  />
+                </View>
+
+                <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+                  <TouchableOpacity style={styles.forgotPasswordContainer} onPress={() => router.push('/forgot-password')}>
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+
+                <Animated.View entering={FadeInUp.delay(400).springify()}>
+                  <PremiumButton
+                    title="Sign In"
+                    onPress={handleLogin}
+                    loading={loading}
+                    colors={['#06B6D4', '#0891B2']}
+                    icon={<Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />}
+                  />
+                </Animated.View>
+
+              </Animated.View>
             </View>
           </View>
-        </LinearGradient>
-      </View>
-
-      <View style={styles.formContainer}>
-        <Text style={styles.welcomeBackText}>Welcome Back</Text>
-        <Text style={styles.subtitleText}>Sign in to your account</Text>
-
-        <View style={styles.inputWrapper}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email Address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor="#999"
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputWrapper}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor="#999"
-            />
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.loginButton, { backgroundColor: '#3a1c71' }]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.loginButtonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
-
-      </View>
-    </SafeAreaView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
+export default StudentLoginScreen;
+
 const styles = StyleSheet.create({
-  container: {
+  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+
+  bodyContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  /* Header Styles */
-  headerWrapper: {
-    height: 320,
-    position: 'relative',
-    marginBottom: 20,
-  },
-  headerGradient: {
-    flex: 1,
-    paddingTop: 10,
     paddingHorizontal: 24,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
-  backButton: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 0,
+  overlapSection: {
+    marginTop: -60, // 100x SaaS Layout Technique
+    zIndex: 20,
     paddingBottom: 40,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 30,
-    letterSpacing: 1,
-  },
-  schoolInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 15,
-    paddingHorizontal: 25,
-    borderRadius: 20,
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 24 },
+      android: { elevation: 4 },
+    }),
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  schoolIcon: {
-    width: 60,
-    height: 60,
-    marginRight: 15,
-    resizeMode: 'contain',
-  },
-  schoolNameText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'left',
-    lineHeight: 26,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  headerCurve: {
-    position: 'absolute',
-    bottom: -1,
-    left: 0,
-    right: 0,
-    height: 30,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    opacity: 0.0, // Hidden for now, can be enabled for a different style
+    borderColor: 'rgba(0,0,0,0.03)',
   },
 
-  /* Form Styles */
-  formContainer: {
-    paddingHorizontal: 30,
-    paddingTop: 10,
-    paddingBottom: 40,
-  },
   welcomeBackText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    color: '#333',
-    marginBottom: 5,
+    color: '#0F172A',
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   subtitleText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 32,
+    fontWeight: '500',
   },
   inputWrapper: {
-    marginBottom: 20,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    height: 60,
-    paddingHorizontal: 20,
+    marginBottom: 16, // Strict 8pt spacing
   },
   inputIcon: {
-    marginRight: 15,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    marginRight: 12,
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
-    marginBottom: 40,
+    marginBottom: 32,
+    marginTop: 4, // Fine-tuned vertical rhythm
   },
   forgotPasswordText: {
-    color: '#4F46E5',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  loginButtonContainer: {
-    width: '100%',
-    shadowColor: '#FF512F',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  loginButton: {
-    width: '100%',
-    height: 60,
-    borderRadius: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  otherLoginsContainer: {
-    marginTop: 30,
-    alignItems: 'center',
-  },
-  otherLoginsLabel: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginBottom: 10,
-  },
-  otherLoginsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  otherLoginText: {
-    fontSize: 14,
+    color: '#06B6D4',
     fontWeight: '600',
-    color: '#4F46E5',
-    paddingHorizontal: 10,
-  },
-  loginDivider: {
-    width: 1,
-    height: 14,
-    backgroundColor: '#D1D5DB',
+    fontSize: 13,
   },
 });
-
-export default LoginScreen;
-
-

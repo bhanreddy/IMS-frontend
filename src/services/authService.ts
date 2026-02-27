@@ -5,15 +5,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { EnrollmentService } from './enrollmentService';
 import { notificationManager } from './notificationManager';
+import BiometricService from './biometricService';
 
 const mapBackendRole = (roles: string[], hasStudentProfile: boolean = false, hasStaffProfile: boolean = false): Role => {
     if (roles.includes('admin')) return 'admin';
     if (roles.includes('accounts') || roles.includes('accountant')) return 'accountant';
 
     // Strict Profile Check
-    // Only return 'staff' or 'teacher' if they actually have a staff profile
-    if ((roles.includes('staff') || roles.includes('teacher')) && hasStaffProfile) {
-        return roles.includes('teacher') ? 'teacher' : 'staff';
+    // Only return 'staff', 'teacher', or 'driver' if they actually have a staff profile
+    if (hasStaffProfile) {
+        if (roles.includes('driver')) return 'driver';
+        if (roles.includes('teacher')) return 'teacher';
+        if (roles.includes('staff')) return 'staff';
     }
 
     // Only return 'student' if they explicitly have a student profile
@@ -48,7 +51,20 @@ export const listenAuth = (callback: (user: User | null) => void) => {
         // Sync tokens to AsyncStorage whenever Supabase updates the session (Refreshes, Login, etc.)
         if (session?.access_token && session?.refresh_token) {
             await setTokens(session.access_token, session.refresh_token);
+
+            // Keep biometric session fresh with latest refresh token
+            const biometricEnabled = await BiometricService.isBiometricEnabled();
+            if (biometricEnabled) {
+                const existingSession = await BiometricService.getBiometricSession();
+                if (existingSession) {
+                    await BiometricService.storeBiometricSession(
+                        session.refresh_token,
+                        existingSession.userId
+                    );
+                }
+            }
         } else if (event === 'SIGNED_OUT') {
+            console.log('[AuthService] Received SIGNED_OUT event. Clearing tokens.');
             // Prevent recursive loop by NOT calling AuthService.logout() here.
             // Just ensure local tokens are cleared so the UI reacts.
             await clearTokens();
@@ -93,11 +109,15 @@ export const listenAuth = (callback: (user: User | null) => void) => {
                     permissions: backendUser.permissions || [],
                     admission_no: backendUser.admission_no,
                     has_student_profile: backendUser.has_student_profile,
-                    has_staff_profile: backendUser.has_staff_profile
+                    has_staff_profile: backendUser.has_staff_profile,
+                    staff_id: backendUser.staff_id,
+                    class_section_id: backendUser.class_section_id,
+                    classId: backendUser.class_section_id
                 };
 
                 // AUTO-ENROLLMENT CHECK
-                if (user.role === 'student' || user.roles.includes('student')) {
+                // Only attempt auto-enrollment if the user does NOT already have a class section assigned.
+                if ((user.role === 'student' || user.roles.includes('student')) && !user.class_section_id) {
                     EnrollmentService.ensureEnrollment(user.id)
                         .then(res => {
                             if (res?.status === 'created') console.log("Auto-enrolled student:", user.id);
@@ -185,7 +205,10 @@ const AuthService = {
                 permissions: backendUser.permissions || [],
                 admission_no: backendUser.admission_no,
                 has_student_profile: backendUser.has_student_profile,
-                has_staff_profile: backendUser.has_staff_profile
+                has_staff_profile: backendUser.has_staff_profile,
+                staff_id: backendUser.staff_id,
+                class_section_id: backendUser.class_section_id,
+                classId: backendUser.class_section_id
             };
 
             await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
@@ -219,6 +242,9 @@ const AuthService = {
 
         // Always Clean Local State Aggressively
         await clearTokens();
+
+        // Clear biometric session on logout
+        await BiometricService.clearBiometricSession();
 
         // Exhaustive Cleanup
         const keysToClear = [
@@ -269,7 +295,10 @@ const AuthService = {
                     permissions: backendUser.permissions || [],
                     admission_no: backendUser.admission_no,
                     has_student_profile: backendUser.has_student_profile,
-                    has_staff_profile: backendUser.has_staff_profile
+                    has_staff_profile: backendUser.has_staff_profile,
+                    staff_id: backendUser.staff_id,
+                    class_section_id: backendUser.class_section_id,
+                    classId: backendUser.class_section_id
                 };
 
             } catch (err: any) {
@@ -280,6 +309,15 @@ const AuthService = {
             }
         }
         return null;
+    },
+
+    changePassword: async (current_password: string, new_password: string): Promise<void> => {
+        try {
+            await api.post('/auth/change-password', { current_password, new_password });
+        } catch (error) {
+            console.error("AuthService.changePassword Error:", error);
+            throw error;
+        }
     }
 };
 

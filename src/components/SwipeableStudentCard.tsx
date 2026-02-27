@@ -17,6 +17,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { HapticFeedback } from '../utils/animations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
@@ -60,9 +61,11 @@ const SwipeableStudentCard: React.FC<Props> = ({ student, onStatusChange }) => {
         .onEnd(() => {
             if (translateX.value > SWIPE_THRESHOLD) {
                 // Swiped Right -> Present
+                runOnJS(HapticFeedback.success)();
                 runOnJS(onStatusChange)(student.id, 'present');
             } else if (translateX.value < -SWIPE_THRESHOLD) {
                 // Swiped Left -> Absent
+                runOnJS(HapticFeedback.error)();
                 runOnJS(onStatusChange)(student.id, 'absent');
             }
             // Always snap back

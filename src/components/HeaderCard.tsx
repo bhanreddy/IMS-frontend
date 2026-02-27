@@ -10,11 +10,10 @@ import Animated, {
     withTiming,
     Easing,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import { SCHOOL_CONFIG } from '../constants/schoolConfig';
+import { Shadows, Radii, Spacing } from '../theme/themes';
 
 interface HeaderCardProps {
-    // schoolName removed, now using global config
     studentName: string;
     classSec: string;
     rollNo: string;
@@ -23,7 +22,6 @@ interface HeaderCardProps {
 const { width } = Dimensions.get('window');
 
 const HeaderCard: React.FC<HeaderCardProps> = ({
-    // schoolName,
     studentName,
     classSec,
     rollNo,
@@ -35,7 +33,7 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
     useEffect(() => {
         shimmerX.value = withRepeat(
             withTiming(width * 1.5, {
-                duration: 2800,
+                duration: 3000,
                 easing: Easing.linear,
             }),
             -1,
@@ -43,8 +41,8 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
         );
 
         pulse.value = withRepeat(
-            withTiming(1.6, {
-                duration: 1400,
+            withTiming(1.5, {
+                duration: 1500,
                 easing: Easing.out(Easing.ease),
             }),
             -1,
@@ -58,7 +56,7 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
 
     const pulseStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulse.value }],
-        opacity: 0.25,
+        opacity: 0.22,
     }));
 
     /* ---------------- UI ---------------- */
@@ -67,53 +65,13 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
             entering={FadeInDown.duration(700).springify()}
             style={styles.wrapper}
         >
-            {/* Ambient Luxury Glows */}
-            <View style={styles.glowBlue} />
-            <View style={styles.glowViolet} />
+            <View style={styles.card}>
 
-            <LinearGradient
-                colors={['#654ea3', '#eaafc8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.card}
-            >
-                {/* Glass Blur */}
-                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-
-                {/* Inner Border */}
-                <View style={styles.innerBorder} />
-
-                {/* Glossy Top Reflection */}
-                <LinearGradient
-                    colors={[
-                        'rgba(255,255,255,0.35)',
-                        'rgba(255,255,255,0.12)',
-                        'transparent',
-                    ]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={styles.glossHighlight}
-                />
-
-                {/* Shimmer */}
-                <Animated.View style={[styles.shimmer, shimmerStyle]}>
-                    <LinearGradient
-                        colors={[
-                            'transparent',
-                            'rgba(255,255,255,0.06)',
-                            'rgba(255,255,255,0.15)',
-                            'rgba(255,255,255,0.06)',
-                            'transparent',
-                        ]}
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        style={{ flex: 1 }}
-                    />
-                </Animated.View>
-
-                {/* School Badge */}
-                <View style={styles.schoolBadge}>
-                    <Image source={SCHOOL_CONFIG.logo} style={styles.schoolLogo} />
+                {/* School Badge — elevated pill */}
+                <View style={[styles.schoolBadge, { marginTop: 16 }]}>
+                    <View style={styles.logoContainer}>
+                        <Image source={SCHOOL_CONFIG.logo} style={styles.schoolLogo} />
+                    </View>
                     <Text style={styles.schoolName} numberOfLines={1}>
                         {SCHOOL_CONFIG.name}
                     </Text>
@@ -121,21 +79,19 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
 
                 {/* Content */}
                 <View style={styles.content}>
-                    {/* Avatar */}
+                    {/* Avatar with cyan glow for student */}
                     <View style={styles.avatarWrap}>
-                        <LinearGradient
-                            colors={['#60a5fa', '#a78bfa']}
-                            style={styles.avatarBorder}
-                        >
+                        <View style={styles.avatarGlow} />
+                        <View style={styles.avatarBorder}>
                             <Image
                                 source={{
                                     uri: 'https://cdn-icons-png.flaticon.com/512/4333/4333609.png',
                                 }}
                                 style={styles.avatar}
                             />
-                        </LinearGradient>
+                        </View>
 
-                        {/* Status */}
+                        {/* Status indicator */}
                         <View style={styles.status}>
                             <Animated.View style={[styles.statusPulse, pulseStyle]} />
                             <View style={styles.statusDot} />
@@ -145,25 +101,25 @@ const HeaderCard: React.FC<HeaderCardProps> = ({
                     {/* Student Info */}
                     <View style={styles.info}>
                         <Text style={styles.studentName} numberOfLines={1}>
-                            {studentName}
+                            {studentName?.replace(/\s+/g, ' ')}
                         </Text>
 
                         <View style={styles.metaRow}>
-                            <View style={styles.metaItem}>
-                                <Ionicons name="layers-outline" size={14} color="#93c5fd" />
+                            <View style={styles.metaPill}>
+                                <Ionicons name="layers" size={13} color="#67E8F9" />
                                 <Text style={styles.metaText}>{classSec}</Text>
                             </View>
 
                             <View style={styles.divider} />
 
-                            <View style={styles.metaItem}>
-                                <Ionicons name="id-card-outline" size={14} color="#c4b5fd" />
+                            <View style={styles.metaPill}>
+                                <Ionicons name="id-card" size={13} color="#67E8F9" />
                                 <Text style={styles.metaText}>Roll {rollNo}</Text>
                             </View>
                         </View>
                     </View>
                 </View>
-            </LinearGradient>
+            </View>
         </Animated.View>
     );
 };
@@ -175,118 +131,112 @@ export default HeaderCard;
 const styles = StyleSheet.create({
     wrapper: {
         marginHorizontal: 20,
-        marginTop: 18,
-    },
-
-    /* Glows */
-    glowBlue: {
-        position: 'absolute',
-        top: -60,
-        left: -50,
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: '#4b6cb7',
-        opacity: 0.22,
-    },
-
-    glowViolet: {
-        position: 'absolute',
-        bottom: -60,
-        right: -50,
-        width: 180,
-        height: 180,
-        borderRadius: 90,
-        backgroundColor: '#8e9eab',
-        opacity: 0.18,
+        marginTop: Spacing.lg,
     },
 
     /* Card */
     card: {
-        borderRadius: 28,
-        padding: 22,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 18 },
-        shadowOpacity: 0.35,
-        shadowRadius: 30,
-        elevation: 18,
+        padding: Spacing.md,
+        paddingBottom: Spacing.xl, // Space for overlap
+        backgroundColor: 'transparent',
     },
 
-    innerBorder: {
-        ...StyleSheet.absoluteFillObject,
-        borderRadius: 28,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.18)',
-    },
-
-    glossHighlight: {
+    glassOverlay: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        height: '45%',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        height: '50%',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
 
     shimmer: {
         ...StyleSheet.absoluteFillObject,
-        transform: [{ skewX: '-20deg' }],
+        transform: [{ skewX: '-18deg' }],
     },
 
-    /* School Badge */
     schoolBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        gap: Spacing.sm,
+        backgroundColor: 'rgba(255,255,255,0.1)', // softer
         alignSelf: 'flex-start',
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 20,
-        marginBottom: 18,
+        paddingHorizontal: 10,
+        paddingVertical: 5, // more compact
+        borderRadius: Radii.pill,
+        marginBottom: Spacing.sm,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+
+    logoContainer: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 2,
     },
 
     schoolLogo: {
-        width: 24,
-        height: 24,
+        width: 18,
+        height: 18,
         resizeMode: 'contain',
     },
 
     schoolName: {
-        color: '#f8fafc',
-        fontWeight: '700',
-        fontSize: 14,
-        maxWidth: width * 0.6,
+        color: '#FFFFFF',
+        fontWeight: '700', // removed 800
+        fontSize: 12, // smaller
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        maxWidth: width * 0.5,
     },
 
     /* Content */
     content: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 18,
+        gap: Spacing.lg + 2,
     },
 
     avatarWrap: {
         position: 'relative',
     },
 
+    avatarGlow: {
+        position: 'absolute',
+        width: 74,
+        height: 74,
+        borderRadius: 24,
+        backgroundColor: '#06B6D4',
+        opacity: 0.15, // softer
+        top: -3,
+        left: -3,
+        shadowColor: '#06B6D4',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 4,
+    },
+
     avatarBorder: {
-        width: 78,
-        height: 78,
-        borderRadius: 26,
-        padding: 3,
+        width: 68,
+        height: 68,
+        borderRadius: 22,
+        padding: 2,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)'
     },
 
     avatar: {
         width: '100%',
         height: '100%',
-        borderRadius: 22,
-        backgroundColor: '#020617',
+        borderRadius: 18,
+        backgroundColor: '#1E1042',
     },
 
     status: {
@@ -308,12 +258,12 @@ const styles = StyleSheet.create({
     },
 
     statusDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        width: 13,
+        height: 13,
+        borderRadius: 7,
         backgroundColor: '#22c55e',
-        borderWidth: 2,
-        borderColor: '#020617',
+        borderWidth: 2.5,
+        borderColor: '#3B0764',
     },
 
     info: {
@@ -321,37 +271,42 @@ const styles = StyleSheet.create({
     },
 
     studentName: {
-        color: '#ffffff',
-        fontSize: 22,
+        color: '#FFFFFF',
+        fontSize: 26, // Increased name emphasis
         fontWeight: '800',
-        marginBottom: 10,
+        letterSpacing: 0.3,
+        marginBottom: Spacing.xs, // tighter spacing
+        textShadowColor: 'rgba(0,0,0,0.15)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
 
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.07)',
-        borderRadius: 14,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
     },
 
-    metaItem: {
+    metaPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 5,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
     },
 
     metaText: {
-        color: '#f1f5f9',
+        color: 'rgba(255,255,255,0.9)',
         fontWeight: '600',
-        fontSize: 13,
+        fontSize: 12,
+        letterSpacing: 0.2,
     },
 
     divider: {
         width: 1,
-        height: 16,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        marginHorizontal: 14,
+        height: 14,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        marginHorizontal: 11,
     },
 });

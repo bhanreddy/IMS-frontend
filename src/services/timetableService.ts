@@ -2,7 +2,6 @@ import { api } from './apiClient';
 
 export interface TimetableSlot {
     id: string;
-    day_of_week: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
     period_number: number;
     start_time: string; // "09:00:00"
     end_time: string;
@@ -10,6 +9,7 @@ export interface TimetableSlot {
     subject_name?: string;
     teacher_id?: string;
     teacher_name?: string;
+    room_no?: string;
     class_name?: string; // For teacher view
     section_name?: string; // For teacher view
 }
@@ -17,12 +17,19 @@ export interface TimetableSlot {
 export interface CreateSlotRequest {
     class_section_id: string;
     academic_year_id: string;
-    day_of_week: string;
     period_number: number;
     subject_id: string;
     teacher_id?: string;
     start_time: string;
     end_time: string;
+}
+
+export interface Period {
+    id: string;
+    name: string;
+    start_time: string;
+    end_time: string;
+    sort_order: number;
 }
 
 export const TimetableService = {
@@ -49,5 +56,22 @@ export const TimetableService = {
     // Teacher: Get my schedule
     getTeacherTimetable: async (academicYearId?: string): Promise<TimetableSlot[]> => {
         return api.get<TimetableSlot[]>('/timetable/teacher-timetable', { academic_year_id: academicYearId });
+    },
+
+    // Periods Management
+    getPeriods: async (): Promise<Period[]> => {
+        return api.get<Period[]>('/timetable/periods/list');
+    },
+
+    updatePeriods: async (periods: Period[]): Promise<void> => {
+        return api.put('/timetable/periods', { periods });
+    },
+
+    deletePeriod: async (id: string): Promise<void> => {
+        return api.delete(`/timetable/periods/${id}`);
+    },
+
+    createPeriod: async (data: { name: string; start_time: string; end_time: string }): Promise<Period> => {
+        return api.post<Period>('/timetable/periods/create', data);
     }
 };

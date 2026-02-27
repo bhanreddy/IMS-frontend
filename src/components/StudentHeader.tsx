@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, Alert } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // If navigation is needed
-import { useTranslation } from 'react-i18next'; // Assuming i18n is set up based on imports in other files
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { interpolateColor, interpolate, useAnimatedStyle, Extrapolation, SharedValue } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import MenuOverlay from './MenuOverlay';
 import { SCHOOL_CONFIG } from '../constants/schoolConfig';
+import { Shadows, Radii, Spacing } from '../theme/themes';
 
 interface StudentHeaderProps {
     onMenuPress?: () => void;
+    scrollY?: SharedValue<number>;
+    menuUserType?: 'student' | 'staff' | 'driver';
 }
 
-const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, title?: string, showSettingsButton?: boolean }> = ({ onMenuPress, showBackButton = false, title = SCHOOL_CONFIG.name, showSettingsButton = true }) => {
+const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, title?: string, showSettingsButton?: boolean }> = ({ onMenuPress, showBackButton = false, title, showSettingsButton = true, scrollY, menuUserType = 'student' }) => {
     const router = useRouter();
     const { t, i18n } = useTranslation();
     const [isTelugu, setIsTelugu] = useState(i18n.language === 'te');
     const [menuVisible, setMenuVisible] = useState(false);
+    const insets = useSafeAreaInsets();
 
     React.useEffect(() => {
         setIsTelugu(i18n.language === 'te');
@@ -57,78 +63,152 @@ const StudentHeader: React.FC<StudentHeaderProps & { showBackButton?: boolean, t
         }
     };
 
+    const animatedStyle = useAnimatedStyle(() => {
+        if (!scrollY) return { backgroundColor: '#FFFFFF', borderBottomColor: '#E2E8F0', shadowOpacity: 0.1 };
+
+        const bgColor = interpolateColor(
+            scrollY.value,
+            [0, 50],
+            ['rgba(255,255,255,0)', 'rgba(255,255,255,0.95)'] // Slight transparency for premium blur feel
+        );
+        const borderColor = interpolateColor(
+            scrollY.value,
+            [0, 50],
+            ['rgba(226,232,240,0)', 'rgba(226,232,240,1)']
+        );
+        const shadowOpacity = interpolate(
+            scrollY.value,
+            [0, 50],
+            [0, 0.1],
+            Extrapolation.CLAMP
+        );
+
+        return {
+            backgroundColor: bgColor,
+            borderBottomColor: borderColor,
+            shadowOpacity,
+        };
+    });
+
+    const isAbsolute = !!scrollY;
+
+    const fontColorStyle = useAnimatedStyle(() => {
+        if (!scrollY) return { color: '#FFFFFF' };
+        return {
+            color: interpolateColor(
+                scrollY.value,
+                [0, 50],
+                ['#FFFFFF', '#1F2937']
+            )
+        };
+    });
+
+    const iconColorStyle = useAnimatedStyle(() => {
+        if (!scrollY) return { backgroundColor: 'rgba(255,255,255,0.1)' };
+        return {
+            backgroundColor: interpolateColor(
+                scrollY.value,
+                [0, 50],
+                ['rgba(255,255,255,0.1)', '#F8FAFC']
+            )
+        };
+    });
+
     return (
-        <SafeAreaView edges={['top']} style={styles.container}>
-            {/* 1. Left: Menu or Back Button */}
+        <Animated.View style={[
+            styles.container,
+            { paddingTop: Math.max(insets.top, 36) }, // Guarantee enough space for status bar
+            isAbsolute && styles.absoluteHeader,
+            animatedStyle
+        ]}>
+            {!scrollY && (
+                <LinearGradient
+                    colors={['#05050A', '#13132B']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+            )}
+
+            {/* Left: Menu or Back Button */}
             {showBackButton ? (
-                <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
-                    <Ionicons name="arrow-back" size={24} color="#1F2937" />
+                <TouchableOpacity onPress={handleBack} activeOpacity={0.7}>
+                    <Animated.View style={[styles.iconButton, iconColorStyle]}>
+                        <Animated.Text style={fontColorStyle}>
+                            <Ionicons name="arrow-back" size={22} color="inherit" />
+                        </Animated.Text>
+                    </Animated.View>
                 </TouchableOpacity>
             ) : (
-                <TouchableOpacity onPress={handleMenuPress} style={styles.iconButton}>
-                    <Ionicons name="menu" size={24} color="#1F2937" />
+                <TouchableOpacity onPress={handleMenuPress} activeOpacity={0.7}>
+                    <Animated.View style={[styles.iconButton, iconColorStyle]}>
+                        <Animated.Text style={fontColorStyle}>
+                            <Ionicons name="menu" size={22} color="inherit" />
+                        </Animated.Text>
+                    </Animated.View>
                 </TouchableOpacity>
             )}
 
-            {/* Title (Only if provided, e.g. in sub-screens) */}
+            {/* Title - takes remaining space on sub-pages */}
             {title && (
-                <Text style={styles.headerTitle}>{title}</Text>
+                <Animated.Text style={[styles.headerTitle, { flex: 1 }, fontColorStyle]}>{title}</Animated.Text>
             )}
 
-            {/* 2. & 3. Middle Left: Diary & LMS Tabs (Hide if back button is shown or title is present to avoid clutter, or keep if design requires) */}
-            {/* Logic: If it's a sub-screen (Back button valid), usually we show Title. If Home, we show Tabs. */}
+            {/* Diary & LMS Tabs - Always show on main screens (no back button, no title) */}
             {!showBackButton && !title && (
                 <View style={styles.tabsContainer}>
                     <TouchableOpacity
-                        style={styles.tabButton}
                         onPress={() => handleTabPress('Diary')}
+                        activeOpacity={0.7}
                     >
-                        <Ionicons name="book-outline" size={20} color="#4B5563" />
-                        <Text style={styles.tabText}>Diary</Text>
+                        <Animated.View style={[styles.tabButton, iconColorStyle]}>
+                            <View style={[styles.tabIconBox, { backgroundColor: 'rgba(3,105,161,0.1)' }]}>
+                                <Ionicons name="book" size={12} color="#0284C7" />
+                            </View>
+                            <Animated.Text style={[styles.tabText, fontColorStyle]}>Diary</Animated.Text>
+                        </Animated.View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.tabButton}
                         onPress={() => handleTabPress('LMS')}
+                        activeOpacity={0.7}
                     >
-                        <MaterialIcons name="computer" size={20} color="#4B5563" />
-                        <Text style={styles.tabText}>LMS</Text>
+                        <Animated.View style={[styles.tabButton, iconColorStyle]}>
+                            <View style={[styles.tabIconBox, { backgroundColor: 'rgba(22,163,74,0.1)' }]}>
+                                <MaterialIcons name="computer" size={12} color="#16A34A" />
+                            </View>
+                            <Animated.Text style={[styles.tabText, fontColorStyle]}>LMS</Animated.Text>
+                        </Animated.View>
                     </TouchableOpacity>
                 </View>
             )}
 
-            {/* Spacer */}
-            <View style={{ flex: 1 }} />
 
-            {/* 4. Right: Language Toggle */}
-            <View style={styles.languageContainer}>
-                <Text style={[styles.langText, !isTelugu && styles.activeLang]}>Eng</Text>
-                <Switch
-                    trackColor={{ false: "#E5E7EB", true: "#E5E7EB" }}
-                    thumbColor={isTelugu ? "#4F46E5" : "#4F46E5"}
-                    ios_backgroundColor="#E5E7EB"
-                    onValueChange={toggleLanguage}
-                    value={isTelugu}
-                    style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                />
-                <Text style={[styles.langText, isTelugu && styles.activeLang]}>Tel</Text>
+            <View style={styles.rightActions}>
+                {/* Language Toggle */}
+                <TouchableOpacity onPress={toggleLanguage} activeOpacity={0.7} style={styles.langToggle}>
+                    <Animated.Text style={[styles.langTextCompact, fontColorStyle]}>{isTelugu ? 'TEL' : 'ENG'}</Animated.Text>
+                </TouchableOpacity>
+
+                {/* Settings Button */}
+                {showSettingsButton && (
+                    <TouchableOpacity
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push('/Screen/settings' as any);
+                        }}
+                        activeOpacity={0.7}
+                        style={{ padding: 4 }}
+                    >
+                        <Animated.Text style={fontColorStyle}>
+                            <Ionicons name="settings-outline" size={20} color="inherit" />
+                        </Animated.Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
-            {/* 5. Far Right: Settings Button */}
-            {showSettingsButton && (
-                <TouchableOpacity
-                    onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push('/Screen/settings' as any);
-                    }}
-                    style={styles.iconButton}
-                >
-                    <Ionicons name="settings-outline" size={22} color="#1F2937" />
-                </TouchableOpacity>
-            )}
-
-            <MenuOverlay visible={menuVisible} onClose={() => setMenuVisible(false)} userType="student" />
-        </SafeAreaView>
+            <MenuOverlay visible={menuVisible} onClose={() => setMenuVisible(false)} userType={menuUserType} />
+        </Animated.View>
     );
 };
 
@@ -136,68 +216,79 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        paddingHorizontal: Spacing.md,
+        paddingBottom: Spacing.sm + 4, // Added more bottom padding
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'transparent',
+        ...Shadows.sm,
     },
     iconButton: {
         width: 40,
         height: 40,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 20,
-        backgroundColor: '#F9FAFB',
+        borderRadius: Radii.sm,
+        backgroundColor: '#F8FAFC',
     },
     tabsContainer: {
         flexDirection: 'row',
-        marginLeft: 12,
-        gap: 12,
+        marginLeft: Spacing.sm,
+        gap: Spacing.xs,
     },
     tabButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
-        backgroundColor: '#F3F4F6',
+        paddingHorizontal: Spacing.xs + 2,
+        paddingVertical: 4,
+        borderRadius: Radii.sm,
+        backgroundColor: 'transparent',
         gap: 6,
     },
-    tabText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
-    },
-    languageContainer: {
-        flexDirection: 'row',
+    tabIconBox: {
+        width: 20,
+        height: 20,
+        borderRadius: 5,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
-        gap: 4,
-        backgroundColor: '#F9FAFB',
+    },
+    tabText: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
+    rightActions: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        paddingRight: Spacing.xs,
+    },
+    langToggle: {
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 16,
+        borderRadius: Radii.xs,
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
-    langText: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        fontWeight: '600',
-    },
-    activeLang: {
-        color: '#4F46E5',
+    langTextCompact: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.5,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginLeft: 12,
-    }
+        fontWeight: '800',
+        color: '#111827',
+        marginLeft: Spacing.md,
+        letterSpacing: 0.2,
+    },
+    absoluteHeader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+    },
 });
 
 export default StudentHeader;

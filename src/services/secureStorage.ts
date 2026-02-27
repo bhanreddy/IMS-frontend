@@ -14,10 +14,15 @@ const CHUNK_PREFIX = '___CHUNKED___:';
 const SecureStoreAdapter = {
     getItem: async (key: string) => {
         try {
+            console.log(`[SecureStore] Getting item: ${key}`);
             const item = await SecureStore.getItemAsync(key);
-            if (!item) return null;
+            if (!item) {
+                console.log(`[SecureStore] Item not found: ${key}`);
+                return null;
+            }
 
             if (item.startsWith(CHUNK_PREFIX)) {
+                console.log(`[SecureStore] Item is chunked: ${key}`);
                 const count = parseInt(item.replace(CHUNK_PREFIX, ''), 10);
                 if (isNaN(count)) return null;
 
@@ -26,11 +31,14 @@ const SecureStoreAdapter = {
                     const chunk = await SecureStore.getItemAsync(`${key}_chunk_${i}`);
                     if (chunk) {
                         fullValue += chunk;
+                    } else {
+                        console.warn(`[SecureStore] Missing chunk ${i} for key ${key}`);
                     }
                 }
                 return fullValue;
             }
 
+            // console.log(`[SecureStore] Retrieved item: ${key} (Length: ${item.length})`);
             return item;
         } catch (error) {
             console.error('SecureStoreAdapter.getItem failed', error);
@@ -40,19 +48,9 @@ const SecureStoreAdapter = {
 
     setItem: async (key: string, value: string) => {
         try {
-            // First, check if there was an old chunked value to clean up? 
-            // Actually, we can just overwrite. But if we go from chunked to non-chunked, 
-            // valid chunks might remain. It's safe to ignore them or clean them.
-            // Let's implement basic cleanup if we are overwriting.
-            // But reading before writing adds latency.
-            // Let's just handle the writing logic for now. 
-
+            console.log(`[SecureStore] Setting item: ${key} (Length: ${value.length})`);
             if (value.length <= CHUNK_SIZE) {
-                // If previously chunked, we should ideally clean up, but for now 
-                // just overwriting the main key is enough to "break" the chunk link.
-                // The orphan chunks will just sit there. 
-                // To be cleaner:
-                await SecureStoreAdapter.removeItem(key); // clear old data/chunks
+                await SecureStoreAdapter.removeItem(key);
                 return SecureStore.setItemAsync(key, value);
             }
 
@@ -61,6 +59,8 @@ const SecureStoreAdapter = {
             for (let i = 0; i < value.length; i += CHUNK_SIZE) {
                 chunks.push(value.slice(i, i + CHUNK_SIZE));
             }
+
+            console.log(`[SecureStore] Chunking ${key} into ${chunks.length} chunks`);
 
             // Store chunks
             for (let i = 0; i < chunks.length; i++) {
@@ -76,8 +76,7 @@ const SecureStoreAdapter = {
 
     removeItem: async (key: string) => {
         try {
-            // Check if chunked to clean up chunks
-            // We need to read it first to know if it's chunked.
+            console.log(`[SecureStore] Removing item: ${key}`);
             const item = await SecureStore.getItemAsync(key);
 
             if (item && item.startsWith(CHUNK_PREFIX)) {

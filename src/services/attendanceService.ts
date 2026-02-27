@@ -3,9 +3,9 @@ import type { DailyAttendance, AttendanceStatus } from '../types/schema';
 
 export interface MarkAttendanceRequest {
     class_section_id: string;
-    attendance_date: string; // YYYY-MM-DD
+    date: string; // YYYY-MM-DD
     records: Array<{
-        student_enrollment_id: string;
+        student_id: string; // Changed from student_enrollment_id to match backend
         status: AttendanceStatus;
     }>;
 }
@@ -77,5 +77,35 @@ export const AttendanceService = {
         params?: { from_date?: string; to_date?: string }
     ): Promise<StudentAttendanceRecord[]> => {
         return api.get<StudentAttendanceRecord[]>(`/students/${studentId}/attendance`, params);
+    },
+
+    /**
+     * Get the teacher's auto-detected class with student list and today's attendance
+     */
+    getMyClass: async (date?: string): Promise<{
+        date: string;
+        class_section_id: string;
+        class_name: string;
+        section_name: string;
+        total_students: number;
+        marked_count: number;
+        students: Array<{
+            student_id: string;
+            admission_no: string;
+            student_name: string;
+            photo_url: string | null;
+            enrollment_id: string;
+            attendance_id: string | null;
+            status: string | null;
+            marked_at: string | null;
+        }>;
+    } | null> => {
+        try {
+            const params = date ? { date } : {};
+            return await api.get('/attendance/my-class', params);
+        } catch (error: any) {
+            if (error?.response?.status === 404) return null;
+            throw error;
+        }
     },
 };

@@ -5,7 +5,7 @@ import { useAuth } from './useAuth';
 // List of public routes that don't require authentication
 // Note: '/' is the 4-login-options index page.
 // 'login', 'staff-login' etc are specific login forms.
-const PUBLIC_ROUTES = ['index', 'login', 'signup', 'staff-login', 'admin-login', 'accounts-login'];
+const PUBLIC_ROUTES = ['index', 'login', 'signup', 'staff-login', 'admin-login', 'accounts-login', 'driver-login'];
 
 export function useAuthGuard() {
     const { user, loading } = useAuth();
@@ -26,6 +26,7 @@ export function useAuthGuard() {
         const inAdminGroup = segments[0] === 'admin';
         const inStaffGroup = segments[0] === 'staff';
         const inAccountsGroup = segments[0] === 'accounts';
+        const inDriverGroup = segments[0] === 'driver';
 
         // 1. User IS logged in
         if (user) {
@@ -61,6 +62,16 @@ export function useAuthGuard() {
                 return;
             }
 
+            if (inDriverGroup && user.role !== 'driver') {
+                router.replace(homeRoute);
+                return;
+            }
+
+            if (inTabsGroup && user.role !== 'student') {
+                router.replace(homeRoute);
+                return;
+            }
+
             // Redirect from public/auth screens to dashboard if logged in
             if (inAuthGroup) {
                 router.replace(homeRoute);
@@ -77,7 +88,7 @@ export function useAuthGuard() {
         } else {
             // 2. User is NOT logged in
             // If trying to access protected areas, redirect to login
-            if (inTabsGroup || inAdminGroup || inStaffGroup || inAccountsGroup) {
+            if (inTabsGroup || inAdminGroup || inStaffGroup || inAccountsGroup || inDriverGroup) {
                 if (__DEV__) console.log('[AuthGuard] Unauthenticated on protected route. Redirecting to /', { segments });
                 // Check if we are already engaging with a login flow to avoid fighting
                 // But generally, if we're in a protected group and not logged in, we MUST go to root.
@@ -96,6 +107,7 @@ const getHomeRoute = (role: string) => {
         case 'accountant': return '/accounts/dashboard';
         case 'staff':
         case 'teacher': return '/staff/dashboard';
+        case 'driver': return '/driver/dashboard';
         default: return '/(tabs)/home';
     }
 };

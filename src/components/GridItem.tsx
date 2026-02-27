@@ -1,5 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, Image, View } from 'react-native';
+import { Text, StyleSheet, Image, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { HapticFeedback, SPRING_BOUNCE } from '../utils/animations';
 
 interface GridItemProps {
     title: string;
@@ -7,12 +9,34 @@ interface GridItemProps {
     onPress: () => void;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const GridItem: React.FC<GridItemProps> = ({ title, icon, onPress }) => {
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = () => {
+        scale.value = withSpring(0.95, SPRING_BOUNCE);
+        HapticFeedback.light();
+    };
+
+    const handlePressOut = () => {
+        scale.value = withSpring(1, SPRING_BOUNCE);
+    };
+
     return (
-        <TouchableOpacity style={styles.item} onPress={onPress}>
+        <AnimatedPressable
+            style={[styles.item, animatedStyle]}
+            onPress={onPress}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+        >
             <Image source={icon} style={styles.icon} />
             <Text style={styles.title}>{title}</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
     );
 };
 

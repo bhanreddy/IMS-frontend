@@ -220,7 +220,6 @@ export interface BaseUser {
     displayName?: string;
     photoURL?: string;
     role: 'admin' | 'staff' | 'teacher' | 'student' | 'parent' | 'accountant';
-    schoolId?: string;
     createdAt?: any;
     updatedAt?: any;
 }

@@ -1,442 +1,570 @@
-import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    FlatList,
-    Dimensions,
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Platform, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeInRight, Layout } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { api } from '../../src/services/apiClient';
-import { TimetableService } from '../../src/services/timetableService';
+import { TimetableService, TimetableSlot } from '../../src/services/timetableService';
 import { useAuth } from '../../src/hooks/useAuth';
 import { ActivityIndicator } from 'react-native';
-
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
+import { useTheme } from '../../src/hooks/useTheme';
+import { Theme } from '../../src/theme/themes';
 
 const { width } = Dimensions.get('window');
 
-// --- Mock Data ---
-type ScheduleItem = {
-    id: string;
-    type: 'class' | 'break' | 'lunch';
-    time: string;
-    subject?: string;
-    teacher?: string;
-    room?: string;
-    icon?: string;
-    duration?: string;
+// Subject icon mapping
+const SUBJECT_ICONS: Record<string, string> = {
+  mathematics: 'calculator-outline',
+  maths: 'calculator-outline',
+  math: 'calculator-outline',
+  physics: 'flask-outline',
+  chemistry: 'beaker-outline',
+  biology: 'leaf-outline',
+  english: 'book-outline',
+  hindi: 'document-text-outline',
+  history: 'time-outline',
+  geography: 'globe-outline',
+  science: 'flask-outline',
+  computer: 'desktop-outline',
+  art: 'color-palette-outline',
+  music: 'musical-notes-outline',
+  sports: 'football-outline',
+  library: 'library-outline',
+  default: 'school-outline',
 };
 
-const TIMETABLE_DATA: Record<string, ScheduleItem[]> = {
-    Mon: [
-        { id: '1', type: 'class', time: '09:00 - 09:45', subject: 'Mathematics', teacher: 'Ravi Kumar', room: 'Room 101', icon: 'calculator' },
-        { id: '2', type: 'class', time: '09:45 - 10:30', subject: 'Physics', teacher: 'Sita Verma', room: 'Lab 2', icon: 'atom' },
-        { id: '3', type: 'break', time: '10:30 - 10:45', duration: '15 Mins' },
-        { id: '4', type: 'class', time: '10:45 - 11:30', subject: 'Chemistry', teacher: 'Dr. Rao', room: 'Lab 1', icon: 'flask' },
-        { id: '5', type: 'class', time: '11:30 - 12:15', subject: 'English', teacher: 'John Doe', room: 'Room 101', icon: 'book' },
-        { id: '6', type: 'lunch', time: '12:15 - 01:00', duration: '45 Mins' },
-        { id: '7', type: 'class', time: '01:00 - 01:45', subject: 'Computer Sci', teacher: 'Alice Smith', room: 'Comp Lab', icon: 'laptop-code' },
-    ],
-    Tue: [
-        { id: '1', type: 'class', time: '09:00 - 09:45', subject: 'Biology', teacher: 'Dr. Anjali', room: 'Bio Lab', icon: 'dna' },
-        { id: '2', type: 'class', time: '09:45 - 10:30', subject: 'Mathematics', teacher: 'Ravi Kumar', room: 'Room 101', icon: 'calculator' },
-        { id: '3', type: 'break', time: '10:30 - 10:45', duration: '15 Mins' },
-        { id: '4', type: 'class', time: '10:45 - 11:30', subject: 'History', teacher: 'Mr. Khan', room: 'Room 102', icon: 'landmark' },
-        { id: '5', type: 'lunch', time: '12:15 - 01:00', duration: '45 Mins' },
-        { id: '6', type: 'class', time: '01:00 - 02:30', subject: 'Physical Edu', teacher: 'Coach Singh', room: 'Ground', icon: 'running' },
-    ],
-    Wed: [
-        { id: '1', type: 'class', time: '09:00 - 09:45', subject: 'English', teacher: 'John Doe', room: 'Room 101', icon: 'book' },
-        { id: '2', type: 'class', time: '09:45 - 10:30', subject: 'Hindi', teacher: 'Mrs. Sharma', room: 'Room 101', icon: 'language' },
-        { id: '3', type: 'break', time: '10:30 - 10:45', duration: '15 Mins' },
-        { id: '4', type: 'class', time: '10:45 - 11:30', subject: 'Social Studies', teacher: 'Mr. Khan', room: 'Room 102', icon: 'globe' },
-        { id: '5', type: 'lunch', time: '12:15 - 01:00', duration: '45 Mins' },
-        { id: '6', type: 'class', time: '01:00 - 01:45', subject: 'Physics', teacher: 'Sita Verma', room: 'Lab 2', icon: 'atom' },
-    ],
-    Thu: [
-        { id: '1', type: 'class', time: '09:00 - 09:45', subject: 'Mathematics', teacher: 'Ravi Kumar', room: 'Room 101', icon: 'calculator' },
-        { id: '2', type: 'class', time: '09:45 - 10:30', subject: 'Chemistry', teacher: 'Dr. Rao', room: 'Lab 1', icon: 'flask' },
-        { id: '3', type: 'break', time: '10:30 - 10:45', duration: '15 Mins' },
-        { id: '4', type: 'class', time: '10:45 - 11:30', subject: 'Biology', teacher: 'Dr. Anjali', room: 'Bio Lab', icon: 'dna' },
-        { id: '5', type: 'lunch', time: '12:15 - 01:00', duration: '45 Mins' },
-        { id: '6', type: 'class', time: '01:00 - 01:45', subject: 'Library', teacher: 'Librarian', room: 'Library', icon: 'book-reader' },
-    ],
-    Fri: [
-        { id: '1', type: 'class', time: '09:00 - 09:45', subject: 'Economics', teacher: 'Mr. Das', room: 'Room 103', icon: 'chart-line' },
-        { id: '2', type: 'class', time: '09:45 - 10:30', subject: 'Mathematics', teacher: 'Ravi Kumar', room: 'Room 101', icon: 'calculator' },
-        { id: '3', type: 'break', time: '10:30 - 10:45', duration: '15 Mins' },
-        { id: '4', type: 'class', time: '10:45 - 11:30', subject: 'Computer Sci', teacher: 'Alice Smith', room: 'Comp Lab', icon: 'laptop-code' },
-        { id: '5', type: 'lunch', time: '12:15 - 01:00', duration: '45 Mins' },
-        { id: '6', type: 'class', time: '01:00 - 02:00', subject: 'Art & Craft', teacher: 'Mrs. Roy', room: 'Art Room', icon: 'palette' },
-    ],
-    Sat: [
-        { id: '1', type: 'class', time: '09:00 - 10:00', subject: 'Weekend Test', teacher: 'All Faculty', room: 'Exam Hall', icon: 'file-alt' },
-        { id: '2', type: 'break', time: '10:00 - 10:15', duration: '15 Mins' },
-        { id: '3', type: 'class', time: '10:15 - 12:00', subject: 'Extra Curricular', teacher: 'Various', room: 'Ground', icon: 'futbol' },
-        { id: '4', type: 'class', time: '12:00 - 12:30', subject: 'Early Departure', teacher: '-', room: '-', icon: 'home' },
-    ],
+const getSubjectIcon = (name: string): string => {
+  const lower = name.toLowerCase();
+  for (const [key, icon] of Object.entries(SUBJECT_ICONS)) {
+    if (lower.includes(key)) return icon;
+  }
+  return SUBJECT_ICONS.default;
 };
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// Subject color palette
+const SUBJECT_COLORS: string[] = [
+  '#6366F1', '#8B5CF6', '#EC4899', '#EF4444', '#F97316',
+  '#EAB308', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6',
+];
+
+const getSubjectColor = (name: string): string => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return SUBJECT_COLORS[Math.abs(hash) % SUBJECT_COLORS.length];
+};
+
+interface ProcessedItem {
+  type: 'class' | 'break';
+  id: string;
+  startTime: string; // HH:MM
+  endTime: string;   // HH:MM
+  startRaw: string;  // HH:MM:SS
+  endRaw: string;
+  subject?: string;
+  teacher?: string;
+  room?: string;
+  periodNumber: number;
+}
 
 const TimeTableScreen = () => {
-    const { t } = useTranslation();
-    const [selectedDay, setSelectedDay] = useState(DAYS[0]);
-    const [timetable, setTimetable] = useState<any>({});
-    const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  const { t } = useTranslation();
+  const { user } = useAuth();
 
-    useEffect(() => {
-        const loadTimetable = async () => {
-            if (!user || user.role !== 'student') return;
-            try {
-                setLoading(true);
-                // 1. Get profile to find section
-                const profile = await api.get<any>('/students/profile/me');
+  const [slots, setSlots] = useState<TimetableSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-                if (profile?.current_enrollment?.class_section_id) {
-                    const slots = await TimetableService.getClassSlots(profile.current_enrollment.class_section_id);
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
-                    const normalized: any = {};
-                    const dayMap: Record<string, string> = {
-                        'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed',
-                        'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
-                    };
+  const loadTimetable = async () => {
+    if (!user || user.role !== 'student') return;
+    try {
+      const profile = await api.get<any>('/students/profile/me');
+      if (profile?.current_enrollment?.class_section_id) {
+        const data = await TimetableService.getClassSlots(profile.current_enrollment.class_section_id);
+        setSlots(data);
+      }
+    } catch (err) {
+      console.error("Failed to load timetable", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-                    // Group slots by day
-                    slots.forEach((slot) => {
-                        const shortKey = dayMap[slot.day_of_week.toLowerCase()];
-                        if (!shortKey) return;
+  useEffect(() => { loadTimetable(); }, [user]);
 
-                        if (!normalized[shortKey]) {
-                            normalized[shortKey] = [];
-                        }
+  const onRefresh = () => { setRefreshing(true); loadTimetable(); };
 
-                        normalized[shortKey].push({
-                            id: slot.id,
-                            type: 'class',
-                            time: `${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}`,
-                            subject: slot.subject_name || 'N/A',
-                            teacher: slot.teacher_name || 'N/A',
-                            room: 'N/A', // Room info not in slot data yet
-                            icon: 'book'
-                        });
-                    });
+  // Process slots: sort + insert gap breaks
+  const processedItems: ProcessedItem[] = useMemo(() => {
+    if (!slots.length) return [];
+    const sorted = [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time));
+    const items: ProcessedItem[] = [];
 
-                    // Sort slots by time
-                    Object.keys(normalized).forEach(day => {
-                        normalized[day].sort((a: any, b: any) => a.time.localeCompare(b.time));
-                    });
-
-                    setTimetable(normalized);
-                }
-            } catch (err) {
-                console.error("Failed to load timetable", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadTimetable();
-    }, [user]);
-
-    const renderScheduleItem = ({ item, index }: { item: ScheduleItem; index: number }) => {
-        if (item.type === 'break' || item.type === 'lunch') {
-            return (
-                <Animated.View
-                    entering={FadeInDown.delay(index * 100).springify()}
-                    style={styles.breakCard}
-                >
-                    <View style={styles.breakLine} />
-                    <View style={styles.breakContent}>
-                        <Ionicons
-                            name={item.type === 'lunch' ? 'restaurant' : 'cafe'}
-                            size={18}
-                            color="#F59E0B"
-                            style={{ marginRight: 6 }}
-                        />
-                        <Text style={styles.breakText}>
-                            {item.type === 'lunch' ? t('timetable.lunch') : t('timetable.interval')} ({item.duration})
-                        </Text>
-                        <Text style={styles.breakTime}>{item.time}</Text>
-                    </View>
-                    <View style={styles.breakLine} />
-                </Animated.View>
-            );
+    sorted.forEach((slot, i) => {
+      // Check for gap before this slot (break)
+      if (i > 0) {
+        const prevEnd = sorted[i - 1].end_time;
+        if (slot.start_time > prevEnd) {
+          items.push({
+            type: 'break',
+            id: `break-${i}`,
+            startTime: prevEnd.slice(0, 5),
+            endTime: slot.start_time.slice(0, 5),
+            startRaw: prevEnd,
+            endRaw: slot.start_time,
+            periodNumber: 0,
+          });
         }
+      }
 
-        return (
-            <Animated.View
-                entering={FadeInRight.delay(index * 100).springify()}
-                style={styles.classCard}
-            >
-                <View style={styles.timeStripe}>
-                    <Text style={styles.startTime}>{item.time.split(' - ')[0]}</Text>
-                    <Text style={styles.endTime}>{item.time.split(' - ')[1]}</Text>
-                </View>
+      items.push({
+        type: 'class',
+        id: slot.id || `slot-${i}`,
+        startTime: slot.start_time.slice(0, 5),
+        endTime: slot.end_time.slice(0, 5),
+        startRaw: slot.start_time,
+        endRaw: slot.end_time,
+        subject: slot.subject_name || 'N/A',
+        teacher: slot.teacher_name || 'N/A',
+        room: slot.room_no || 'N/A',
+        periodNumber: slot.period_number,
+      });
+    });
 
-                <View style={styles.cardContent}>
-                    <View style={styles.headerRow}>
-                        <Text style={styles.subjectName}>{item.subject}</Text>
-                        <View style={styles.iconContainer}>
-                            <FontAwesome5 name={item.icon || 'book'} size={16} color="#4F46E5" />
-                        </View>
+    return items;
+  }, [slots]);
+
+  // Check if a time range is currently active
+  const isActive = (startRaw: string, endRaw: string): boolean => {
+    const hours = currentTime.getHours();
+    const mins = currentTime.getMinutes();
+    const now = hours * 60 + mins;
+    const [sh, sm] = startRaw.split(':').map(Number);
+    const [eh, em] = endRaw.split(':').map(Number);
+    return now >= sh * 60 + sm && now < eh * 60 + em;
+  };
+
+  // Check if a time is in the past
+  const isPast = (endRaw: string): boolean => {
+    const hours = currentTime.getHours();
+    const mins = currentTime.getMinutes();
+    const now = hours * 60 + mins;
+    const [eh, em] = endRaw.split(':').map(Number);
+    return now >= eh * 60 + em;
+  };
+
+  // Count stats
+  const totalPeriods = processedItems.filter(i => i.type === 'class').length;
+  const completedPeriods = processedItems.filter(i => i.type === 'class' && isPast(i.endRaw)).length;
+  const currentPeriod = processedItems.find(i => i.type === 'class' && isActive(i.startRaw, i.endRaw));
+
+  const durationMinutes = (startRaw: string, endRaw: string): number => {
+    const [sh, sm] = startRaw.split(':').map(Number);
+    const [eh, em] = endRaw.split(':').map(Number);
+    return (eh * 60 + em) - (sh * 60 + sm);
+  };
+
+  return (
+    <ScreenLayout>
+      <StudentHeader title={t('timetable.title')} />
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+      >
+        {/* Header Stats */}
+        <Animated.View entering={FadeInUp.duration(600)} style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+            <Ionicons name="book-outline" size={18} color="#6366F1" />
+            <Text style={[styles.statValue, { color: '#6366F1' }]}>{totalPeriods}</Text>
+            <Text style={styles.statLabel}>Periods</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: isDark ? '#052E16' : '#ECFDF5' }]}>
+            <Ionicons name="checkmark-circle-outline" size={18} color="#16A34A" />
+            <Text style={[styles.statValue, { color: '#16A34A' }]}>{completedPeriods}</Text>
+            <Text style={styles.statLabel}>Done</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: isDark ? '#172554' : '#EFF6FF' }]}>
+            <Ionicons name="timer-outline" size={18} color="#3B82F6" />
+            <Text style={[styles.statValue, { color: '#3B82F6' }]}>{currentPeriod?.subject?.slice(0, 8) || '—'}</Text>
+            <Text style={styles.statLabel}>Current</Text>
+          </View>
+        </Animated.View>
+
+        {/* Timeline */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 60 }} />
+        ) : processedItems.length === 0 ? (
+          <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.emptyState}>
+            <Ionicons name="calendar-outline" size={56} color={isDark ? '#374151' : '#D1D5DB'} />
+            <Text style={styles.emptyTitle}>No Classes Scheduled</Text>
+            <Text style={styles.emptySubtitle}>Your timetable will appear here once it's configured</Text>
+          </Animated.View>
+        ) : (
+          <View style={styles.timeline}>
+            {processedItems.map((item, index) => {
+              const active = isActive(item.startRaw, item.endRaw);
+              const past = isPast(item.endRaw);
+
+              if (item.type === 'break') {
+                const mins = durationMinutes(item.startRaw, item.endRaw);
+                return (
+                  <Animated.View key={item.id} entering={FadeInDown.delay(index * 60).duration(500)} style={styles.breakRow}>
+                    {/* Timeline connector */}
+                    <View style={styles.timelineConnector}>
+                      <View style={[styles.connectorLine, past && styles.connectorLinePast]} />
+                      <View style={[styles.breakDot, { backgroundColor: '#F59E0B' }]}>
+                        <Ionicons name={mins > 30 ? 'restaurant' : 'cafe'} size={10} color="#FFF" />
+                      </View>
+                      <View style={[styles.connectorLine, past && styles.connectorLinePast]} />
                     </View>
+                    <View style={styles.breakCard}>
+                      <Text style={styles.breakText}>
+                        {mins > 30 ? 'Lunch Break' : 'Break'} · {mins} min
+                      </Text>
+                      <Text style={styles.breakTime}>{item.startTime} - {item.endTime}</Text>
+                    </View>
+                  </Animated.View>
+                );
+              }
 
-                    <View style={styles.divider} />
+              const color = getSubjectColor(item.subject || '');
+              const icon = getSubjectIcon(item.subject || '');
 
-                    <View style={styles.detailsRow}>
-                        <View style={styles.detailItem}>
-                            <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
-                            <Text style={styles.detailText}>{item.teacher}</Text>
+              return (
+                <Animated.View key={item.id} entering={FadeInDown.delay(index * 60).duration(500)} style={styles.periodRow}>
+                  {/* Timeline connector */}
+                  <View style={styles.timelineConnector}>
+                    {index > 0 && <View style={[styles.connectorLine, past && styles.connectorLinePast]} />}
+                    {index === 0 && <View style={{ flex: 1 }} />}
+                    <View style={[
+                      styles.timelineDot,
+                      active && styles.timelineDotActive,
+                      past && styles.timelineDotPast,
+                      { borderColor: active ? color : past ? '#D1D5DB' : '#C7D2FE' }
+                    ]}>
+                      {active && <View style={[styles.timelineDotInner, { backgroundColor: color }]} />}
+                      {past && <Ionicons name="checkmark" size={10} color="#9CA3AF" />}
+                    </View>
+                    {index < processedItems.length - 1 && <View style={[styles.connectorLine, past && styles.connectorLinePast]} />}
+                    {index === processedItems.length - 1 && <View style={{ flex: 1 }} />}
+                  </View>
+
+                  {/* Period Card */}
+                  <View style={[
+                    styles.periodCard,
+                    active && styles.periodCardActive,
+                    past && styles.periodCardPast,
+                    active && { borderColor: color + '40' }
+                  ]}>
+                    {/* Active glow bar */}
+                    {active && <View style={[styles.activeBar, { backgroundColor: color }]} />}
+
+                    <View style={styles.periodCardInner}>
+                      {/* Top row: Time + Icon */}
+                      <View style={styles.periodTopRow}>
+                        <View style={styles.timeChip}>
+                          <Ionicons name="time-outline" size={12} color={active ? color : '#6B7280'} />
+                          <Text style={[styles.timeChipText, active && { color }]}>{item.startTime} - {item.endTime}</Text>
                         </View>
-                        <View style={styles.detailItem}>
-                            <Ionicons name="location-outline" size={16} color="#6B7280" />
+                        <View style={[styles.subjectIcon, { backgroundColor: color + '15' }]}>
+                          <Ionicons name={icon as any} size={18} color={color} />
+                        </View>
+                      </View>
+
+                      {/* Subject name */}
+                      <Text style={[
+                        styles.subjectName,
+                        past && styles.subjectNamePast,
+                      ]}>{item.subject}</Text>
+
+                      {/* Details row */}
+                      <View style={styles.detailsRow}>
+                        <View style={styles.detailChip}>
+                          <Ionicons name="person-outline" size={13} color={isDark ? '#94A3B8' : '#64748B'} />
+                          <Text style={styles.detailText}>{item.teacher}</Text>
+                        </View>
+                        {item.room && item.room !== 'N/A' && (
+                          <View style={styles.detailChip}>
+                            <Ionicons name="location-outline" size={13} color={isDark ? '#94A3B8' : '#64748B'} />
                             <Text style={styles.detailText}>{item.room}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Active status badge */}
+                      {active && (
+                        <View style={[styles.activeBadge, { backgroundColor: color + '15' }]}>
+                          <View style={[styles.activePulse, { backgroundColor: color }]} />
+                          <Text style={[styles.activeBadgeText, { color }]}>Ongoing</Text>
                         </View>
+                      )}
                     </View>
-                </View>
-            </Animated.View>
-        );
-    };
+                  </View>
+                </Animated.View>
+              );
+            })}
+          </View>
+        )}
 
-    return (
-        <ScreenLayout>
-            <StudentHeader title={t('timetable.title')} />
-
-            <View style={styles.container}>
-                {/* --- Date Selection Strip --- */}
-                <View style={styles.daySelectorContainer}>
-                    <FlatList
-                        data={DAYS}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.dayList}
-                        keyExtractor={(item) => item}
-                        renderItem={({ item }) => {
-                            const isSelected = selectedDay === item;
-                            return (
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => setSelectedDay(item)}
-                                    style={styles.dayItemWrapper}
-                                >
-                                    {isSelected ? (
-                                        <LinearGradient
-                                            colors={['#4F46E5', '#7C3AED']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.selectedDayGradient}
-                                        >
-                                            <Text style={styles.dayTextSelected}>{t(`common.days.${item}`)}</Text>
-                                        </LinearGradient>
-                                    ) : (
-                                        <View style={styles.dayItem}>
-                                            <Text style={styles.dayText}>{t(`common.days.${item}`)}</Text>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        }}
-                    />
-                </View>
-
-                {/* --- Timeline --- */}
-                <View style={styles.timelineContainer}>
-                    {loading ? (
-                        <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
-                    ) : (
-                        <FlatList
-                            data={timetable[selectedDay] || []}
-                            keyExtractor={(item) => item.id}
-                            renderItem={renderScheduleItem}
-                            contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }}
-                            showsVerticalScrollIndicator={false}
-                            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-                            ListEmptyComponent={() => (
-                                <Text style={{ textAlign: 'center', color: '#9CA3AF', marginTop: 50 }}>
-                                    No classes scheduled for this day
-                                </Text>
-                            )}
-                        />
-                    )}
-                </View>
-            </View>
-        </ScreenLayout>
-    );
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </ScreenLayout>
+  );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F3F4F6', // Light gray background
-    },
-    daySelectorContainer: {
-        backgroundColor: '#fff',
-        paddingVertical: 15,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 4,
-        zIndex: 10,
-    },
-    dayList: {
-        paddingHorizontal: 20,
-        gap: 12,
-    },
-    dayItemWrapper: {
-        borderRadius: 20,
-        overflow: 'hidden',
-    },
-    dayItem: {
-        width: 60,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    selectedDayGradient: {
-        width: 60,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 20,
-    },
-    dayText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#6B7280',
-    },
-    dayTextSelected: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    timelineContainer: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 10,
-    },
-    /* --- Class Card --- */
-    classCard: {
-        flexDirection: 'row',
-        backgroundColor: '#fff',
-        borderRadius: 18,
-        padding: 4,
-        shadowColor: "#4F46E5",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 3,
-        overflow: 'hidden',
-    },
-    timeStripe: {
-        width: 70,
-        backgroundColor: '#EEF2FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 14,
-        paddingVertical: 10,
-    },
-    startTime: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#4F46E5',
-    },
-    endTime: {
-        fontSize: 11,
-        color: '#818CF8',
-        marginTop: 2,
-    },
-    cardContent: {
-        flex: 1,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        justifyContent: 'center',
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    subjectName: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        color: '#1F2937',
-    },
-    iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#F5F3FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F3F4F6',
-        marginVertical: 6,
-    },
-    detailsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    detailItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    detailText: {
-        fontSize: 13,
-        color: '#6B7280',
-        fontWeight: '500',
-    },
-    /* --- Break Card --- */
-    breakCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginVertical: 4,
-        opacity: 0.8,
-    },
-    breakContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FEF3C7',
-        paddingVertical: 6,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-        marginHorizontal: 10,
-    },
-    breakText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#B45309',
-        marginRight: 6,
-    },
-    breakTime: {
-        fontSize: 11,
-        color: '#D97706',
-    },
-    breakLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#E5E7EB',
-    },
-});
 
 export default TimeTableScreen;
 
+const getStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  scrollContent: {
+    paddingTop: 16,
+  },
 
+  /* Stats */
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 10,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  /* Timeline Structure */
+  timeline: {
+    paddingHorizontal: 16,
+  },
+  periodRow: {
+    flexDirection: 'row',
+    minHeight: 100,
+  },
+  breakRow: {
+    flexDirection: 'row',
+    minHeight: 52,
+  },
+  timelineConnector: {
+    width: 32,
+    alignItems: 'center',
+  },
+  connectorLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#C7D2FE',
+  },
+  connectorLinePast: {
+    backgroundColor: '#E5E7EB',
+  },
+  timelineDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    backgroundColor: theme.colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timelineDotActive: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2.5,
+  },
+  timelineDotPast: {
+    backgroundColor: theme.colors.background,
+    borderColor: '#D1D5DB',
+  },
+  timelineDotInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  breakDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* Period Card */
+  periodCard: {
+    flex: 1,
+    marginLeft: 12,
+    marginBottom: 12,
+    borderRadius: 16,
+    backgroundColor: isDark ? theme.colors.card : '#FFFFFF',
+    borderWidth: 1,
+    borderColor: isDark ? theme.colors.border : '#F1F5F9',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
+  },
+  periodCardActive: {
+    borderWidth: 1.5,
+    ...Platform.select({
+      ios: { shadowOpacity: 0.12, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
+  },
+  periodCardPast: {
+    opacity: 0.6,
+  },
+  activeBar: {
+    height: 3,
+    width: '100%',
+  },
+  periodCardInner: {
+    padding: 14,
+    gap: 8,
+  },
+  periodTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  timeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  subjectIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subjectName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: theme.colors.text,
+    letterSpacing: -0.2,
+  },
+  subjectNamePast: {
+    color: theme.colors.textSecondary,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: isDark ? '#94A3B8' : '#64748B',
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 2,
+  },
+  activePulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  activeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+
+  /* Break */
+  breakCard: {
+    flex: 1,
+    marginLeft: 12,
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDark ? '#2D2306' : '#FFFBEB',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: isDark ? '#854D0E33' : '#FDE68A',
+  },
+  breakText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  breakTime: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#D97706',
+  },
+
+  /* Empty State */
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 80,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: theme.colors.textTertiary,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+});

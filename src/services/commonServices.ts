@@ -1,26 +1,10 @@
 import { api } from './apiClient';
-import { Notice, NoticeAudience } from '../types/models';
-export { Notice, NoticeAudience };
+import { Notice, NoticeAudience, Complaint } from '../types/models';
+export { Notice, NoticeAudience, Complaint };
 
 // ============================================================================
 // COMPLAINTS
 // ============================================================================
-
-export interface Complaint {
-    id: string;
-    ticket_no: string;
-    title: string;
-    description: string;
-    category?: 'academic' | 'fee' | 'transport' | 'hostel' | 'other';
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
-    status: 'open' | 'in_progress' | 'resolved' | 'closed';
-    raised_by: string;
-    raised_for_student_id?: string;
-    assigned_to?: string;
-    resolution?: string;
-    created_at: string;
-    resolved_at?: string;
-}
 
 export interface CreateComplaintRequest {
     title: string;
@@ -162,12 +146,15 @@ export interface DiaryEntry {
     homework_due_date?: string;
     attachments?: string[];
     subject_name?: string;
+    class_name?: string;
+    section_name?: string;
     created_by: string;
     created_at: string;
+    updated_at?: string;
 }
 
 export const DiaryService = {
-    getAll: async (params: { class_section_id?: string; entry_date?: string }): Promise<DiaryEntry[]> => {
+    getAll: async (params: { class_section_id?: string; entry_date?: string; subject_id?: string }): Promise<DiaryEntry[]> => {
         return api.get<DiaryEntry[]>('/diary', params);
     },
 
@@ -257,6 +244,7 @@ export interface ExamResultUpload {
     exam_category: string;
     sub_exam: string;
     subject_id?: string;
+    max_marks?: number;
     results: ResultEntry[];
 }
 
@@ -288,5 +276,25 @@ export const ResultService = {
 
     upload: async (data: ExamResultUpload): Promise<{ success: boolean }> => {
         return api.post<{ success: boolean }>('/results/upload', data);
+    },
+
+    getMarks: async (params: { class_section_id: string; exam_category: string; sub_exam: string; subject_id: string }): Promise<{ marks: { student_id: string; marks_obtained: number; is_absent: boolean }[], max_marks: number }> => {
+        return api.get<{ marks: { student_id: string; marks_obtained: number; is_absent: boolean }[], max_marks: number }>('/results/marks', params);
+    }
+};
+
+export interface TeacherClassAssignment {
+    class_section_id: string;
+    class_id: string; // Added for LMS
+    class_name: string;
+    section_name: string;
+    subject_id: string;
+    subject_name: string;
+    assignment_id: string;
+}
+
+export const TeacherService = {
+    getMyClasses: async (): Promise<TeacherClassAssignment[]> => {
+        return api.get<TeacherClassAssignment[]>('/teachers/me/classes');
     }
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -23,7 +23,7 @@ export default function PendingEnrollmentsScreen() {
     const router = useRouter();
     const { t } = useTranslation();
     const { theme, isDark } = useTheme();
-
+    const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
     const [loading, setLoading] = useState(true);
     const [students, setStudents] = useState<any[]>([]);
     const [enrollmentModalVisible, setEnrollmentModalVisible] = useState(false);
@@ -239,9 +239,7 @@ export default function PendingEnrollmentsScreen() {
     );
 }
 
-const { theme, isDark } = useTheme();
-
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -316,7 +314,6 @@ const styles = StyleSheet.create({
         color: theme.colors.textSecondary,
         marginTop: 16,
     },
-    // Modal Styles
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',

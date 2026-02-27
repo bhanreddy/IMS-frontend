@@ -1,30 +1,26 @@
 import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-} from 'react-native';
-
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import ScreenLayout from '../../src/components/ScreenLayout';
 import StudentHeader from '../../src/components/StudentHeader';
-
 import { useAuth } from '../../src/hooks/useAuth';
-
+import { useTheme } from '../../src/hooks/useTheme';
+import { Theme } from '../../src/theme/themes';
 const HostelProfileScreen = () => {
-    const { user } = useAuth();
-    return (
-        <ScreenLayout>
+  const {
+    theme,
+    isDark
+  } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  const {
+    user
+  } = useAuth();
+  return <ScreenLayout>
 
             {/* ===== HEADER ===== */}
             <StudentHeader showBackButton={true} title="Hostel" />
 
             {/* ===== CONTENT ===== */}
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.container}
-            >
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
 
                 {/* ===== TITLE ===== */}
                 <Text style={styles.pageTitle}>Hostel Profile</Text>
@@ -64,148 +60,131 @@ const HostelProfileScreen = () => {
                 </View>
 
                 {/* ===== APPLY CTA ===== */}
-                <TouchableOpacity
-                    style={styles.applyButton}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                        // TODO: initiate call / application
-                    }}
-                >
+                <TouchableOpacity style={styles.applyButton} activeOpacity={0.85} onPress={() => {
+        // TODO: initiate call / application
+      }}>
                     <Text style={styles.applyText}>📞 Call to Apply</Text>
                 </TouchableOpacity>
 
             </ScrollView>
 
-        </ScreenLayout>
-    );
+        </ScreenLayout>;
 };
-
 export default HostelProfileScreen;
 
 /* ====================== SMALL COMPONENT ====================== */
 
 const InfoRow = ({
-    label,
-    value,
+  label,
+  value
 }: {
-    label: string;
-    value: string;
-}) => (
-    <View style={styles.row}>
+  label: string;
+  value: string;
+}) => {
+  const {
+    theme,
+    isDark
+  } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  return <View style={styles.row}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>{value}</Text>
-    </View>
-);
+    </View>;
+};
 
 /* ============================ STYLES ============================ */
 
-const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-        paddingBottom: 30,
-    },
-
-    /* Titles */
-    pageTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        marginBottom: 12,
-    },
-
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        marginBottom: 8,
-        marginTop: 14,
-    },
-
-    /* Cards */
-    infoCard: {
-        backgroundColor: '#d8ecef',
-        borderRadius: 18,
-        padding: 16,
-        elevation: 3,
-    },
-
-    detailsCard: {
-        backgroundColor: '#f7f7f7',
-        borderRadius: 18,
-        padding: 16,
-        elevation: 2,
-    },
-
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 6,
-        borderBottomWidth: 0.5,
-        borderColor: '#ddd',
-    },
-
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-    },
-
-    value: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#000',
-        maxWidth: '60%',
-        textAlign: 'right',
-    },
-
-    /* Location */
-    locationRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 6,
-    },
-
-    mapLink: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#2563eb',
-    },
-
-    /* Image */
-    imageCard: {
-        marginTop: 16,
-        borderRadius: 18,
-        overflow: 'hidden',
-        elevation: 4,
-    },
-
-    imagePlaceholder: {
-        height: 200,
-        backgroundColor: '#e5e7eb',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    imageText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#555',
-    },
-
-    /* CTA */
-    applyButton: {
-        marginTop: 20,
-        backgroundColor: '#22c55e',
-        borderRadius: 20,
-        paddingVertical: 14,
-        alignItems: 'center',
-        elevation: 4,
-    },
-
-    applyText: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#fff',
-    },
+const getStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
+  container: {
+    padding: 16,
+    paddingBottom: 30
+  },
+  /* Titles */
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 12
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 8,
+    marginTop: 14
+  },
+  /* Cards */
+  infoCard: {
+    backgroundColor: '#d8ecef',
+    borderRadius: 18,
+    padding: 16,
+    elevation: 3
+  },
+  detailsCard: {
+    backgroundColor: '#f7f7f7',
+    borderRadius: 18,
+    padding: 16,
+    elevation: 2
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 0.5,
+    borderColor: '#ddd'
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+    maxWidth: '60%',
+    textAlign: 'right'
+  },
+  /* Location */
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6
+  },
+  mapLink: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563eb'
+  },
+  /* Image */
+  imageCard: {
+    marginTop: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    elevation: 4
+  },
+  imagePlaceholder: {
+    height: 200,
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  imageText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#555'
+  },
+  /* CTA */
+  applyButton: {
+    marginTop: 20,
+    backgroundColor: '#22c55e',
+    borderRadius: 20,
+    paddingVertical: 14,
+    alignItems: 'center',
+    elevation: 4
+  },
+  applyText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.background
+  }
 });
-
-

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseConfig';
+import { api } from './apiClient';
 import { PayrollEntry } from '../types/payroll';
 
 export const PayrollService = {
@@ -52,16 +53,7 @@ export const PayrollService = {
      */
     async markAsPaid(id: string): Promise<boolean> {
         try {
-            const { error } = await supabase
-                .from('staff_payroll')
-                .update({
-                    status: 'paid',
-                    payment_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', id);
-
-            if (error) throw error;
+            await api.put(`/payroll/${id}/pay`);
             return true;
         } catch (err) {
             console.error('PayrollService.markAsPaid error:', err);

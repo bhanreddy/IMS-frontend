@@ -1,336 +1,492 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Dimensions,
-    ScrollView,
-    StatusBar,
-    Pressable,
-    Image,
-    BackHandler,
-} from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView, StatusBar, BackHandler, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming, useAnimatedScrollHandler } from 'react-native-reanimated';
 import StaffHeader from '@/src/components/StaffHeader';
-import StaffFooter from '@/src/components/StaffFooter';
+import StaffDashboardCard from '@/src/components/StaffDashboardCard';
 import { useAuth } from '@/src/hooks/useAuth';
 import { StudentService } from '@/src/services/studentService';
 import { AttendanceService } from '@/src/services/attendanceService';
-import { LeaveService, LeaveApplication } from '@/src/services/commonServices';
+import { LeaveService } from '@/src/services/commonServices';
 import type { DailyAttendance } from '@/src/types/schema';
 import { useTheme } from '@/src/hooks/useTheme';
+import { Spacing, Radii, Typography, Shadows, Elevation, CardGradients, Theme } from '@/src/theme/themes';
+import { Springs } from '@/src/utils/motion';
+const {
+  width
+} = Dimensions.get('window');
 
-// Types
+// ── Types ───────────────────────────────────
 interface DashboardMetrics {
-    totalStudents: number;
-    presentToday: number;
-    absentToday: number;
-    pendingLeaves: number;
+  totalStudents: number;
+  presentToday: number;
+  absentToday: number;
+  pendingLeaves: number;
+  classId?: string;
 }
 
-interface GridItemProps {
-    item: {
-        title: string;
-        icon: string;
-        library: any;
-        route: any;
-        color: string[];
-    };
-    index: number;
-    router: any;
+// ── Helpers ─────────────────────────────────
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+function getTodayDate(): string {
+  const d = new Date();
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
 }
 
-// Interactive Grid Item with Haptics + Scale Animation
-const GridItem = ({ item, index, router, styles }: GridItemProps & { styles: any }) => {
-    const scale = useSharedValue(1);
+// ── Attendance Widget (Professional) ────────
+function AttendanceWidget({
+  data,
+  onPress,
+  theme,
+  isDark,
+  loading
+}: {
+  data: DashboardMetrics | null;
+  onPress: () => void;
+  theme: any;
+  isDark: boolean;
+  loading: boolean;
+}) {
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{
+      scale: scale.value
+    }]
+  }));
+  const total = data?.totalStudents || 0;
+  const present = data?.presentToday || 0;
+  const absent = data?.absentToday || 0;
+  const unmarked = Math.max(0, total - present - absent);
+  const pct = total > 0 ? Math.round(present / total * 100) : 0;
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-        scale.value = withSpring(0.95);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    const handlePressOut = () => {
-        scale.value = withSpring(1);
-    };
-
-    const handlePress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push(item.route);
-    };
-
-    const IconLib = item.library;
-
-    return (
-        <Animated.View
-            entering={FadeInDown.delay(300 + (index * 50)).duration(500)}
-            style={styles.gridItemWrapper}
-        >
-            <Animated.View style={[{ flex: 1 }, animatedStyle]}>
-                <Pressable
-                    style={({ pressed }) => [styles.gridItem, { opacity: pressed ? 0.9 : 1 }]}
-                    onPressIn={handlePressIn}
-                    onPressOut={handlePressOut}
-                    onPress={handlePress}
-                >
-                    <LinearGradient
-                        colors={item.color as [string, string]}
-                        style={styles.gridGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <IconLib name={item.icon as any} size={32} color="#FFF" />
-                        <Text style={styles.gridLabel}>{item.title}</Text>
-                        {/* Decorative circle */}
-                        <View style={styles.decorativeCircle} />
-                    </LinearGradient>
-                </Pressable>
-            </Animated.View>
-        </Animated.View>
-    );
-};
-
-export default function StaffDashboard() {
-    const router = useRouter();
-    const { t } = useTranslation();
-    const { user } = useAuth();
-    const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
-    const [loading, setLoading] = useState(true);
-    const { theme, isDark } = useTheme();
-
-    useEffect(() => {
-        const loadData = async () => {
-            if (!user) return;
-            try {
-                // Determine classId from user object safely
-                const classId = (user as any)?.classId;
-
-                // Initialize base data (leaves apply to all staff)
-                const pendingLeaves = await LeaveService.getAll({ status: 'pending' });
-
-                let studentCount = 0;
-                let presentCount = 0;
-                let absentCount = 0;
-
-                // Only fetch class-specific data if a valid classId is present
-                if (classId) {
-                    const studentsResponse = await StudentService.getAll({ class_section_id: classId, limit: 100 });
-                    const students = studentsResponse.data;
-                    const date = new Date().toISOString().split('T')[0];
-                    const todaysAttendance = await AttendanceService.getClassAttendance(classId, date);
-
-                    studentCount = studentsResponse.meta?.total || 0;
-                    presentCount = todaysAttendance.filter((a: DailyAttendance) => a.status === 'present').length;
-                    absentCount = todaysAttendance.filter((a: DailyAttendance) => a.status === 'absent').length;
-                }
-
-                setDashboardData({
-                    totalStudents: studentCount,
-                    presentToday: presentCount,
-                    absentToday: absentCount,
-                    pendingLeaves: pendingLeaves.length
-                });
-            } catch (e) {
-                console.error("Error loading dashboard data:", e);
-                // Set zero state on error to prevent crash
-                setDashboardData({
-                    totalStudents: 0,
-                    presentToday: 0,
-                    absentToday: 0,
-                    pendingLeaves: 0
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
-    }, [user]);
-
-    // Handle Hardware Back Button
-    useFocusEffect(
-        React.useCallback(() => {
-            const onBackPress = () => {
-                BackHandler.exitApp();
-                return true;
-            };
-
-            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-
-            return () => subscription.remove();
-        }, [])
-    );
-
-    const menuItems = [
-        { title: t('staff_dashboard.attendance'), icon: 'calendar-check', library: FontAwesome5, route: '/staff/manage-students', color: ['#6366f1', '#818cf8'] },
-        { title: t('staff_dashboard.timetable'), icon: 'table', library: FontAwesome5, route: '/staff/timetable', color: ['#10b981', '#34d399'] },
-        { title: t('staff_dashboard.results'), icon: 'poll', library: MaterialIcons, route: '/staff/results', color: ['#f59e0b', '#fbbf24'] },
-        { title: t('staff_dashboard.leaves'), icon: 'calendar-minus', library: FontAwesome5, route: '/staff/leaves', color: ['#ec4899', '#f472b6'] }, // Changed route to leaves page
-        { title: "Complaints", icon: "chatbubble-ellipses", library: Ionicons, route: "/staff/complaints", color: ['#8B5CF6', '#A78BFA'] }, // New complaints tile
-    ];
-
-    const styles = useMemo(() => getStyles(theme, isDark), [theme, isDark]);
-
-    return (
-        <View style={styles.container}>
-            <StaffHeader title={t('staff_dashboard.title')} />
-            <ScrollView contentContainerStyle={styles.content}>
-
-                {/* Custom Welcome Section */}
-                <View style={styles.welcomeSection}>
-                    <View>
-                        <Text style={styles.welcomeText}>{t('staff_dashboard.welcome')},</Text>
-                        <Text style={styles.teacherName}>{user?.display_name || 'Teacher'}</Text>
-                    </View>
-                    <Image
-                        source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3429/3429440.png' }}
-                        style={styles.avatar}
-                    />
-                </View>
-
-                {/* Info Cards Row */}
-                <View style={styles.infoCardsRow}>
-                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#EEF2FF' }]}>
-                        <Text style={[styles.infoValue, { color: theme.colors.text }]}>{dashboardData?.totalStudents || 0}</Text>
-                        <Text style={styles.infoLabel}>My Students</Text>
-                    </View>
-                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#ECFDF5' }]}>
-                        <Text style={[styles.infoValue, { color: theme.colors.success }]}>{dashboardData?.presentToday || 0}</Text>
-                        <Text style={styles.infoLabel}>Present</Text>
-                    </View>
-                    <View style={[styles.infoCard, { backgroundColor: isDark ? theme.colors.card : '#FEF2F2' }]}>
-                        <Text style={[styles.infoValue, { color: theme.colors.danger }]}>{dashboardData?.absentToday || 0}</Text>
-                        <Text style={styles.infoLabel}>Absent</Text>
-                    </View>
-                </View>
-
-                <View style={styles.gridContainer}>
-                    {menuItems.map((item, index) => (
-                        <GridItem key={index} item={item} index={index} router={router} styles={styles} />
-                    ))}
-                </View>
-
-            </ScrollView>
-            <StaffFooter />
+  // Status logic
+  let statusText = 'Attendance Not Marked';
+  let statusColor = theme.colors.textTertiary;
+  let iconName = 'alert-circle-outline';
+  if (total === 0) {
+    statusText = 'No Class Assigned';
+  } else if (unmarked === 0) {
+    statusText = 'Attendance Complete';
+    statusColor = theme.colors.success;
+    iconName = 'checkmark-circle';
+  } else if (unmarked < total) {
+    statusText = `${unmarked} Remaining`;
+    statusColor = theme.colors.warning;
+    iconName = 'time-outline';
+  }
+  return <Animated.View style={[animStyle, {
+    marginBottom: Spacing.lg
+  }]}>
+    <Pressable onPressIn={() => scale.value = withSpring(0.98, Springs.cardPress)} onPressOut={() => scale.value = withSpring(1, Springs.cardRelease)} onPress={onPress} style={[styles.attendanceCard, {
+      backgroundColor: theme.colors.card,
+      borderColor: theme.colors.border
+    }, Shadows.sm]}>
+      {/* Header Row */}
+      <View style={styles.attHeader}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8
+        }}>
+          <View style={[styles.attIconBox, {
+            backgroundColor: isDark ? 'rgba(79, 70, 229, 0.15)' : '#EEF2FF'
+          }]}>
+            <Ionicons name="people" size={18} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.attTitle, {
+            color: theme.colors.textStrong
+          }]}>Class Attendance</Text>
         </View>
-    );
+        <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
+      </View>
+
+      {/* Metrics Row */}
+      <View style={styles.attMetrics}>
+        <View style={styles.metricItem}>
+          <Text style={[styles.metricValue, {
+            color: theme.colors.textStrong
+          }]}>
+            {present}<Text style={{
+              fontSize: 16,
+              color: theme.colors.textTertiary
+            }}>/{total}</Text>
+          </Text>
+          <Text style={[styles.metricLabel, {
+            color: theme.colors.textSecondary
+          }]}>Present</Text>
+        </View>
+
+        <View style={[styles.verticalDivider, {
+          backgroundColor: theme.colors.border
+        }]} />
+
+        <View style={styles.metricItem}>
+          <Text style={[styles.metricValue, {
+            color: theme.colors.danger
+          }]}>
+            {absent}
+          </Text>
+          <Text style={[styles.metricLabel, {
+            color: theme.colors.textSecondary
+          }]}>Absent</Text>
+        </View>
+
+        <View style={[styles.verticalDivider, {
+          backgroundColor: theme.colors.border
+        }]} />
+
+        <View style={styles.metricItem}>
+          <Text style={[styles.metricValue, {
+            color: theme.colors.primary
+          }]}>{pct}%</Text>
+          <Text style={[styles.metricLabel, {
+            color: theme.colors.textSecondary
+          }]}>Rate</Text>
+        </View>
+      </View>
+
+      {/* Status Footer */}
+      <View style={[styles.attFooter, {
+        backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : '#F8FAFC',
+        borderTopColor: theme.colors.border
+      }]}>
+        <Ionicons name={iconName as any} size={14} color={statusColor} />
+        <Text style={[styles.attStatusText, {
+          color: statusColor
+        }]}>{statusText}</Text>
+      </View>
+    </Pressable>
+  </Animated.View>;
 }
 
-const getStyles = (theme: any, isDark: boolean) => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    content: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    welcomeSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 25,
-        backgroundColor: theme.colors.card,
-        padding: 20,
-        borderRadius: 20,
-        shadowColor: 'rgba(0,0,0,0.05)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 10,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    welcomeText: {
-        fontSize: 16,
-        color: theme.colors.textSecondary,
-        marginBottom: 4,
-    },
-    teacherName: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-    },
-    avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#EFF6FF',
-    },
-    infoCardsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 30,
-    },
-    infoCard: {
-        width: '31%',
-        padding: 15,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    infoValue: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    infoLabel: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-    },
-    gridContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-    },
-    gridItemWrapper: {
-        width: '48%',
-        height: 140, // Taller cards
-        marginBottom: 15,
-    },
-    gridItem: {
-        flex: 1,
-        borderRadius: 24, // Rounder corners
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 8,
-    },
-    gridGradient: {
-        flex: 1,
-        padding: 20,
-        justifyContent: 'space-between',
-        position: 'relative',
-    },
-    gridLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#fff',
-        marginTop: 10,
-        letterSpacing: 0.5,
-    },
-    decorativeCircle: {
-        position: 'absolute',
-        top: -20,
-        right: -20,
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-    },
+// ── Alert Row (Simpler) ─────────────────────
+function AlertRow({
+  icon,
+  color,
+  title,
+  subtitle,
+  onPress,
+  theme
+}: {
+  icon: string;
+  color: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  theme: any;
+}) {
+  const {
+    isDark
+  } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  return <Pressable onPress={onPress} style={({
+    pressed
+  }) => {
+    return [styles.alertRow, {
+      backgroundColor: theme.colors.alertBgInfo,
+      borderColor: theme.colors.alertBorderInfo
+    }, pressed && {
+      opacity: 0.8
+    }];
+  }}>
+    <Ionicons name={icon as any} size={20} color={color} style={{
+      marginRight: 12
+    }} />
+    <View style={{
+      flex: 1
+    }}>
+      <Text style={[styles.alertTitle, {
+        color: theme.colors.alertTextInfo
+      }]}>{title}</Text>
+      <Text style={[styles.alertSubtitle, {
+        color: theme.colors.alertTextInfo
+      }]}>{subtitle}</Text>
+    </View>
+    <Ionicons name="arrow-forward" size={16} color={color} />
+  </Pressable>;
+}
+
+// ── Main Dashboard ──────────────────────────
+export default function StaffDashboard() {
+  const router = useRouter();
+  const {
+    t
+  } = useTranslation();
+  const {
+    user
+  } = useAuth();
+  const [data, setData] = useState<DashboardMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const {
+    theme,
+    isDark
+  } = useTheme();
+  const styles = React.useMemo(() => getStyles(theme, isDark), [theme, isDark]);
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+      try {
+        const pendingLeaves = await LeaveService.getAll({
+          status: 'pending'
+        });
+        let studentCount = 0,
+          presentCount = 0,
+          absentCount = 0;
+        let detectedClassId: string | undefined;
+
+        // Dynamically detect teacher's class via /attendance/my-class
+        const myClass = await AttendanceService.getMyClass();
+        if (myClass) {
+          detectedClassId = myClass.class_section_id;
+          studentCount = myClass.total_students;
+          presentCount = myClass.students.filter(s => s.status === 'present').length;
+          absentCount = myClass.students.filter(s => s.status === 'absent').length;
+        }
+
+        setData({
+          totalStudents: studentCount,
+          presentToday: presentCount,
+          absentToday: absentCount,
+          pendingLeaves: pendingLeaves.length,
+          classId: detectedClassId
+        });
+      } catch (e) {
+        console.error("Error loading dashboard data:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
+  useFocusEffect(useCallback(() => {
+    const onBackPress = () => {
+      BackHandler.exitApp();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, []));
+  const menuItems = [{
+    title: "Diary",
+    subtitle: "Daily logs",
+    icon: <FontAwesome5 name="book" size={18} color="#FFFFFF" />,
+    route: '/staff/diary',
+    gradient: CardGradients.blue
+  }, {
+    title: t('staff_dashboard.timetable'),
+    subtitle: "Schedule",
+    icon: <FontAwesome5 name="clock" size={18} color="#FFFFFF" />,
+    route: '/staff/timetable',
+    gradient: CardGradients.emerald
+  }, {
+    title: t('staff_dashboard.leaves'),
+    subtitle: "Approvals",
+    icon: <FontAwesome5 name="calendar-check" size={18} color="#FFFFFF" />,
+    route: '/staff/leaves',
+    gradient: CardGradients.rose,
+    badge: data?.pendingLeaves ? `${data.pendingLeaves}` : undefined
+  }, {
+    title: t('staff_dashboard.results'),
+    subtitle: "Marks",
+    icon: <MaterialIcons name="assessment" size={20} color="#FFFFFF" />,
+    route: '/staff/results',
+    gradient: CardGradients.amber
+  }, {
+    title: "Complaints",
+    subtitle: "Issues",
+    icon: <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />,
+    route: '/staff/complaints',
+    gradient: CardGradients.purple
+  }, {
+    title: "LMS",
+    subtitle: "Uploads",
+    icon: <MaterialIcons name="cloud-upload" size={20} color="#FFFFFF" />,
+    route: '/staff/lms-upload',
+    gradient: CardGradients.pink
+  }, {
+    title: "Payslips",
+    subtitle: "Salary & Docs",
+    icon: <FontAwesome5 name="file-invoice-dollar" size={18} color="#FFFFFF" />,
+    route: '/staff/payslip',
+    gradient: CardGradients.indigo
+  }];
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event: any) => {
+      scrollY.value = event.contentOffset.y;
+    }
+  });
+  return <View style={[styles.container, {
+    backgroundColor: theme.colors.background
+  }]}>
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+    <StaffHeader title="Staff Portal" subtitle={user?.display_name || 'Teacher'} scrollY={scrollY} />
+
+    <Animated.ScrollView contentContainerStyle={[styles.scrollContent, {
+      paddingTop: 100
+    }]} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
+      {/* Header Greeting */}
+      <View style={styles.headerSection}>
+        <Text style={[styles.dateText, {
+          color: theme.colors.textTertiary
+        }]}>
+          {getTodayDate()}
+        </Text>
+        <Text style={[styles.greetingText, {
+          color: theme.colors.textStrong
+        }]}>
+          {getGreeting()}, {user?.display_name?.split(' ')[0] || 'Teacher'}
+        </Text>
+      </View>
+
+      {/* Alerts Area */}
+      {data?.pendingLeaves ? <Animated.View entering={FadeInDown.delay(100)} style={{
+        marginBottom: Spacing.md
+      }}>
+        <AlertRow icon="time" color={theme.colors.alertIconInfo} title={`${data.pendingLeaves} Leave Requests`} subtitle="Review and approve pending leaves" onPress={() => router.push('/staff/leaves' as any)} theme={theme} />
+      </Animated.View> : null}
+
+      {/* Attendance Widget */}
+      <AttendanceWidget data={data} onPress={() => router.push('/staff/manage-students' as any)} theme={theme} isDark={isDark} loading={loading} />
+
+      {/* Grid Menu */}
+      <Text style={[styles.sectionTitle, {
+        color: theme.colors.textSecondary
+      }]}>
+        Quick Actions
+      </Text>
+
+      <View style={styles.gridContainer}>
+        {menuItems.map((item, index) => <StaffDashboardCard key={index} title={item.title} subtitle={item.subtitle} icon={item.icon} gradientColors={item.gradient} onPress={() => router.push(item.route as any)} index={index} badge={item.badge} />)}
+      </View>
+
+      <View style={{
+        height: 100
+      }} />
+    </Animated.ScrollView>
+  </View>;
+}
+const getStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1
+  },
+  scrollContent: {
+    padding: Spacing.lg
+  },
+  headerSection: {
+    marginBottom: Spacing.lg
+  },
+  dateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4
+  },
+  greetingText: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.5
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs
+  },
+  // Attendance Widget Styles
+  attendanceCard: {
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    overflow: 'hidden'
+  },
+  attHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.md
+  },
+  attIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: Radii.sm,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  attTitle: {
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  attMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm
+  },
+  metricItem: {
+    alignItems: 'center',
+    flex: 1
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 2
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '500'
+  },
+  verticalDivider: {
+    width: 1,
+    height: 30
+  },
+  attFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderTopWidth: 1,
+    gap: 6
+  },
+  attStatusText: {
+    fontSize: 13,
+    fontWeight: '600'
+  },
+  // Alert Row
+  alertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radii.md,
+    borderWidth: 1
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  alertSubtitle: {
+    fontSize: 12,
+    marginTop: 2
+  },
+  // Grid
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between'
+  }
 });
-
-
