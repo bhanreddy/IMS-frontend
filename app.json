@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Chanakya E/M School Maddur",
-    "slug": "chanakyamaddur",
+    "name": "Nexsyrus School IMS",
+    "slug": "schoolims",
     "version": "2.1.8",
     "platforms": [
       "android",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.nexsyrussims.chanakyamaddur",
+      "bundleIdentifier": "com.schoolims.default2",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -31,15 +31,15 @@
       }
     },
     "android": {
-      "package": "com.nexsyrussims.chanakyamaddur",
+      "package": "com.schoolims.default2",
       "jsEngine": "hermes",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "enableShrinkResources": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-v2.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE",
-        "monochromeImage": "./assets/images/icon-v2.png"
+        "monochromeImage": "./assets/images/icon.png"
       },
       "useNextNotificationsApi": true,
       "permissions": [
@@ -118,9 +118,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4140d517-6452-4a7c-9fb2-979009194eb6"
+        "projectId": ""
       }
     },
-    "owner": "nexsyrus1"
+    "owner": "bhan_reddy"
   }
 }

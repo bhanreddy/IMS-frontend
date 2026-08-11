@@ -2,25 +2,25 @@ import { ViewStyle } from "react-native";
 
 export const ADMIN_THEME = {
     colors: {
-        primary: '#D42B2B', // Logo red ring
-        secondary: '#1B5E20', // Logo tree green
-        success: '#2E7D32', // Forest green (logo-adjacent)
-        warning: '#F59E0B', // Amber
+        primary: '#1A1A1A', // Icon solid black – graduation cap & letterform
+        secondary: '#C9A84C', // Warm gold – accent complement to monochrome icon
+        success: '#2E7D32', // Deep green
+        warning: '#E65100', // Deep orange
         danger: '#C62828', // Deep red
-        info: '#1565C0', // Logo blue ribbon
+        info: '#4A4A4A', // Icon charcoal
         background: {
-            app: '#FFF8F0', // Warm cream
+            app: '#FAFAFA', // Clean near-white (icon background)
             surface: '#FFFFFF',
-            subtle: '#FFF5EB', // Warm subtle
+            subtle: '#F5F5F5',
         },
         text: {
-            primary: '#2D2D2D', // Logo near-black
-            secondary: '#5D4037', // Warm brown
-            muted: '#8D6E63', // Muted brown
+            primary: '#1A1A1A', // Icon solid black
+            secondary: '#4A4A4A', // Icon charcoal outline
+            muted: '#9E9E9E', // Mid-tone gray
             inverse: '#FFFFFF',
         },
-        border: '#E8D5B7', // Warm beige
-        icon: '#5D4037',
+        border: '#E0E0E0', // Neutral light gray border
+        icon: '#4A4A4A', // Icon charcoal for icon elements
     },
     spacing: {
         xs: 4,
@@ -53,7 +53,7 @@ export const ADMIN_THEME = {
             elevation: 4,
         } as ViewStyle,
         lg: {
-            shadowColor: "#D42B2B", // Colored shadow for emphasis (logo red)
+            shadowColor: "#1A1A1A", // Icon black shadow for brand emphasis
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.15,
             shadowRadius: 20,
