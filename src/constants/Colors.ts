@@ -1,31 +1,22 @@
 export const Colors = {
-    primary: '#5D101D',       // Maroon – logo outer ring
-    primaryDark: '#3D0A14',   // Deeper maroon – pressed states
-    secondary: '#D4AF37',     // Gold – logo inner ring accent
-    background: '#FFFBF8',    // Warm off-white with maroon undertone
-    text: '#002366',
-    textStrong: '#1A0A0E',
-    textSecondary: '#4A3035',
-    border: '#E8D6CE',        // Warm border – maroon tinted
+    primary: '#D42B2B',       // Logo red ring
+    primaryDark: '#8B1A1A',   // Deep maroon
+    secondary: '#1B5E20',     // Logo tree green
+    background: '#FFF8F0',    // Warm cream
+    text: '#2D2D2D',          // Logo near-black
+    textStrong: '#1A1A1A',    // Deep black
+    textSecondary: '#5D4037',  // Warm brown-gray
+    border: '#E8D5B7',        // Warm beige
     white: '#FFFFFF',
     black: '#000000',
-    muted: '#6B4A52',
-
-    // Logo accent palette
-    logoRed: '#D11D1D',       // Top arc text red
-    logoOrange: '#FBB040',    // Book orange gradient
-    logoGreen: '#39B54A',     // Book green page
-    logoBlue: '#0071BC',      // Book royal blue
-    logoNavy: '#002366',      // Bottom arc navy text
-    logoPurple: '#662D91',    // Motto banner purple
-    logoGold: '#D4AF37',      // Gold inner ring
+    muted: '#8D6E63',         // Warm muted brown
 
     // Status Colors
     status: {
-        present: '#39B54A',   // Logo green
-        absent: '#D11D1D',    // Logo red
-        late: '#FBB040',      // Logo orange
-        holiday: '#662D91',   // Motto banner purple
-        leave: '#D4AF37',     // Logo gold
+        present: '#16a34a',
+        absent: '#dc2626',
+        late: '#ca8a04',
+        holiday: '#1565C0',   // Logo blue ribbon
+        leave: '#f59e0b',
     },
 };

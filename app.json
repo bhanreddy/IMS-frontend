@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "New Master Minds E/M School Gokafasalwad",
-    "slug": "newmastermindsschoolgokafasalwad",
+    "name": "Chanakya E/M School Maddur",
+    "slug": "chanakyamaddur",
     "version": "2.1.8",
     "platforms": [
       "android",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.nexsyrussims.nmsgokafasalwad",
+      "bundleIdentifier": "com.nexsyrussims.chanakyamaddur",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -31,7 +31,7 @@
       }
     },
     "android": {
-      "package": "com.nexsyrussims.nmsgokafasalwad",
+      "package": "com.nexsyrussims.chanakyamaddur",
       "jsEngine": "hermes",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
@@ -118,7 +118,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e51574e5-1701-4e8c-828d-32ca5f3fe8ea"
+        "projectId": "4140d517-6452-4a7c-9fb2-979009194eb6"
       }
     },
     "owner": "nexsyrus1"

@@ -45,6 +45,25 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:50612038206:android:ba9b58c0ee4dcb17f6ff6f",
+        "android_client_info": {
+          "package_name": "com.nexsyrussims.chanakyamaddur"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlqQRXtG4EBLSlzrYl_eO2yi51Mp09B_o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:50612038206:android:f54a5384f8fe5705f6ff6f",
         "android_client_info": {
           "package_name": "com.nexsyrussims.geetanjalihighschool"
