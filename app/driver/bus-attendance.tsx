@@ -315,7 +315,7 @@ export default function DriverBusStopAttendanceScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={pageBg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <View style={[styles.orb1, { backgroundColor: orb1Color }]} />
       <View style={[styles.orb2, { backgroundColor: orb2Color }]} />

@@ -343,7 +343,7 @@ export default function AddStudentScreen() {
   return (
     <TourTarget id="screen.accounts-add-student.overview" style={{ flex: 1 }}><FormCanvas isDark={isDark}>
     <View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && <AdminHeader title={isEditMode ? 'Edit Student' : 'Add Student'} showBackButton />}
 
       <TourTarget id="screen.accounts-add-student.workspace" style={{ flex: 1 }}><KeyboardAwareScreen
@@ -357,7 +357,7 @@ export default function AddStudentScreen() {
         <AdmissionHero
           isEditMode={isEditMode}
           firstName={formData.first_name}
-          lastName={formData.last_name}
+          lastName={formData.last_name ?? undefined}
           admissionNo={formData.admission_no}
           classLabel={selectedClass?.name}
           sectionLabel={selectedSection?.name}

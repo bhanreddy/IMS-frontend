@@ -147,7 +147,7 @@ export default function AdminSettings() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
             <TourTarget id="screen.admin-settings.overview"><AdminHeader title="Settings" showBackButton={true} /></TourTarget>
 
             <TourTarget id="screen.admin-settings.workspace" native><TourScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

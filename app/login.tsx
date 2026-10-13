@@ -344,7 +344,7 @@ const UnifiedLoginScreen: React.FC = () => {
   return (
     <View style={styles.root}>
       <LoginAmbientBackground />
-      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} backgroundColor="transparent" translucent />
+      <StatusBar barStyle={C.isDark ? "light-content" : "dark-content"} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

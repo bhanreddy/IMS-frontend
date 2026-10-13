@@ -27,6 +27,7 @@ const EXACT: Record<string, string> = {
   '/accounts/pending-enrollments': 'Pending Enrollments',
   '/accounts/manage-users': 'Users & Clients',
   '/accounts/student-login-qr': 'Student Login QR Codes',
+  '/accounts/role-login-qr': 'Role Login QR Codes',
   '/accounts/settings': 'Settings',
   '/accounts/updates': 'Updates',
 };

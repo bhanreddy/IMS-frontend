@@ -405,7 +405,7 @@ export default function ReceiptsScreen() {
   };
 
   return <TourTarget id="screen.accounts-receipts.overview" native><View style={styles.container}>
-    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#0F1117' : '#FFFFFF'} />
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
     {!shellActive && <AdminHeader title="Receipts" showBackButton={true} />}
     <View style={styles.content}>
       <Pressable

@@ -52,6 +52,9 @@ export interface StudentQrPrintOptions {
   sectionName: string;
   credentials: IssuedLoginQr[];
   generatedAt?: Date;
+  cardKind?: 'student' | 'role';
+  sheetTitle?: string;
+  sheetMeta?: string;
 }
 
 function safeFilename(value: string): string {
@@ -71,18 +74,28 @@ function logoMarkup(school: LoginQrSchool): string {
   return `<div class="logo-fallback">${escapeHtml(initials(school.name))}</div>`;
 }
 
-function cardMarkup(credential: IssuedLoginQr, qrSvg: string, large = false): string {
+function cardMarkup(credential: IssuedLoginQr, qrSvg: string, large = false, cardKind: 'student' | 'role' = 'student'): string {
   const student = credential.student;
+  const roleCard = cardKind === 'role';
+  const detail = roleCard
+    ? `${escapeHtml(student.className || 'Account')}${student.sectionName ? ` · ${escapeHtml(student.sectionName)}` : ''}`
+    : `Class ${escapeHtml(student.className || '-')} - ${escapeHtml(student.sectionName || '-')}`;
+  const idLine = roleCard
+    ? (student.admissionNo ? `<p>Staff code: <strong>${escapeHtml(student.admissionNo)}</strong></p>` : '')
+    : `<p>Admission No: <strong>${escapeHtml(student.admissionNo)}</strong></p>`;
+  const privacy = roleCard
+    ? 'Keep this QR private. Anyone with this card can sign in as this account.'
+    : 'Keep this QR private. Anyone with this card can sign in as this student.';
   return `<article class="qr-card${large ? ' single-card' : ''}">
     <div class="card-brand"><span>SchoolIMS</span><span class="private-label">PRIVATE</span></div>
     <div class="card-body">
       <div class="qr-box">${qrSvg}</div>
       <div class="student-copy">
         <h2>${escapeHtml(student.name)}</h2>
-        <p class="class-line">Class ${escapeHtml(student.className || '-')} - ${escapeHtml(student.sectionName || '-')}</p>
-        <p>Admission No: <strong>${escapeHtml(student.admissionNo)}</strong></p>
+        <p class="class-line">${detail}</p>
+        ${idLine}
         <p class="instruction">Open SchoolIMS, then scan to sign in</p>
-        <p class="privacy">Keep this QR private. Anyone with this card can sign in as this student.</p>
+        <p class="privacy">${privacy}</p>
       </div>
     </div>
   </article>`;
@@ -97,16 +110,19 @@ export function buildStudentQrPdfHtmlFromSvgs(
     throw new Error('QR card data is incomplete.');
   }
   const generated = options.generatedAt || new Date();
+  const cardKind = options.cardKind === 'role' ? 'role' : 'student';
+  const sheetTitle = escapeHtml(options.sheetTitle || (cardKind === 'role' ? 'Login QR Codes' : 'Student Login QR Codes'));
+  const sheetMeta = escapeHtml(options.sheetMeta || `Class ${options.className} - ${options.sectionName}`);
   const pages: string[] = [];
   const pageSize = single ? 1 : LOGIN_QR_CARDS_PER_PAGE;
   for (let start = 0; start < options.credentials.length; start += pageSize) {
     const cards = options.credentials.slice(start, start + pageSize).map((credential, index) =>
-      cardMarkup(credential, qrSvgs[start + index], single),
+      cardMarkup(credential, qrSvgs[start + index], single, cardKind),
     ).join('');
     pages.push(`<section class="page${single ? ' single-page' : ''}">
       <header class="sheet-header">
-        <div class="header-brand">${logoMarkup(options.school)}<div><h1>${escapeHtml(options.school.name)}</h1><p>Student Login QR Codes</p></div></div>
-        <div class="header-meta"><strong>Class ${escapeHtml(options.className)} - ${escapeHtml(options.sectionName)}</strong><span>${escapeHtml(options.academicYear)}</span><span>Generated ${escapeHtml(dateLabel(generated))}</span></div>
+        <div class="header-brand">${logoMarkup(options.school)}<div><h1>${escapeHtml(options.school.name)}</h1><p>${sheetTitle}</p></div></div>
+        <div class="header-meta"><strong>${sheetMeta}</strong>${options.academicYear ? `<span>${escapeHtml(options.academicYear)}</span>` : ''}<span>Generated ${escapeHtml(dateLabel(generated))}</span></div>
       </header>
       <main class="card-grid">${cards}</main>
       <footer>SchoolIMS secure credential cards - Page ${pages.length + 1}</footer>
@@ -159,6 +175,9 @@ export async function buildStudentQrPdfHtml(options: StudentQrPrintOptions, sing
 
 export function studentQrPdfFilename(options: StudentQrPrintOptions): string {
   const date = (options.generatedAt || new Date()).toISOString().slice(0, 10);
+  if (options.cardKind === 'role') {
+    return `${safeFilename(options.school.name)}_${safeFilename(options.sheetMeta || options.className || 'Roles')}_Login-QR_${date}.pdf`;
+  }
   return `${safeFilename(options.school.name)}_Class-${safeFilename(options.className)}-${safeFilename(options.sectionName)}_Login-QR_${date}.pdf`;
 }
 
@@ -174,7 +193,11 @@ export async function saveStudentQrPdf(options: StudentQrPrintOptions, single = 
   const { uri } = await Print.printToFileAsync({ html });
   const target = `${FileSystem.cacheDirectory}${filename}`;
   await FileSystem.copyAsync({ from: uri, to: target });
-  await Sharing.shareAsync(target, { mimeType: 'application/pdf', UTI: '.pdf', dialogTitle: 'Save Student Login QR Codes' });
+  await Sharing.shareAsync(target, {
+    mimeType: 'application/pdf',
+    UTI: '.pdf',
+    dialogTitle: options.cardKind === 'role' ? 'Save Login QR Codes' : 'Save Student Login QR Codes',
+  });
 }
 
 async function downloadPdfOnWeb(html: string, filename: string): Promise<void> {

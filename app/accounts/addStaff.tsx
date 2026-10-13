@@ -744,7 +744,7 @@ export default function AddStaffScreen() {
 
   return (
     <TourTarget id="screen.accounts-add-staff.overview" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#12101A' : '#F5F2FA'} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && <AdminHeader title={isEditMode ? 'Edit Staff' : 'Add Staff'} showBackButton />}
 
       <TourTarget id="screen.accounts-add-staff.workspace" style={{ flex: 1 }}><KeyboardAwareScreen

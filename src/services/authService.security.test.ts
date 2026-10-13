@@ -37,9 +37,11 @@ jest.mock('./supabaseConfig', () => ({
 jest.mock('./apiClient', () => {
   class APIError extends Error {
     statusCode?: number;
-    constructor(message: string, statusCode?: number) {
+    code?: string;
+    constructor(message: string, statusCode?: number, code?: string) {
       super(message);
       this.statusCode = statusCode;
+      this.code = code;
     }
   }
   return {
@@ -75,6 +77,7 @@ const { supabase } = require('./supabaseConfig');
 const { api, APIError } = require('./apiClient');
 const secureTokenStore = require('./secureTokenStore');
 const accountVault = require('./accountVault');
+const recoverApiSession = require('./apiClient').registerSessionRecoveryCallback.mock.calls[0][0];
 
 function savedSession() {
   return {
@@ -97,10 +100,89 @@ beforeEach(() => {
   jest.clearAllMocks();
   secureTokenStore.__store.clear();
   supabase.auth.signOut.mockResolvedValue({});
+  accountVault.getLoginRecoveryCredential.mockResolvedValue(null);
+  accountVault.getQrRecoveryCredential.mockResolvedValue(null);
+  supabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
   Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
 });
 
 describe('AuthService security boundaries', () => {
+  it('signs out only this device rather than all of the family or staff devices', async () => {
+    secureTokenStore.__store.set('auth_session', JSON.stringify(savedSession()));
+    await AuthService.signOut();
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(secureTokenStore.__store.has('auth_session')).toBe(false);
+  });
+
+  it.each(['staff', 'teacher', 'principal', 'student', 'parent', 'accountant', 'admin'])(
+    'preserves the %s login and rotated tokens on an ordinary access restriction', async (role) => {
+      const prior = savedSession();
+      prior.validatedUser.role.code = role;
+      secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+      const rotated = { ...prior.supabaseSession, access_token: 'rotated-access', refresh_token: 'rotated-refresh' };
+      supabase.auth.refreshSession.mockResolvedValue({ data: { session: rotated }, error: null });
+      api.post.mockRejectedValue(new APIError('Access restricted to school hours', 403, 'OUT_OF_HOURS_NO_ACCESS'));
+      const result = await AuthService.refreshSession();
+      expect(result?.validatedUser.role.code).toBe(role);
+      expect(JSON.parse(secureTokenStore.__store.get('auth_session')).supabaseSession.refresh_token).toBe('rotated-refresh');
+      expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    }
+  );
+
+  it('reuses a fresh live session when the app resumes', async () => {
+    const prior = savedSession();
+    secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+    supabase.auth.getSession.mockResolvedValue({ data: { session: prior.supabaseSession }, error: null });
+    await expect(AuthService.refreshSession({ force: false })).resolves.toEqual(prior);
+    expect(supabase.auth.refreshSession).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('reuses the latest token for a delayed 401 from an older request', async () => {
+    const prior = savedSession();
+    secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+    const latest = { ...prior.supabaseSession, access_token: 'already-rotated-access', refresh_token: 'already-rotated-refresh' };
+    supabase.auth.getSession.mockResolvedValue({ data: { session: latest }, error: null });
+    expect((await recoverApiSession('unauthorized', 'old-access'))?.access_token).toBe('already-rotated-access');
+    expect(supabase.auth.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it('does not replay saved passwords when cold-start token restoration fails offline', async () => {
+    const prior = savedSession();
+    secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+    supabase.auth.setSession.mockResolvedValue({ data: { session: null }, error: { status: 503, message: 'Network request failed' } });
+    accountVault.getLoginRecoveryCredential.mockResolvedValue({ email: 'admin@example.com', password: 'saved-secret' });
+    await expect(AuthService.restorePersistedSession()).resolves.toBeNull();
+    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+    expect(secureTokenStore.__store.has('auth_session')).toBe(true);
+  });
+
+  it('persists rotated tokens when backend validation temporarily returns 401', async () => {
+    const prior = savedSession();
+    secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+    const rotated = { ...prior.supabaseSession, refresh_token: 'latest-refresh' };
+    supabase.auth.refreshSession.mockResolvedValue({ data: { session: rotated }, error: null });
+    api.post.mockRejectedValue(new APIError('Not authenticated', 401));
+    expect((await AuthService.refreshSession())?.supabaseSession.refresh_token).toBe('latest-refresh');
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('does not restore a login after explicit logout interrupts validation', async () => {
+    const prior = savedSession();
+    secureTokenStore.__store.set('auth_session', JSON.stringify(prior));
+    supabase.auth.refreshSession.mockResolvedValue({ data: { session: prior.supabaseSession }, error: null });
+    let finishValidation!: (value: unknown) => void;
+    let started!: () => void;
+    const validationStarted = new Promise<void>((resolve) => { started = resolve; });
+    api.post.mockImplementation(() => { started(); return new Promise((resolve) => { finishValidation = resolve; }); });
+    const refresh = AuthService.refreshSession();
+    await validationStarted;
+    await AuthService.signOut();
+    finishValidation(prior.validatedUser);
+    await expect(refresh).resolves.toBeNull();
+    expect(secureTokenStore.__store.has('auth_session')).toBe(false);
+  });
   it('reauthenticates with the current password before changing it', async () => {
     supabase.auth.getSession.mockResolvedValue({
       data: {
@@ -148,7 +230,7 @@ describe('AuthService security boundaries', () => {
       data: { session: savedSession().supabaseSession },
       error: null,
     });
-    api.post.mockRejectedValue(new APIError('account locked', 403));
+    api.post.mockRejectedValue(new APIError('account_locked', 403, 'ACCOUNT_LOCKED'));
 
     await expect(AuthService.refreshSession()).resolves.toBeNull();
     expect(secureTokenStore.SecureTokenStore.removeItem).toHaveBeenCalledWith(

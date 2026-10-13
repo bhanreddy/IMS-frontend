@@ -1287,7 +1287,7 @@ const HomeScreen = () => {
   return (
     <HomeSvgContext.Provider value={svgMod}>
       <ScreenLayout>
-        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor="transparent" translucent />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <TourTarget id="screen.home.overview"><StudentHeader scrollY={headerScrollY} /></TourTarget>
 
         <TourTarget id="screen.home.workspace" native><TourScrollView

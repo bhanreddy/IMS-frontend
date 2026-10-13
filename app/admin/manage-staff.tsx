@@ -384,8 +384,6 @@ export default function ManageStaff() {
     <View style={[styles.container, { backgroundColor: pageBg }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor="transparent"
-        translucent
       />
 
       {/* Ambient orbs */}

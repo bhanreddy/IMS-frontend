@@ -81,7 +81,7 @@ const ProfileScreen = () => {
   // Extract primary parent/guardian safely
   const primaryParent = student.parents?.find((p) => p.is_primary) || student.parents?.[0];
   return <TourTarget id="screen.screen-profile.overview" style={{ flex: 1 }}><SafeAreaView style={styles.container}>
-    <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <StatusBar barStyle="light-content" />
     {/* Header / Banner */}
     <Animated.View entering={FadeInDown.duration(600)} style={styles.headerContainer}>
       <LinearGradient

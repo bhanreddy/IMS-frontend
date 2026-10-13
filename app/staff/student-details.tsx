@@ -79,7 +79,7 @@ export default function StudentDetails() {
     }
   };
   return <View style={styles.container}>
-    <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
+    <StatusBar barStyle="light-content" />
 
     {/* Header */}
     <LinearGradient colors={['#4F46E5', '#4338CA']} style={styles.header}>

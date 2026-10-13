@@ -55,7 +55,7 @@ export default function AccountsSettings() {
 
   return (
     <TourTarget id="screen.accounts-settings.overview" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && <AdminHeader title="Settings" showBackButton={true} />}
 
       <TourTarget id="screen.accounts-settings.workspace" native><TourScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

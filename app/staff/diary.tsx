@@ -933,7 +933,7 @@ export default function StaffDiary() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={pageBg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.staff-diary.overview"><StaffHeader title="Smart Diary" showBackButton /></TourTarget>
       {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}
 

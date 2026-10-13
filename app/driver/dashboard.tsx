@@ -513,7 +513,7 @@ export default function DriverDashboard() {
 
   return (
     <ScreenLayout>
-      <StatusBar barStyle="light-content" backgroundColor="#0F0F1A" />
+      <StatusBar barStyle="light-content" />
       <TourCondition name="driver.active-trip" available={isTracking || !!activeTripId} />
       <TourTarget id="screen.driver-dashboard.overview"><StudentHeader title={t('driver_ui.route', 'My Route')} menuUserType="driver" showBackButton={false} /></TourTarget>
       <DriverTrackingHealth />

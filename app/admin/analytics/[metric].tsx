@@ -620,7 +620,7 @@ function AnalyticsMetricContent() {
 
   return (
     <View style={[styles.root, { backgroundColor: isDark ? '#090E18' : '#F7F9FC' }]}>
-    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
     <AdminHeader title={definition.title} showBackButton />
     <View pointerEvents="none" style={StyleSheet.absoluteFill}><View style={[styles.ambient, { backgroundColor: `${definition.accent}12`, top: 130, right: -100 }]} /><View style={[styles.ambient, { backgroundColor: '#8B5CF60B', top: 460, left: -120 }]} /></View>
     <ScrollView

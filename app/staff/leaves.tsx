@@ -699,7 +699,7 @@ export default function ApplyLeave() {
 
   return (
     <TourTarget id="screen.staff-leaves.overview" native><View style={{ flex: 1, backgroundColor: isDark ? '#121824' : '#E9EDF6' }}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {shellActive ? null : <StaffHeader title="Apply Leave" showBackButton={true} />}
       {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}

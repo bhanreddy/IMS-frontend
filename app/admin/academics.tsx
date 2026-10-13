@@ -716,7 +716,7 @@ export default function AcademicManagement() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.admin-academics.overview"><AdminHeader title="Academic Structure" showBackButton /></TourTarget>
 
       <TourTarget id="screen.admin-academics.workspace" native><View style={styles.content}>

@@ -177,7 +177,7 @@ export default function AccountsMarksExportScreen() {
   }, [printDocument]);
 
   return <View style={styles.screen}>
-    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+    <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
     {!shellActive && <AdminHeader title="School Marks Export" showBackButton />}
     <TourTarget id="screen.accounts-marks.workspace" native><View style={styles.workspace}>
       <View style={styles.toolbar}>

@@ -445,7 +445,6 @@ export default function FeeDueSlipsScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#0B0D14' : '#F8FAFC' }]}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={isDark ? '#0F1117' : '#1E293B'}
       />
       {!shellActive && <AdminHeader title="Fee Due Slips" showBackButton />}
 

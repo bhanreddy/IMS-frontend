@@ -465,7 +465,7 @@ export default function StaffDashboard() {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.staff-dashboard.overview"><StaffHeader
         title="Staff Portal"
         subtitle={(isViewingAsAdmin ? viewAsName : user?.displayName) || 'Teacher'}

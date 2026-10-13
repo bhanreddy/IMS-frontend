@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
+import type { SchoolTheme } from '../../theme/types';
 import AppTextInput from '../AppTextInput';
 import { ClassService, ClassSection } from '../../services/classService';
 import { ExamPaper } from '../../services/examService';
@@ -238,7 +239,7 @@ export function SpecialExamSubjectsCard({
   );
 }
 
-function createStyles(theme: { colors: Record<string, string> }) {
+function createStyles(theme: SchoolTheme) {
   return StyleSheet.create({
     card: {
       marginHorizontal: 16,

@@ -144,6 +144,13 @@ export const ACCOUNTS_SIDEBAR_NAV: AccountsSidebarNavItem[] = [
     category: 'Student access',
   },
   {
+    title: 'Role Login QR Codes',
+    icon: 'qr-code-outline',
+    route: '/accounts/role-login-qr',
+    gradient: ['#0F766E', '#0D9488'],
+    category: 'Staff access',
+  },
+  {
     title: 'Hostel Students',
     icon: 'bed-outline',
     route: '/accounts/hostel',
@@ -338,7 +345,7 @@ export default function AccountsWebSidebar({
       ].includes(i.route),
     );
     const people = items.filter((i) =>
-      ['/accounts/manage-users', '/accounts/pending-enrollments', '/accounts/student-login-qr'].includes(i.route),
+      ['/accounts/manage-users', '/accounts/pending-enrollments', '/accounts/student-login-qr', '/accounts/role-login-qr'].includes(i.route),
     );
     const system = items.filter((i) => i.route === '/accounts/settings');
     return [

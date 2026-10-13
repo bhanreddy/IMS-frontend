@@ -173,7 +173,7 @@ export default function QrLoginScannerScreen() {
               ? t('qrLogin.addAccountTitle', 'Scan QR to add this account')
               : 'Scan your SchoolIMS Login QR'}
           </Text>
-          <Text style={styles.subtitle}>Position the QR code completely inside the frame</Text>
+          <Text style={styles.subtitle}>Student, staff, and other school login cards all scan here</Text>
         </View>
 
         <View style={styles.frame}>

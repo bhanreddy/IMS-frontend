@@ -606,8 +606,6 @@ export default function Index() {
     <View style={[styles.screen, { backgroundColor: C.screenBg }]}>
       <StatusBar
         barStyle={C.isDark ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
       />
 
       {/* Ambient layered background — flat canvas; gradient kept for layout parity */}

@@ -164,7 +164,7 @@ export default function TransportImportScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
+      <StatusBar barStyle="dark-content" />
       <TourTarget id="screen.admin-transport-import.overview"><AdminHeader title="Bulk Stop Assignment" showBackButton /></TourTarget>
 
       {loading ? (

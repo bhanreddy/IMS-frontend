@@ -139,7 +139,7 @@ export default function AccountsPortalStaffScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.admin-add-accounts-staff.overview"><AdminHeader title="Accounts Portal Access" showBackButton /></TourTarget>
 
       <TourScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

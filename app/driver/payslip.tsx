@@ -71,7 +71,7 @@ export default function DriverPayslip() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F0F1A" />
+      <StatusBar barStyle="light-content" />
       <TourTarget id="screen.driver-payslip.overview"><StudentHeader title={t('driver_ui.my_payslips')} menuUserType="driver" showBackButton={false} /></TourTarget>
       <TourTarget id="screen.driver-payslip.workspace" native><TourScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {!configLoading && !payslipsEnabled ? (

@@ -1563,7 +1563,7 @@ export default function AdminDashboard() {
         addPhotoUrl={user?.photoUrl}
         tone={isDark ? 'onDark' : 'onLight'}
         style={{ marginTop: 18 }}
-        onPublished={() => refetchStories()}
+        onPublished={async () => { await refetchStories(); }}
       />
     </Animated.View>
   );
@@ -1977,7 +1977,7 @@ export default function AdminDashboard() {
 
   return (
     <TourTarget id="screen.admin-dashboard.workspace" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <TourTarget id="screen.admin-dashboard.overview"><AdminHeader
         title=""

@@ -22,6 +22,7 @@ function mapRoleCodeForFrontend(code: string): string {
 let refreshSessionInFlight: Promise<AuthSession | null> | null = null;
 /** Single-flight cold-start repair so native and web screens cannot race session setup. */
 let restorePersistedSessionInFlight: Promise<AuthSession | null> | null = null;
+let authStateRevision = 0;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Phase 2 — internal session-swap guard + serialization
@@ -55,19 +56,16 @@ function enqueueSwap<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function isTransientValidationError(err: unknown): boolean {
-  if (err instanceof APIError) {
-    const c = err.statusCode;
-    if (c === 0 || c === 503 || (c !== undefined && c >= 500 && c < 600)) return true;
-    const msg = (err.message || '').toLowerCase();
-    if (msg.includes('network') || msg.includes('timeout') || msg.includes('unavailable')) return true;
-  }
-  return false;
-}
-
 function shouldForceSignOutOnValidateError(err: unknown): boolean {
-  if (err instanceof APIError && err.statusCode === 403) return true;
-  return false;
+  if (!(err instanceof APIError) || err.statusCode !== 403) return false;
+  const denied = new Set([
+    'ACCOUNT_LOCKED', 'ACCOUNT_NOT_ACTIVE', 'ACCOUNT_NOT_IN_SCHOOL',
+    'SCHOOL_MISMATCH', 'DEVICE_OWNED_BY_ANOTHER_STAFF',
+  ]);
+  return denied.has((err.code || '').toUpperCase()) || [
+    'account_locked', 'account_not_active', 'account_not_in_school',
+    'Account is not active', 'User does not belong to this school',
+  ].includes(err.message);
 }
 
 function isConfirmedRefreshRejection(err: unknown): boolean {
@@ -595,6 +593,7 @@ async function readPersistedAuthSession(): Promise<AuthSession | null> {
  * No failure in this function removes the remembered identity.
  */
 async function restorePersistedSessionCore(): Promise<AuthSession | null> {
+  const revision = authStateRevision;
   const prior = await readPersistedAuthSession();
   if (!prior?.validatedUser || !prior.supabaseSession) return null;
 
@@ -616,6 +615,7 @@ async function restorePersistedSessionCore(): Promise<AuthSession | null> {
     liveExpiresAt > Math.floor(Date.now() / 1000) + TOKEN_SKEW_SECONDS;
 
   if (liveIsUsable && liveSession) {
+    if (revision !== authStateRevision) return null;
     const liveDiffersFromPersisted =
       liveSession.access_token !== prior.supabaseSession.access_token ||
       liveSession.refresh_token !== prior.supabaseSession.refresh_token ||
@@ -636,10 +636,14 @@ async function restorePersistedSessionCore(): Promise<AuthSession | null> {
         access_token: candidate.access_token,
         refresh_token: candidate.refresh_token,
       });
+      // Offline/unavailable auth must retry the refresh token later. Replaying
+      // a password here would turn every connection failure into a new login.
+      if (error && !isConfirmedRefreshRejection(error)) return null;
       if (
         !error &&
         data?.session &&
-        data.session.user.id === prior.validatedUser.userId
+        data.session.user.id === prior.validatedUser.userId &&
+        revision === authStateRevision
       ) {
         return persistSessionFromRefresh(
           data.session,
@@ -647,18 +651,20 @@ async function restorePersistedSessionCore(): Promise<AuthSession | null> {
         );
       }
     } catch {
-      // Saved-login recovery below is the final repair layer.
+      return null;
     } finally {
       endInternalSwap();
     }
   }
 
+  if (revision !== authStateRevision) return null;
   const recovered = await recoverSessionWithSavedCredential(prior);
-  if (!recovered.session) return null;
+  if (!recovered.session || revision !== authStateRevision) return null;
   return persistSessionFromRefresh(recovered.session, prior.validatedUser);
 }
 
 export const clearAuthState = async (): Promise<void> => {
+  authStateRevision += 1;
   await removeSecureItem(STORAGE_KEY);
 };
 
@@ -1179,11 +1185,12 @@ export const AuthService = {
     enqueueSwap(() => doSwitchAccount(userId)),
 
   signOut: async (): Promise<void> => {
+    authStateRevision += 1;
     clearStaffPortalSession();
     // 1. Remove from SecureStore
     await removeSecureItem(STORAGE_KEY);
     // 2. supabase.auth.signOut()
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     // 3. Clear any in-memory cache (handled by useAuth state wiping)
   },
 
@@ -1223,25 +1230,37 @@ export const AuthService = {
   adoptRefreshedSession: async (
     refreshed: Session
   ): Promise<AuthSession | null> => {
+    const revision = authStateRevision;
     const prior = await readPersistedAuthSession();
     if (
       !prior?.validatedUser ||
-      refreshed.user.id !== prior.validatedUser.userId
+      refreshed.user.id !== prior.validatedUser.userId ||
+      revision !== authStateRevision
     ) {
       return null;
     }
     return persistSessionFromRefresh(refreshed, prior.validatedUser);
   },
 
-  refreshSession: async (): Promise<AuthSession | null> => {
+  refreshSession: async (options?: { force?: boolean }): Promise<AuthSession | null> => {
     if (refreshSessionInFlight) {
       return refreshSessionInFlight;
     }
 
     refreshSessionInFlight = (async (): Promise<AuthSession | null> => {
+      const revision = authStateRevision;
       const prior = await readPersistedAuthSession();
 
+      if (options?.force === false) {
+        const restored = await AuthService.restorePersistedSession();
+        if (restored?.supabaseSession.expires_at &&
+            restored.supabaseSession.expires_at > Math.floor(Date.now() / 1000) + TOKEN_SKEW_SECONDS) {
+          return restored;
+        }
+      }
+
       let { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (revision !== authStateRevision) return null;
 
       if (refreshError || !refreshData.session) {
         if (isConfirmedRefreshRejection(refreshError)) {
@@ -1278,11 +1297,11 @@ export const AuthService = {
         }
       }
 
+      if (revision !== authStateRevision) return null;
+
       if (refreshError || !refreshData.session) {
-        // Layer A fix: Don't immediately clear auth for ALL roles.
-        // If we have a prior session, preserve it — the caller (useAuth handleRefresh)
-        // will decide whether to retry or clear based on role and retry count.
-        // Only clear if there's no prior session at all (nothing to fall back to).
+        // Keep the remembered identity for every role. The provider retries
+        // recovery with capped backoff without deleting saved device credentials.
         if (prior?.validatedUser) {
           console.warn('[AUTH_REFRESH] Supabase refresh failed but prior session exists — preserving for retry');
           return null; // Return null to signal failure without clearing storage
@@ -1292,6 +1311,12 @@ export const AuthService = {
       }
 
       let validatedUser: ValidatedUser | null = null;
+      // Commit newly rotated tokens before a backend validation request. An
+      // outage or policy denial must not leave the old refresh token on disk.
+      const remembered = prior?.validatedUser &&
+        validatedUserMatchesLiveSession(refreshData.session, prior.validatedUser)
+        ? await persistSessionFromRefresh(refreshData.session, prior.validatedUser)
+        : null;
       try {
         validatedUser = await api.post<ValidatedUser>(
           '/auth/validate-school-user',
@@ -1304,24 +1329,25 @@ export const AuthService = {
           }
         );
       } catch (err) {
+        if (revision !== authStateRevision) return null;
         if (shouldForceSignOutOnValidateError(err)) {
           console.log('[AUTH_OUT]', 'api_403_confirmed', new Date().toISOString());
           await AuthService.signOut();
           return null;
         }
-        if (isTransientValidationError(err) && prior?.validatedUser) {
-          return persistSessionFromRefresh(refreshData.session, prior.validatedUser);
-        }
-        console.warn('[AUTH_REFRESH] Validation failed without cached identity');
-        return null;
+        // Backend authorization still rejects restricted requests. Keep the
+        // login on ordinary 401/403 responses and transient service failures.
+        return remembered;
       }
+
+      if (revision !== authStateRevision) return null;
 
       if (!validatedUser) {
         console.warn('[AUTH_REFRESH] Empty validation response; cached session preserved');
         return null;
       }
 
-      if (validatedUser.schoolId !== SCHOOL_ID) {
+      if (Number(validatedUser.schoolId) !== Number(SCHOOL_ID)) {
         console.log('[AUTH_OUT]', 'school_mismatch', new Date().toISOString());
         await AuthService.signOut();
         return null;
@@ -1333,9 +1359,7 @@ export const AuthService = {
           return persistSessionFromRefresh(refreshData.session, prior.validatedUser);
         }
         console.warn('[AUTH_REFRESH] Validated identity did not match the live session');
-        return prior?.validatedUser
-          ? persistSessionFromRefresh(refreshData.session, prior.validatedUser)
-          : null;
+        return null;
       }
 
       return persistSessionFromRefresh(refreshData.session, validatedUser);
@@ -1377,15 +1401,18 @@ export const AuthService = {
 // Register at module initialization, before any screen effect can issue an API
 // request. The callback returns only the Supabase session required for retry;
 // AuthService remains the single owner of persistence and backend validation.
-registerSessionRecoveryCallback(async (reason) => {
+registerSessionRecoveryCallback(async (reason, rejectedAccessToken) => {
   const restored = await AuthService.restorePersistedSession();
   if (!restored) return null;
 
-  // A missing client session has already been repaired by setSession (which
-  // refreshes expired tokens itself). A server 401 or pre-expiry check needs an
-  // explicit rotation before retrying the original request.
-  if (reason === 'missing') return restored.supabaseSession;
+  // setSession may already have rotated an expired token. Late 401 responses
+  // for an older token should reuse that rotation instead of rotating again.
+  const tokenIsFresh = (restored.supabaseSession.expires_at ?? 0) >
+    Math.floor(Date.now() / 1000) + TOKEN_SKEW_SECONDS;
+  if (reason === 'missing' || (tokenIsFresh && (
+    reason === 'expired' || restored.supabaseSession.access_token !== rejectedAccessToken
+  ))) return restored.supabaseSession;
 
   const refreshed = await AuthService.refreshSession();
-  return (refreshed ?? restored).supabaseSession;
+  return refreshed?.supabaseSession ?? null;
 });

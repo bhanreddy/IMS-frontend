@@ -231,7 +231,7 @@ const FeesScreen = () => {
     </View>;
   }
   return <SafeAreaView style={styles.container}>
-    <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
+    <StatusBar barStyle="light-content" />
 
     {/* Header */}
     <View style={styles.header}>

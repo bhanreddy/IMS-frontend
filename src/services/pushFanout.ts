@@ -321,12 +321,10 @@ export async function unregisterVaultedAccountStandalone(account: VaultAccount):
 
   // (c) Revoke THIS account's Supabase session — raw fetch to the Auth REST
   //     endpoint with this account's bearer (zero SDK, same technique as
-  //     refreshAccessTokenStandalone). Default scope mirrors the active-account
-  //     sign-out (supabase.auth.signOut() with no scope = global), so an
-  //     explicitly removed account doesn't leave a live refresh token server-side.
-  //     (If per-device-only revoke is ever wanted, the lever is `?scope=local`.)
+  //     refreshAccessTokenStandalone). Revoke only this device's session so
+  //     removing a saved account doesn't log out other phones or browsers.
   try {
-    const resp = await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/logout?scope=local`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -348,7 +346,7 @@ export async function unregisterVaultedAccountStandalone(account: VaultAccount):
  *   - not in vault → warn + no-op.
  *   - the ACTIVE account → REFUSE (do not remove here). Active-account removal
  *     must go through useAuth.signOut(), which already does the correct
- *     unregister-via-live-bearer + global Supabase revoke + local vault removal.
+ *     unregister-via-live-bearer + local Supabase revoke + local vault removal.
  *     We refuse rather than delegate because pushFanout is a service module and
  *     importing the useAuth React hook here would be a layering inversion AND a
  *     circular import (useAuth → notificationManager → pushFanout). Phase 4's UI,

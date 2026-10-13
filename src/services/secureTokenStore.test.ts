@@ -170,7 +170,7 @@ describe('SecureTokenStore native storage', () => {
     expect(chunk).toBeDefined();
     SecureStore.__store.delete(chunk!);
 
-    await expect(SecureTokenStore.getItem('auth_session')).resolves.toBeNull();
+    await expect(SecureTokenStore.getItem('auth_session')).rejects.toThrow('Incomplete secure storage value');
   });
 
   it('serializes concurrent writes so the last requested value wins atomically', async () => {
@@ -193,6 +193,38 @@ describe('SecureTokenStore native storage', () => {
     expect(SecureStore.__store.get('sb_secure_refresh_token')).toBe(
       'nested-refresh-token'
     );
+  });
+
+  it('keeps a reader valid while a token rotation retires its generation', async () => {
+    await SecureTokenStore.setItem('auth_session', 'prior-session');
+    const getItem = SecureStore.getItemAsync.getMockImplementation();
+    let releaseRead!: () => void;
+    let readStarted!: () => void;
+    const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const started = new Promise<void>((resolve) => { readStarted = resolve; });
+    SecureStore.getItemAsync.mockImplementationOnce(async (key: string) => {
+      const manifest = await getItem(key);
+      readStarted();
+      await readGate;
+      return manifest;
+    });
+
+    const read = SecureTokenStore.getItem('auth_session');
+    await started;
+    const write = SecureTokenStore.setItem('auth_session', 'rotated-session');
+    // Drain the writer's microtasks while the read deliberately holds a manifest.
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    releaseRead();
+    await expect(read).resolves.toBe('prior-session');
+    await write;
+    await expect(SecureTokenStore.getItem('auth_session')).resolves.toBe('rotated-session');
+  });
+
+  it('retries a temporarily unavailable keychain without losing the saved login', async () => {
+    await SecureTokenStore.setItem('auth_session', 'remembered-session');
+    SecureStore.getItemAsync.mockRejectedValueOnce(new Error('keychain locked'));
+    await expect(SecureTokenStore.getItem('auth_session')).rejects.toThrow('keychain locked');
+    await expect(SecureTokenStore.getItem('auth_session')).resolves.toBe('remembered-session');
   });
 });
 

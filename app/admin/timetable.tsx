@@ -120,7 +120,6 @@ const makeColors = (isDark: boolean) => ({
   stepperBorder: isDark ? '#333D5C' : PALETTE.slate[200],
 
   // Chrome
-  statusBarBg: isDark ? '#0B1020' : PALETTE.indigo[700],
   overlay: isDark ? 'rgba(2,4,10,0.66)' : 'rgba(10,14,30,0.45)',
 });
 
@@ -1484,7 +1483,7 @@ export default function TimetableManagement() {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={c.statusBarBg} />
+      <StatusBar barStyle="light-content" />
 
       <TourTarget id="screen.admin-timetable.overview"><AdminHeader
         title="Timetable"

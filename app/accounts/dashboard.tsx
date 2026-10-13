@@ -109,6 +109,7 @@ const ACTION_TILE_PALETTE: Record<string, { color: string }> = {
   expenses: { color: '#E11D48' },
   users_clients: { color: '#9333EA' },
   student_login_qr: { color: '#7C3AED' },
+  role_login_qr: { color: '#0F766E' },
   staff: { color: '#C026D3' },
   hostel_students: { color: '#DB2777' },
   marks_export: { color: '#0891B2' },
@@ -130,6 +131,7 @@ const ACTION_CLAY: Record<string, { tile: ClayTileName; category: string }> = {
   fines: { tile: 'ochre', category: 'FINANCE' },
   users_clients: { tile: 'plum', category: 'DIRECTORY' },
   student_login_qr: { tile: 'navy', category: 'ACCESS' },
+  role_login_qr: { tile: 'teal', category: 'ACCESS' },
   expenses: { tile: 'burgundy', category: 'SPEND' },
   payroll: { tile: 'rosewood', category: 'PAY' },
   staff: { tile: 'rosewood', category: 'ENROL' },
@@ -2327,6 +2329,7 @@ export default function AccountsDashboard() {
     { id: 'fines', title: 'Fines & adjustments', description: 'Waivers, penalties, policies', icon: 'shield-checkmark', route: '/accounts/fines', library: Ionicons, permission: 'fees.view', semantic: 'warning' as const, group: 'control' },
     { id: 'users_clients', title: 'Users / clients', description: 'Open the directory', icon: 'people-outline', route: '/accounts/manage-users', library: Ionicons, group: 'people' },
     { id: 'student_login_qr', title: 'Student login QR', description: 'Printable private login cards', icon: 'qr-code-outline', route: '/accounts/student-login-qr', library: Ionicons, group: 'people' },
+    { id: 'role_login_qr', title: 'Role login QR', description: 'Cards for staff and other roles', icon: 'qr-code-outline', route: '/accounts/role-login-qr', library: Ionicons, group: 'people' },
     { id: 'expenses', title: 'Expenses', description: 'School spend & vouchers', icon: 'receipt', route: '/accounts/expenses', library: Ionicons, permission: 'expenses.view', semantic: 'danger' as const, group: 'control' },
     { id: 'payroll', title: 'Payroll', description: 'Salary & staff attendance', icon: 'people', route: '/accounts/payroll', library: Ionicons, permission: 'payroll.process', group: 'people' },
     { id: 'leaves', title: 'Apply leave', description: 'Request your own time off', icon: 'document-text-outline', route: '/accounts/leaves', library: Ionicons, group: 'people' },
@@ -2551,7 +2554,7 @@ export default function AccountsDashboard() {
         style={{ position: 'absolute', top: 280, left: 0, right: 0, height: 240 }}
         pointerEvents="none"
       />
-      <StatusBar barStyle="light-content" backgroundColor="#15245C" />
+      <StatusBar barStyle="light-content" />
 
       <TourTarget id="screen.accounts-dashboard.overview"><AdminHeader
         title={t('accounts_dashboard.dashboard_title', 'Dashboard')}

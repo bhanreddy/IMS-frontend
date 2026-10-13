@@ -239,7 +239,7 @@ function ResultDetailsInner() { // OPT: Split inner tree so ErrorBoundary can wr
   if (detail) { // OPT: Prefer detail when payload exists (covers route examId + auto single-exam).
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="dark-content" />
         <StudentHeader showBackButton title={t_field(detail.exam_name, detail.exam_name_te) || (title as string) || 'Result Details'} />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <SummaryGradientCard detail={detail} styles={styles} gradeForPct={gradeForPct} />
@@ -268,7 +268,7 @@ function ResultDetailsInner() { // OPT: Split inner tree so ErrorBoundary can wr
   if (needsList && listRows.length > 1) { // OPT: Multi-exam list (pick one).
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="dark-content" />
         <StudentHeader showBackButton title={(title as string) || 'Results'} />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.listContainer}>

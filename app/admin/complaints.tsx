@@ -572,7 +572,7 @@ export default function AdminComplaints() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.admin-complaints.overview"><AdminHeader title="Complaints Box" showBackButton={true} /></TourTarget>
 
       {/* Search */}

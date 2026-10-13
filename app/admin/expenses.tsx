@@ -345,7 +345,7 @@ export default function AdminExpenses() {
 
   return (
     <TourTarget id="screen.admin-expenses.workspace" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.admin-expenses.overview"><AdminHeader title="Expense Tracker" showBackButton={true} /></TourTarget>
 
       {/* Segmented tabs */}

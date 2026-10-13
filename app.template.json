@@ -8,7 +8,7 @@
       "ios",
       "web"
     ],
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon-v2.png",
     "scheme": "testapp",
     "userInterfaceStyle": "light",
@@ -94,12 +94,15 @@
       "@react-native-community/datetimepicker",
       "./plugins/withManifestMerger.js",
       "./plugins/withAndroidSounds.js",
+      "./plugins/withAndroidWindowCompatibility.js",
+      "./plugins/withAndroidReleaseOptimization.js",
       [
         "expo-build-properties",
         {
           "android": {
-            "enableMinifyInReleaseBuilds": false,
-            "enableShrinkResourcesInReleaseBuilds": false
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# Expo Record options (including SecureStore) use this annotation at runtime.\n# Backport of expo/expo#51206 for Expo Modules Core 3.0.30.\n-keep @interface expo.modules.kotlin.records.Field { *; }"
           },
           "ios": {
             "useFrameworks": "static",

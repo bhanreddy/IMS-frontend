@@ -186,7 +186,7 @@ export const AcademicPlannerService = {
     return api.post('/academics/risks/scan', { academic_year_id: academicYearId });
   },
   generateRecovery(planId: string, riskEventId?: string) {
-    return api.post('/academics/recovery-plans/generate', { plan_id: planId, risk_event_id: riskEventId });
+    return api.post<Record<string, unknown>>('/academics/recovery-plans/generate', { plan_id: planId, risk_event_id: riskEventId });
   },
   approveRecovery(id: string, selectedOption: string) {
     return api.post(`/academics/recovery-plans/${id}/approve`, { selected_option: selectedOption });

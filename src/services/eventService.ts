@@ -9,6 +9,8 @@ export interface EventItem {
   category?: string;
   start_date: string;
   end_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
   location?: string;
   is_all_day?: boolean;
   target_audience?: string;
@@ -42,6 +44,7 @@ export interface EventItem {
     target_houses?: string[];
   };
   created_at?: string;
+  configuration?: EventItem['config'];
   updated_at?: string;
   registration_count?: number;
   consented_count?: number;

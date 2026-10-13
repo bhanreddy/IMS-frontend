@@ -676,7 +676,6 @@ export default function StaffLMSUpload() {
     <View style={styles.container}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.colors.background}
       />
       <TourTarget id="screen.staff-lms-upload.overview"><StaffHeader title="Upload LMS Content" showBackButton={true} /></TourTarget>
       {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}

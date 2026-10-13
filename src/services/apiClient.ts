@@ -109,7 +109,8 @@ export async function clearTokens(): Promise<void> {
 
 export type SessionRecoveryReason = 'missing' | 'expired' | 'unauthorized';
 type SessionRecoveryCallback = (
-  reason: SessionRecoveryReason
+  reason: SessionRecoveryReason,
+  rejectedAccessToken?: string,
 ) => Promise<Session | null>;
 let sessionRecoveryCallback: SessionRecoveryCallback | null = null;
 let recoveryPromise: Promise<Session | null> | null = null;
@@ -126,11 +127,12 @@ export const registerSessionRecoveryCallback = (
 };
 
 async function attemptSessionRecovery(
-  reason: SessionRecoveryReason
+  reason: SessionRecoveryReason,
+  rejectedAccessToken?: string,
 ): Promise<Session | null> {
   if (recoveryPromise) return recoveryPromise;
   recoveryPromise = (async () => {
-    if (sessionRecoveryCallback) return sessionRecoveryCallback(reason);
+    if (sessionRecoveryCallback) return sessionRecoveryCallback(reason, rejectedAccessToken);
     const { data, error } = await supabase.auth.refreshSession();
     return error ? null : data.session;
   })().finally(() => {
@@ -470,7 +472,7 @@ async function apiRequestInner<T>(
         // Every 401 enters the same single-flight recovery pipeline. It first
         // rotates the refresh token and can fall back to the native saved login.
         if (!_isRetry && canRecoverAuthForEndpoint(endpoint)) {
-          const recovered = await attemptSessionRecovery('unauthorized').catch(() => null);
+          const recovered = await attemptSessionRecovery('unauthorized', token ?? undefined).catch(() => null);
           if (recovered) {
             await setTokens(recovered.access_token, recovered.refresh_token);
             return await apiRequest<T>(endpoint, {

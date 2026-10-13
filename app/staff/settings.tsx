@@ -100,7 +100,7 @@ export default function StaffSettings() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
             <TourTarget id="screen.staff-settings.overview"><StaffHeader title="Settings" showBackButton /></TourTarget>
             {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}
 

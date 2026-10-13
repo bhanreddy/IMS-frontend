@@ -485,7 +485,6 @@ export default function FeeAdjustmentsScreen() {
     <View style={styles.container}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.colors.background}
       />
       <TourTarget id="screen.admin-fees-adjustments.overview"><AdminHeader title="Fee Adjustments" showBackButton /></TourTarget>
 

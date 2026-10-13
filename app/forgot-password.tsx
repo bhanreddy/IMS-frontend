@@ -31,7 +31,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#3a1c71" />
+            <StatusBar barStyle="light-content" />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

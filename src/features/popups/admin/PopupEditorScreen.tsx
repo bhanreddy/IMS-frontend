@@ -295,7 +295,7 @@ function Label({ children }: { children: string }) {
   return <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textMuted, marginBottom: 8, marginTop: 8 }}>{children}</Text>;
 }
 
-function ChipRow({ values, selected, selectedMany, onSelect }: { values: string[]; selected?: string; selectedMany?: string[]; onSelect: (v: string) => void }) {
+function ChipRow<T extends string>({ values, selected, selectedMany, onSelect }: { values: T[]; selected?: string; selectedMany?: string[]; onSelect: (v: T) => void }) {
   const { theme, isDark } = useTheme();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>

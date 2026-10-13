@@ -440,7 +440,7 @@ export default function LMSPage() {
 
   return (
     <TourTarget id="screen.screen-lms.workspace" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.card} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.screen-lms.overview"><StudentHeader showBackButton={true} title="LMS" /></TourTarget>
 
       {loading ? (

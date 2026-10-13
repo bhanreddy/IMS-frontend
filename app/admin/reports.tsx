@@ -560,7 +560,7 @@ export default function AdminReports() {
 
   return (
     <View style={[S.container, { backgroundColor: C.bg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Soft ambient wash — static, painted once */}
       {!isDark && (

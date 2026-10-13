@@ -121,7 +121,7 @@ const StaffProfileScreen = () => {
     </TouchableOpacity>;
   };
   return <View style={styles.container}>
-    <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <StatusBar barStyle="dark-content" />
 
     <TourTarget id="screen.staff-profile.overview"><StaffHeader title="My Profile" showBackButton={true} /></TourTarget>
     {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}

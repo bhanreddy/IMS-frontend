@@ -400,7 +400,7 @@ export default function AccountsExpenses() {
 
   return (
     <TourTarget id="screen.accounts-expenses.overview" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#0A0F1E' : '#F1F5F9'} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && <AdminHeader title="Expense Tracker" showBackButton />}
 
       <SearchBar value={searchQuery} onChange={setSearchQuery} isDark={isDark} />

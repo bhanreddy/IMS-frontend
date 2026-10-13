@@ -58,7 +58,7 @@ export default function AddAdminScreen() {
     router.back();
   };
   return <TourTarget id="screen.accounts-add-admin.overview" native><View style={styles.container}>
-    <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <StatusBar barStyle="dark-content" />
     {!shellActive && <AdminHeader title={t('accounts.add_admin', 'Add New Admin')} />}
     <TourTarget id="screen.accounts-add-admin.workspace" style={{ flex: 1 }}><KeyboardAwareScreen variant="scroll" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bottomOffset={24}>
         <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.section}>

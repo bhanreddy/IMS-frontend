@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   RefreshControl,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { alertCompat } from '../../utils/crossPlatformAlert';
 import { Ionicons } from '@expo/vector-icons';
@@ -390,7 +392,7 @@ function SortHeader({
   column: SortKey;
   sort: { key: SortKey; dir: SortDir } | null;
   align?: 'right';
-  columnStyle: object | number;
+  columnStyle: StyleProp<ViewStyle>;
   colors: Palette;
   onSort: (key: SortKey) => void;
 }) {
@@ -1357,7 +1359,7 @@ export default function PayrollScreen({ isAdmin = false, showHeader = true }: Pa
 
   return (
     <View style={[styles.page, { backgroundColor: colors.page }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.page} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {showHeader && !shellActive ? <AdminHeader title="Staff Payroll" hideTitle showBackButton /> : null}
 
       <ScrollView

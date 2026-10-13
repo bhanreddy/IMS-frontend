@@ -70,7 +70,7 @@ export default function AccountsInvoices() {
     }} color="#4F46E5" />;
   };
   return <TourTarget id="screen.accounts-invoices.overview" native><View style={styles.container}>
-    <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <StatusBar barStyle="dark-content" />
     {!shellActive && <AdminHeader title="Invoices" showBackButton={true} />}
 
     {error && <View style={styles.errorBox}>

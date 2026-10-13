@@ -559,7 +559,7 @@ export default function StaffMyAttendanceScreen() {
     // ── Render ───────────────────────────────────────────────────────────────
     return (
         <TourTarget id="screen.staff-attendance.workspace" native><View style={[styles.container, { backgroundColor: pageBg }]}>
-            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={pageBg} />
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
             <View pointerEvents="none" style={[styles.orb1, { backgroundColor: orb1Color }]} />
             <View pointerEvents="none" style={[styles.orb2, { backgroundColor: orb2Color }]} />

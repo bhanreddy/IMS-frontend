@@ -23,8 +23,7 @@ const SESSION_HEARTBEAT_KEY = 'sb_last_session_write';
 
 const V2_PREFIX = 'secure_store_v2';
 const CHUNK_BYTES = 1_200;
-const keyWriteChains = new Map<string, Promise<void>>();
-const migrationsInFlight = new Map<string, Promise<string | null>>();
+const keyOperationChains = new Map<string, Promise<unknown>>();
 
 interface ChunkManifest {
   v: 2;
@@ -33,24 +32,16 @@ interface ChunkManifest {
   digest: string;
 }
 
-function enqueueKeyWrite(key: string, operation: () => Promise<void>): Promise<void> {
-  const previous = keyWriteChains.get(key) ?? Promise.resolve();
+// Reads share the queue with writes: deleting a retired generation must never
+// race a reader that has already loaded that generation's manifest.
+function enqueueKeyOperation<T>(key: string, operation: () => Promise<T>): Promise<T> {
+  const previous = keyOperationChains.get(key) ?? Promise.resolve();
   const current = previous.then(operation, operation);
-  keyWriteChains.set(key, current);
+  keyOperationChains.set(key, current);
   const cleanup = () => {
-    if (keyWriteChains.get(key) === current) keyWriteChains.delete(key);
+    if (keyOperationChains.get(key) === current) keyOperationChains.delete(key);
   };
   void current.then(cleanup, cleanup);
-  return current;
-}
-
-function migrateLegacyValueOnce(key: string): Promise<string | null> {
-  const existing = migrationsInFlight.get(key);
-  if (existing) return existing;
-  const current = migrateLegacyValue(key).finally(() => {
-    if (migrationsInFlight.get(key) === current) migrationsInFlight.delete(key);
-  });
-  migrationsInFlight.set(key, current);
   return current;
 }
 
@@ -240,7 +231,8 @@ async function migrateLegacyValue(key: string): Promise<string | null> {
   }
 
   if (value === null) return null;
-  await enqueueKeyWrite(key, () => writeSecureChunks(key, value));
+  // Called from the per-key operation queue; do not enqueue recursively.
+  await writeSecureChunks(key, value);
   await AsyncStorage.multiRemove([key, perKeyLegacy, encryptedStorageKey]);
   return value;
 }
@@ -285,11 +277,15 @@ export const SecureTokenStore = {
   getItem: async (key: string): Promise<string | null> => {
     try {
       if (Platform.OS === 'web') return await AsyncStorage.getItem(key);
-      const current = await readSecureChunks(key);
-      return current ?? (await migrateLegacyValueOnce(key));
+      return await enqueueKeyOperation(key, async () => {
+        const current = await readSecureChunks(key);
+        return current ?? (await migrateLegacyValue(key));
+      });
     } catch (error) {
       if (__DEV__) console.error('[SecureTokenStore] Secure read failed:', error);
-      return null;
+      // A locked/unavailable keychain is not a missing session. Let callers
+      // retry without overwriting or deleting the durable credentials.
+      throw error;
     }
   },
 
@@ -300,7 +296,7 @@ export const SecureTokenStore = {
         return;
       }
 
-      await enqueueKeyWrite(key, async () => {
+      await enqueueKeyOperation(key, async () => {
         await writeSecureChunks(key, value);
         await AsyncStorage.multiRemove([
           key,
@@ -325,7 +321,7 @@ export const SecureTokenStore = {
         return;
       }
 
-      await enqueueKeyWrite(key, async () => {
+      await enqueueKeyOperation(key, async () => {
         const existing = await readSecureChunks(key).catch(() => null);
         await deleteSecureChunks(key);
         await AsyncStorage.multiRemove([

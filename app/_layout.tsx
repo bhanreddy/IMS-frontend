@@ -198,7 +198,7 @@ function ThemeSyncWrapper() {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.colors.background} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <View style={styles.appFrame}>
           {isWeb && !isMobileWeb ? <SchoolRibbon /> : null}
           <View

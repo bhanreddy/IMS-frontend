@@ -282,7 +282,7 @@ export default function StaffOmrScannerScreen() {
 
   return (
     <TourTarget id="screen.staff-omr-scanner.overview" native><TourTarget id="screen.staff-omr-scanner.workspace" native><View style={styles.root}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" />
 
       {/* Live Camera Feed */}
       <CameraView

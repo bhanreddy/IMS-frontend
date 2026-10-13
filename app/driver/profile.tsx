@@ -200,7 +200,7 @@ export default function DriverProfile() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F0F1A" />
+      <StatusBar barStyle="light-content" />
       <TourTarget id="screen.driver-profile.overview"><StudentHeader title={t('driver_ui.my_profile')} menuUserType="driver" showBackButton={false} /></TourTarget>
       <TourTarget id="screen.driver-profile.workspace" native><TourScrollView
         contentContainerStyle={styles.scrollContent}

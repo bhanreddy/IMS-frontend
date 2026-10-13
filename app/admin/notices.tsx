@@ -425,7 +425,7 @@ export default function AdminNotices() {
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <TourTarget id="screen.admin-notices.overview"><AdminHeader title="Notices" showBackButton={true} hideAppSearch /></TourTarget>
 
       {/* Toolbar: search + compact stats */}

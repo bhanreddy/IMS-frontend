@@ -51,6 +51,31 @@ describe('student login QR A4 layout', () => {
     expect(html).toContain('Anyone with this card can sign in as this student');
   });
 
+  it('prints role cards without student-only copy', () => {
+    const html = buildStudentQrPdfHtmlFromSvgs({
+      school: { id: 17, name: 'Sanskriti School', logo_url: null },
+      academicYear: '',
+      className: 'Driver',
+      sectionName: '',
+      cardKind: 'role',
+      sheetTitle: 'Login QR Codes',
+      sheetMeta: 'Driver',
+      credentials: [{
+        qrPayload: 'payload',
+        credentialId: 'credential',
+        expiresAt: '2027-09-10T00:00:00.000Z',
+        created: true,
+        student: { id: 'user-1', name: 'Ravi Kumar', admissionNo: 'DRV-14', className: 'Driver', sectionName: 'Transport' },
+      }],
+    }, ['<svg></svg>']);
+    expect(html).toContain('Login QR Codes');
+    expect(html).toContain('Ravi Kumar');
+    expect(html).toContain('DRV-14');
+    expect(html).toContain('Anyone with this card can sign in as this account');
+    expect(html).not.toContain('this student');
+    expect(html).not.toContain('password');
+  });
+
   it('builds a sanitized printable filename', () => {
     expect(studentQrPdfFilename({
       school: { id: 17, name: 'Sanskriti School', logo_url: null },

@@ -22,6 +22,7 @@ export function buildAdminQuickActions(t: TFunction): AdminNavAction[] {
     { title: 'Student Portfolio', icon: 'id-card-outline', route: '/admin/student-portfolio', tier: 'PRIMARY', gradient: ['#0F766E', '#14B8A6'], category: 'Students' },
     { title: 'Admissions Pipeline', icon: 'person-add-outline', route: '/admin/admissions', tier: 'PRIMARY', gradient: ['#1E3A8A', '#0D9488'], category: 'Students', permission: 'admissions.view' },
     { title: 'Student Login QR Codes', icon: 'qr-code-outline', route: '/admin/student-login-qr', tier: 'PRIMARY', gradient: ['#5B21B6', '#8B5CF6'], category: 'Students' },
+    { title: 'Role Login QR Codes', icon: 'qr-code-outline', route: '/admin/role-login-qr', tier: 'PRIMARY', gradient: ['#0F766E', '#0D9488'], category: 'HR' },
     { title: t('admin_dashboard_v2.expense_tracker', 'Expenses'), icon: 'receipt-outline', route: '/admin/expenses', tier: 'FINANCE', gradient: ['#14532D', '#22C55E'], category: 'Finance' },
     { title: 'Fee Adjustments', icon: 'cut-outline', route: '/admin/fees/adjustments', tier: 'FINANCE', gradient: ['#365314', '#84CC16'], category: 'Finance' },
     { title: 'Fines & Penalties', icon: 'shield-checkmark-outline', route: '/accounts/fines', tier: 'FINANCE', gradient: ['#D97706', '#F59E0B'], category: 'Finance', permission: 'fees.view' },

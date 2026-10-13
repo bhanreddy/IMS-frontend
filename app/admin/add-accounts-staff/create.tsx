@@ -123,7 +123,7 @@ export default function AddAccountsStaff() {
     }
   };
   return <View style={styles.container}>
-    <StatusBar barStyle="light-content" backgroundColor={ADMIN_THEME.colors.primary} />
+    <StatusBar barStyle="light-content" />
     <AdminHeader title="Add Accounts Staff" showBackButton />
     <KeyboardAwareScreen variant="scroll" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bottomOffset={24}>
       {/* Header Card */}

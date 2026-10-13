@@ -1567,14 +1567,14 @@ export default function AccountsFees() {
 
   useEffect(() => {
     if (!IS_WEB) return;
-    const onKey = (e: { metaKey?: boolean; ctrlKey?: boolean; key: string; preventDefault: () => void }) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         searchRef.current?.focus();
       }
     };
-    window.addEventListener('keydown', onKey as EventListener);
-    return () => window.removeEventListener('keydown', onKey as EventListener);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const clearStudentFilters = useCallback(() => {
@@ -1831,7 +1831,6 @@ export default function AccountsFees() {
     <TourTarget id="screen.accounts-fees.workspace" native><View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={isDark ? '#0F1117' : '#1E293B'}
       />
       {!shellActive && <AdminHeader title="Fee Management" showBackButton />}
 

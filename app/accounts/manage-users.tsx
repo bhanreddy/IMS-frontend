@@ -574,7 +574,7 @@ export default function ManageUsersScreen() {
 
   return (
     <TourTarget id="screen.accounts-manage-users.overview" native><View style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && (
         <AdminHeader
           title="Users & Clients"

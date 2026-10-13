@@ -65,7 +65,7 @@ export default function StaffFineRequestScreen() {
   };
 
   return (
-    <KeyboardAwareScreen>
+    <KeyboardAwareScreen variant="fixed" stickyContent={null}>
       <TourTarget id="screen.staff-fine-request.overview"><StaffHeader title="Fine request" subtitle="Submit for accounts approval" showBackButton /></TourTarget>
       <TourTarget id="screen.staff-fine-request.workspace" native><TourScrollView contentContainerStyle={st.content}>
         <Text style={st.hint}>Teachers cannot debit a student directly. Your request stays pending until accounts approves it.</Text>

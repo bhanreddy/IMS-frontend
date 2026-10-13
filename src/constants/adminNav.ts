@@ -45,6 +45,7 @@ export function buildAdminNavActions(t: TFunction): AdminNavAction[] {
     { title: 'Student Portfolio', icon: 'id-card-outline', route: '/admin/student-portfolio', tier: 'PRIMARY', gradient: ['#0F766E', '#14B8A6'], category: 'Students' },
     { title: 'Admissions Pipeline', icon: 'person-add-outline', route: '/admin/admissions', tier: 'PRIMARY', gradient: ['#1E3A8A', '#0D9488'], category: 'Students', permission: 'admissions.view' },
     { title: 'Student Login QR Codes', icon: 'qr-code-outline', route: '/admin/student-login-qr', tier: 'PRIMARY', gradient: ['#5B21B6', '#8B5CF6'], category: 'Students' },
+    { title: 'Role Login QR Codes', icon: 'qr-code-outline', route: '/admin/role-login-qr', tier: 'PRIMARY', gradient: ['#0F766E', '#0D9488'], category: 'HR' },
     { title: 'UDISE Readiness', icon: 'shield-checkmark-outline', route: '/admin/udise-readiness', tier: 'ADMIN', gradient: ['#1E3A8A', '#0284C7'], category: 'Compliance', permission: 'udise.view' },
     { title: t('admin_dashboard_v2.expense_tracker', 'Expenses'), icon: 'receipt-outline', route: '/admin/expenses', tier: 'FINANCE', gradient: ['#14532D', '#22C55E'], category: 'Finance' },
     { title: 'Subscription', icon: 'card-outline', route: '/admin/subscription', tier: 'FINANCE', gradient: ['#0F766E', '#2563EB'], category: 'Finance' },

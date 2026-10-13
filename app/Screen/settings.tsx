@@ -64,7 +64,7 @@ export default function Settings() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
             <TourTarget id="screen.screen-settings.overview"><StudentHeader
                 title={t('settings.title', 'Settings')}

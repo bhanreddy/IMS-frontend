@@ -413,7 +413,6 @@ export default function AccountsDashboardVisibilityScreen() {
             <View style={[styles.container, { backgroundColor: stylesThemed.screenBg }]}>
                 <StatusBar
                     barStyle={isDark ? 'light-content' : 'dark-content'}
-                    backgroundColor={stylesThemed.screenBg}
                 />
                 <AdminHeader title="Accounts Visibility" showBackButton={true} />
                 <VisibilitySkeleton isDark={isDark} />
@@ -427,7 +426,6 @@ export default function AccountsDashboardVisibilityScreen() {
         <View style={[styles.container, { backgroundColor: stylesThemed.screenBg }]}>
             <StatusBar
                 barStyle={isDark ? 'light-content' : 'dark-content'}
-                backgroundColor={stylesThemed.screenBg}
             />
             <TourTarget id="screen.admin-fees-visibility.overview"><AdminHeader title="Accounts Visibility" showBackButton={true} /></TourTarget>
 

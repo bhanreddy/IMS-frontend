@@ -122,7 +122,7 @@ export default function PaySlip() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" />
       <TourTarget id="screen.staff-payslip.overview"><StaffHeader title="My Pay Slips" showBackButton={true} /></TourTarget>
       {isViewingAsAdmin && <ViewAsBanner name={viewAsName} />}
       <TourTarget id="screen.staff-payslip.workspace" native><TourScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

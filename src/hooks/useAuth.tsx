@@ -2,7 +2,7 @@ import { stopDriverLocationUpdates, reconcileDriverTracking } from '../services/
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { supabase } from '../services/supabaseConfig';
-import { AuthService, clearAuthState, isInternalSessionSwap } from '../services/authService';
+import { AuthService, isInternalSessionSwap } from '../services/authService';
 import { AuthSession, ValidatedUser } from '../types/auth';
 import { SCHOOL_ID } from '../constants/school';
 import { suppressTransientApiAlerts } from '../services/apiClient';
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const backoffDelay = useRef(1000); // Start at 1s
   const refreshRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const justSignedIn = useRef(false); // Guard against TOKEN_REFRESHED race after sign-in
+  const signingOut = useRef(false);
   const sessionRef = useRef<AuthSession | null>(null);
   sessionRef.current = session;
   authSessionSnapshotRef.current = session;
@@ -127,11 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.supabaseSession?.access_token, isStudent]);
 
   const signOut = async () => {
+    signingOut.current = true;
+    if (refreshRetryTimer.current) clearTimeout(refreshRetryTimer.current);
     await stopDriverLocationUpdates();
     console.log('[AUTH_OUT]', 'manual_logout', new Date().toISOString());
-    // Mark this as a deliberate logout so the onAuthStateChange SIGNED_OUT
-    // handler is allowed to clear state. Reset shortly after the supabase
-    // signOut()'s event has been processed.
+    // Deferred SDK events and recovery retries are suppressed until the user
+    // explicitly signs in or selects a saved account again.
     setLoading(true);
     // Drop any unlock ticket so it cannot authorize a later switch.
     // The account's fingerprint opt-in record is deleted by the vault removal
@@ -213,6 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // removal. Active-user caches are still purged so the signed-out login screen
   // cannot retain privileged data.
   const signOutKeepAccount = async () => {
+    signingOut.current = true;
+    if (refreshRetryTimer.current) clearTimeout(refreshRetryTimer.current);
     await stopDriverLocationUpdates();
     const signingOutUserId = sessionRef.current?.validatedUser?.userId ?? null;
     clearFingerprintTickets();
@@ -235,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // identity. Retry forever with capped backoff; API requests still require a
   // fresh server-accepted token, so preserving UI does not bypass authorization.
   const handleRefreshFailure = (currentRole: string | null) => {
-    if (!sessionRef.current) return;
+    if (signingOut.current || !sessionRef.current) return;
     const nextDelay = Math.min(backoffDelay.current * 2, 60000);
     backoffDelay.current = nextDelay;
     if (__DEV__) {
@@ -254,8 +257,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Core refresh logic invoked internally or explicitly.
   const handleRefresh = async (currentRole: string | null) => {
+    if (signingOut.current) return;
+    const userId = sessionRef.current?.validatedUser.userId;
     try {
-      const newSession = await AuthService.refreshSession();
+      const newSession = await AuthService.refreshSession({ force: false });
+      if (signingOut.current || sessionRef.current?.validatedUser.userId !== userId) return;
       if (newSession) {
         if (refreshRetryTimer.current) {
           clearTimeout(refreshRetryTimer.current);
@@ -264,10 +270,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(newSession);
         backoffDelay.current = 1000; // Reset on success
       } else {
-        // Refresh returned null — could be transient or fatal.
-        // AuthService.refreshSession already differentiates: it only returns
-        // null after clearing auth state for fatal errors OR on transient
-        // failures where no prior session exists.
+        // A null result can be a temporary recovery failure. Keep the current
+        // identity and retry; confirmed account rejection clears it via SDK events.
         handleRefreshFailure(currentRole);
       }
     } catch {
@@ -276,40 +280,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let disposed = false;
+    let bootRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    const authEventTimers = new Set<ReturnType<typeof setTimeout>>();
     // ── Layer A: lifecycle listeners for Supabase auto-refresh ──
     // Android process recreation and browser tab/page restoration can both
     // leave a durable UI identity without a usable live SDK session.
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
-        supabase.auth.startAutoRefresh();
+        if (Platform.OS !== 'web') supabase.auth.startAutoRefresh();
         const roleCode = sessionRef.current?.validatedUser?.role?.code || null;
         if (sessionRef.current) void handleRefresh(roleCode);
       } else if (nextState === 'background' || nextState === 'inactive') {
-        supabase.auth.stopAutoRefresh();
+        if (Platform.OS !== 'web') supabase.auth.stopAutoRefresh();
       }
     };
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
     // Start auto-refresh immediately (app is active on mount)
-    supabase.auth.startAutoRefresh();
+    if (Platform.OS !== 'web' && AppState.currentState === 'active') supabase.auth.startAutoRefresh();
 
     // React Native Web maps most visibility changes to AppState, but it does
     // not cover every browser lifecycle. `pageshow` repairs pages restored from
     // the back/forward cache; `online` repairs a tab that resumed while offline.
     // refreshSession() now rehydrates the live client before rotating tokens.
     const handleBrowserResume = () => {
-      supabase.auth.startAutoRefresh();
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const roleCode = sessionRef.current?.validatedUser?.role?.code || null;
       if (sessionRef.current) void handleRefresh(roleCode);
     };
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.addEventListener('pageshow', handleBrowserResume);
       window.addEventListener('online', handleBrowserResume);
+      document.addEventListener('visibilitychange', handleBrowserResume);
     }
 
     let authSubscription: { unsubscribe: () => void } | null = null;
 
     const initializeAuth = async () => {
+      if (disposed) return;
       try {
         // Durable local state decides whether the app has a remembered login.
         // Network speed and access-token age do not participate in this boot gate.
@@ -342,13 +351,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) {
         console.error('[AUTH_BOOT_FAIL]', e);
-      } finally {
-        setLoading(false);
-        setAuthChecked(true);
+        // A temporarily locked keychain is not an empty login. Keep the boot
+        // gate until a read succeeds instead of redirecting to the login page.
+        if (!disposed) bootRetryTimer = setTimeout(() => { void initializeAuth(); }, 2000);
+        return;
       }
+      if (disposed) return;
+      setLoading(false);
+      setAuthChecked(true);
 
       // 4. Subscribe to auth state changes from Supabase directly
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, refreshedSession) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, refreshedSession) => {
         // Phase 2: suppress events fired as a side effect of OUR OWN internal
         // setSession()/signInWithPassword() during switchAccount / addAccount-
         // restore. Without this, an expired-token setSession emits TOKEN_REFRESHED
@@ -360,42 +373,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (__DEV__) console.log(`[useAuth] Suppressing ${event} during internal session swap`);
           return;
         }
-        if (event === 'SIGNED_OUT') {
-          // Supabase also emits SIGNED_OUT while rejecting a refresh token.
-          // Preserve a remembered app identity during silent credential
-          // recovery. Explicit logout removes auth_session before emitting,
-          // so it still reaches the null branch.
-          const remembered = await AuthService.getStoredSession();
-          if (remembered) {
-            setSession(remembered);
-            void handleRefresh(
-              remembered.validatedUser?.role?.code || null
-            );
-          } else {
-            await clearAuthState();
-            setSession(null);
-          }
-        } else if (event === 'TOKEN_REFRESHED') {
-          // Skip if we just signed in — Supabase fires TOKEN_REFRESHED
-          // immediately after sign-in which races with the sign-in flow
-          if (justSignedIn.current) {
-            if (__DEV__) console.log('[useAuth] Skipping TOKEN_REFRESHED — just signed in');
-            return;
-          }
-          if (refreshedSession) {
-            const adopted = await AuthService.adoptRefreshedSession(
-              refreshedSession
-            );
-            if (adopted) {
-              if (refreshRetryTimer.current) {
-                clearTimeout(refreshRetryTimer.current);
-                refreshRetryTimer.current = null;
+        if (signingOut.current || (event !== 'SIGNED_OUT' && event !== 'TOKEN_REFRESHED')) return;
+        // Supabase awaits subscribers while holding its auth lock. Defer all
+        // storage/recovery work so it cannot block the token refresh itself.
+        const timer = setTimeout(() => {
+          authEventTimers.delete(timer);
+          if (disposed || signingOut.current || isInternalSessionSwap()) return;
+          void (async () => {
+            if (event === 'SIGNED_OUT') {
+              // Supabase also emits SIGNED_OUT while rejecting a refresh token.
+              // Preserve a remembered app identity during silent credential
+              // recovery. Explicit logout removes auth_session before emitting,
+              // so it still reaches the null branch.
+              const remembered = await AuthService.getStoredSession();
+              if (disposed || signingOut.current) return;
+              if (remembered) {
+                setSession(remembered);
+                void handleRefresh(
+                  remembered.validatedUser?.role?.code || null
+                );
+              } else {
+                setSession(null);
               }
-              backoffDelay.current = 1000;
-              setSession(adopted);
+            } else if (event === 'TOKEN_REFRESHED') {
+              if (refreshedSession) {
+                const adopted = await AuthService.adoptRefreshedSession(
+                  refreshedSession
+                );
+                if (adopted && !disposed && !signingOut.current &&
+                    adopted.validatedUser.userId === sessionRef.current?.validatedUser.userId) {
+                  if (refreshRetryTimer.current) {
+                    clearTimeout(refreshRetryTimer.current);
+                    refreshRetryTimer.current = null;
+                  }
+                  backoffDelay.current = 1000;
+                  setSession(adopted);
+                }
+              }
             }
-          }
-        }
+          })().catch(() => {
+            if (!disposed) handleRefreshFailure(sessionRef.current?.validatedUser.role?.code || null);
+          });
+        }, 0);
+        authEventTimers.add(timer);
       });
       authSubscription = subscription;
     };
@@ -403,25 +423,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     return () => {
+      disposed = true;
+      if (bootRetryTimer) clearTimeout(bootRetryTimer);
+      authEventTimers.forEach(clearTimeout);
       appStateSubscription.remove();
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.removeEventListener('pageshow', handleBrowserResume);
         window.removeEventListener('online', handleBrowserResume);
+        document.removeEventListener('visibilitychange', handleBrowserResume);
       }
       authSubscription?.unsubscribe();
       if (refreshRetryTimer.current) {
         clearTimeout(refreshRetryTimer.current);
         refreshRetryTimer.current = null;
       }
-      supabase.auth.stopAutoRefresh();
+      if (Platform.OS !== 'web') supabase.auth.stopAutoRefresh();
     };
   }, []);
 
   const signIn = async (email: string, pass: string) => {
+    signingOut.current = false;
     setLoading(true);
-    // Set guard — suppress TOKEN_REFRESHED for 5 seconds after sign-in
-    justSignedIn.current = true;
-    setTimeout(() => { justSignedIn.current = false; }, 5000);
     try {
       const result = await AuthService.signIn(email, pass);
       if (result.session) {
@@ -442,9 +464,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithQr = async (qrPayload: string) => {
+    signingOut.current = false;
     setLoading(true);
-    justSignedIn.current = true;
-    setTimeout(() => { justSignedIn.current = false; }, 5000);
     try {
       const result = await AuthService.signInWithQr(qrPayload);
       if (result.session) {
@@ -501,6 +522,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await stopDriverLocationUpdates();
     const result = await AuthService.switchAccount(userId);
     if (result.session) {
+      signingOut.current = false;
       try {
         await clearActiveContextStore();
         setPortalContexts(null);

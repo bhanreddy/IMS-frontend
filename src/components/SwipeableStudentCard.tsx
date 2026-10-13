@@ -5,6 +5,7 @@ import {
     StyleSheet,
     useWindowDimensions,
     Platform,
+    type GestureResponderEvent,
 } from 'react-native';
 import { GestureDetector, Gesture, TouchableOpacity } from 'react-native-gesture-handler';
 import Animated, {
@@ -268,7 +269,7 @@ const SwipeableStudentCard: React.FC<Props> = ({
                                 {hasStreak ? (
                                     <TouchableOpacity
                                         activeOpacity={0.75}
-                                        onPress={(e: any) => {
+                                        onPress={(e?: GestureResponderEvent) => {
                                             e?.stopPropagation?.();
                                             handleStreakPress();
                                         }}
@@ -302,7 +303,7 @@ const SwipeableStudentCard: React.FC<Props> = ({
                                 ) : student.isIrregular ? (
                                     <TouchableOpacity
                                         activeOpacity={0.75}
-                                        onPress={(e: any) => {
+                                        onPress={(e?: GestureResponderEvent) => {
                                             e?.stopPropagation?.();
                                             handleStreakPress();
                                         }}

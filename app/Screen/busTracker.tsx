@@ -355,7 +355,7 @@ export default function StudentBusTrackerScreen() {
   if (loading && !data) {
     return (
       <ScreenLayout>
-        <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+        <StatusBar barStyle="dark-content" />
         <StudentHeader title={t('busTracker.title')} />
         <View style={s.center}>
           <LogoLoader size={52} color={C.blue} />
@@ -370,7 +370,7 @@ export default function StudentBusTrackerScreen() {
   if (loadError && !data) {
     return (
       <ScreenLayout>
-        <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+        <StatusBar barStyle="dark-content" />
         <StudentHeader title={t('busTracker.title')} />
         <View style={s.center}>
           <View style={s.emptyIconWrap}>
@@ -394,7 +394,7 @@ export default function StudentBusTrackerScreen() {
   if (!data?.assigned) {
     return (
       <ScreenLayout>
-        <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+        <StatusBar barStyle="dark-content" />
         <StudentHeader title={t('busTracker.title')} />
         <View style={s.center}>
           <View style={s.emptyIconWrap}>
@@ -530,7 +530,7 @@ export default function StudentBusTrackerScreen() {
 
   return (
     <ScreenLayout>
-      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      <StatusBar barStyle="dark-content" />
       <TourTarget id="screen.screen-bus-tracker.overview"><StudentHeader
         title={
           data.route_name

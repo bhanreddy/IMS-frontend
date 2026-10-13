@@ -377,7 +377,7 @@ export default function DailySubstitutionsScreen() {
 
   return (
     <TourTarget id="screen.admin-substitutions.overview" native><View style={styles.screen}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.page} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {!shellActive && <AdminHeader title="Daily Substitutions" showBackButton />}
 
       <TourTarget id="screen.admin-substitutions.workspace" native><TourScrollView

@@ -917,7 +917,7 @@ export default function AdminTransport() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
+      <StatusBar barStyle="dark-content" />
       <TourTarget id="screen.admin-transport.overview"><AdminHeader
         title="Transport Management"
         showBackButton={true}
