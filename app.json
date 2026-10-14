@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Chaitanya Vidyaniketan School Nancharla",
-    "slug": "cvsnancharla",
+    "name": "Nexsyrus School IMS",
+    "slug": "demo-ims",
     "version": "5.1.9",
     "platforms": [
       "android",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.nexsyrussims.chaitanyavidyanikethan",
+      "bundleIdentifier": "com.schoolims.default2",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -31,14 +31,14 @@
       }
     },
     "android": {
-      "package": "com.nexsyrussims.chaitanyavidyanikethan",
+      "package": "com.schoolims.default2",
       "jsEngine": "hermes",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-icon-foreground-v2.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE",
-        "monochromeImage": "./assets/images/android-icon-monochrome-v2.png"
+        "monochromeImage": "./assets/images/icon.png"
       },
       "useNextNotificationsApi": true,
       "permissions": [
@@ -50,8 +50,11 @@
         "RECEIVE_BOOT_COMPLETED"
       ]
     },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
     "notification": {
-      "icon": "./assets/images/android-icon-monochrome-v2.png",
+      "icon": "./assets/images/icon.png",
       "color": "#3535A8"
     },
     "plugins": [
@@ -76,7 +79,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "backgroundColor": "#FFFFFF",
           "resizeMode": "contain"
         }
@@ -85,7 +88,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/android-icon-monochrome-v2.png",
+          "icon": "./assets/images/icon.png",
           "color": "#3535A8",
           "sounds": [
             "./assets/sounds/attendance_absent_alert.wav",
@@ -118,9 +121,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3d8c66b7-942f-41d7-8764-6ee86ca87b02"
+        "projectId": "a9e98d3f-cdaf-4af4-b8f6-0d83882035b9"
       }
     },
-    "owner": "nexsyrus1"
+    "owner": "bhan_reddy"
   }
 }

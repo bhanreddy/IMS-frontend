@@ -25,14 +25,14 @@ import { defaultDarkTheme, defaultLightTheme } from '../theme/types';
 export function schoolColorWithAlpha(hex: string | undefined | null, alpha: number): string {
   'worklet';
   if (hex == null || typeof hex !== 'string') {
-    return `rgba(207,161,65,${alpha})`;
+    return `rgba(212,175,55,${alpha})`;
   }
   let h = hex.trim().replace('#', '');
   if (h.length === 3) {
     h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   }
   if (!/^[0-9a-fA-F]{6}$/.test(h)) {
-    return `rgba(207,161,65,${alpha})`;
+    return `rgba(212,175,55,${alpha})`;
   }
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -54,54 +54,54 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
     ...defaultLightTheme,
     colors: {
       ...defaultLightTheme.colors,
-      // Primary brand color – Deep Navy (from logo circle background)
-      primary: '#002448',
-      primaryLight: '#003060',
-      primaryDark: '#001832',
-      // Secondary color – Gold (from logo text, border & icons)
-      secondary: '#CFA141',
-      // Accent color – Gold trim (logo ring & lettering)
-      accent: '#CFA141',
-      // Backgrounds – subtle navy-tinted neutrals
-      background: '#F5F7FA',
+      // Primary brand color – Icon solid black (graduation cap & letterform)
+      primary: '#1A1A1A',
+      primaryLight: '#4A4A4A',
+      primaryDark: '#0D0D0D',
+      // Secondary color – Warm charcoal (icon outline strokes)
+      secondary: '#2D2D2D',
+      // Accent color – Warm gold (complement to monochrome icon)
+      accent: '#C9A84C',
+      // Backgrounds – clean near-white (icon whitespace)
+      background: '#FAFAFA',
       surface: '#FFFFFF',
       card: '#FFFFFF',
-      // Text colors – navy-slate palette
-      textPrimary: '#062341',
-      textStrong: '#001832',
-      textSecondary: '#3D5166',
-      textMuted: '#6B7D8F',
-      text: '#062341',
-      textTertiary: '#6B7D8F',
-      // Borders – navy-tinted
-      border: '#D4DEE8',
-      borderLight: '#E8EEF4',
+      // Text colors – icon-derived dark tones
+      textPrimary: '#1A1A1A',
+      textStrong: '#0D0D0D',
+      textSecondary: '#4A4A4A',
+      textMuted: '#6B6B6B',
+      text: '#1A1A1A',
+      textTertiary: '#9E9E9E',
+      // Borders – neutral grays
+      border: '#E0E0E0',
+      borderLight: '#F0F0F0',
       // Semantic colors
-      danger: '#EF4444',
-      success: '#10B981',
-      warning: '#F59E0B',
-      info: '#003D6B',
-      notification: '#EF4444',
-      // Navigation – navy pill tints
-      navPill: '#EEF2F7',
-      navIconActive: '#002448',
-      navIconInactive: '#8A96A3',
+      danger: '#C62828',
+      success: '#2E7D32',
+      warning: '#E65100',
+      info: '#1A1A1A',
+      notification: '#C9A84C',
+      // Navigation – charcoal/slate tints
+      navPill: '#F0F0F0',
+      navIconActive: '#1A1A1A',
+      navIconInactive: '#9E9E9E',
       // Header/Footer backgrounds (with transparency for glass effect)
-      headerBg: 'rgba(245,247,250, 0.88)',
-      footerBg: 'rgba(255,255,255, 0.92)',
+      headerBg: 'rgba(250,250,250, 0.92)',
+      footerBg: 'rgba(255,255,255, 0.95)',
       // Alert colors
-      alertBg: '#FEFCE8',
-      alertBorder: '#FEF08A',
-      alertIcon: '#EAB308',
-      alertText: '#854D0E',
+      alertBg: '#F5F5F5',
+      alertBorder: '#E0E0E0',
+      alertIcon: '#1A1A1A',
+      alertText: '#2D2D2D',
       alertBgDanger: '#FEF2F2',
       alertBorderDanger: '#FECACA',
-      alertIconDanger: '#EF4444',
+      alertIconDanger: '#C62828',
       alertTextDanger: '#991B1B',
-      alertBgInfo: '#EEF4FA',
-      alertBorderInfo: '#B8CDE0',
-      alertIconInfo: '#003D6B',
-      alertTextInfo: '#002448',
+      alertBgInfo: '#F5F5F5',
+      alertBorderInfo: '#E0E0E0',
+      alertIconInfo: '#1A1A1A',
+      alertTextInfo: '#2D2D2D',
     },
     typography: {
       fontFamily: 'System',
@@ -165,54 +165,54 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
     ...defaultDarkTheme,
     colors: {
       ...defaultDarkTheme.colors,
-      // Primary – gold for dark mode legibility on navy surfaces
-      primary: '#CFA141',
-      primaryLight: '#E0B84D',
-      primaryDark: '#B8892E',
-      // Secondary – muted steel blue
-      secondary: '#6B8FAF',
-      // Accent – lighter gold trim
-      accent: '#E0B84D',
-      // Dark backgrounds – deep navy tones (from logo)
-      background: '#000E1A',
-      surface: '#001832',
-      card: '#062341',
+      // Primary – light silver for dark mode legibility (inverted icon white)
+      primary: '#E0E0E0',
+      primaryLight: '#F0F0F0',
+      primaryDark: '#BDBDBD',
+      // Secondary – warm light gray
+      secondary: '#9E9E9E',
+      // Accent – golden amber for dark backgrounds
+      accent: '#D4B85C',
+      // Dark backgrounds – deep charcoal from icon's blacks
+      background: '#121212',
+      surface: '#1E1E1E',
+      card: '#1E1E1E',
       // Light text for dark backgrounds
-      textPrimary: '#E8EDF2',
-      textStrong: '#F5F7FA',
-      textSecondary: '#9AAFC2',
-      textMuted: '#6B8399',
-      text: '#E8EDF2',
-      textTertiary: '#6B8399',
-      // Darker borders – navy-ink
-      border: '#1A3450',
-      borderLight: '#243D58',
+      textPrimary: '#E0E0E0',
+      textStrong: '#FFFFFF',
+      textSecondary: '#BDBDBD',
+      textMuted: '#757575',
+      text: '#E0E0E0',
+      textTertiary: '#757575',
+      // Darker borders – charcoal tones
+      border: '#333333',
+      borderLight: '#424242',
       // Lighter semantic colors for dark mode
-      danger: '#F87171',
-      success: '#34D399',
-      warning: '#FBBF24',
-      info: '#6B8FAF',
-      notification: '#F87171',
-      // Navigation – gold tint on navy
-      navPill: 'rgba(207,161,65, 0.12)',
-      navIconActive: '#CFA141',
-      navIconInactive: '#4A6278',
-      // Header/Footer with dark navy glass effect
-      headerBg: 'rgba(0,14,26, 0.88)',
-      footerBg: 'rgba(6,35,65, 0.92)',
+      danger: '#EF5350',
+      success: '#66BB6A',
+      warning: '#FFA726',
+      info: '#E0E0E0',
+      notification: '#D4B85C',
+      // Navigation – charcoal tints
+      navPill: 'rgba(255,255,255, 0.08)',
+      navIconActive: '#FFFFFF',
+      navIconInactive: '#757575',
+      // Header/Footer with dark glass effect
+      headerBg: 'rgba(18,18,18, 0.92)',
+      footerBg: 'rgba(30,30,30, 0.95)',
       // Alert colors (dark mode)
-      alertBg: 'rgba(234,179,8, 0.1)',
-      alertBorder: 'rgba(234,179,8, 0.2)',
-      alertIcon: '#FBBF24',
-      alertText: '#FEF08A',
-      alertBgDanger: 'rgba(239,68,68, 0.1)',
-      alertBorderDanger: 'rgba(239,68,68, 0.2)',
-      alertIconDanger: '#F87171',
-      alertTextDanger: '#FECACA',
-      alertBgInfo: 'rgba(107,143,175, 0.12)',
-      alertBorderInfo: 'rgba(107,143,175, 0.25)',
-      alertIconInfo: '#6B8FAF',
-      alertTextInfo: '#B8CDE0',
+      alertBg: 'rgba(255,255,255, 0.06)',
+      alertBorder: 'rgba(255,255,255, 0.12)',
+      alertIcon: '#E0E0E0',
+      alertText: '#BDBDBD',
+      alertBgDanger: 'rgba(239,83,80, 0.1)',
+      alertBorderDanger: 'rgba(239,83,80, 0.2)',
+      alertIconDanger: '#EF5350',
+      alertTextDanger: '#FFCDD2',
+      alertBgInfo: 'rgba(255,255,255, 0.08)',
+      alertBorderInfo: 'rgba(255,255,255, 0.15)',
+      alertIconInfo: '#E0E0E0',
+      alertTextInfo: '#BDBDBD',
     },
     typography: {
       fontFamily: 'System',
@@ -276,26 +276,26 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
 
 export const SCHOOL_CONFIG = {
   // The official name of the school displayed in headers and reports
-  name: "Chaitanya Vidyaniketan School Nancharla",
+  name: "Nexsyrus School IMS",
 
   // Short line under the school name on the header ribbon (gold text)
-  tagline: "Where learning never ends",
+  tagline: "Step in with Confidence and Step out with Success",
 
   // Motto / core values shown in the first info column of the ribbon (letterhead)
-  motto: "Knowledge is path to success",
+  motto: "Be Confident, Do Confidently",
 
   // The school logo used in headers and reports
   // Ensure the image exists in assets/images/
   logo: require('../../assets/images/icon.png'),
 
   // Optional: School Address for reports
-  address: "Chaitanya Vidyaniketan School ,Nancharla , Nancharla, Dist Mahabubnagar, Telangana-501111",
+  address: "Maddur , Telangana 509336",
 
   // Optional: Contact info for reports
-  contact: "9492275900",
+  contact: "9347556547",
 
   // Optional: School email for letterhead / reports
-  email: "chaitanyavidyanithan@gmail.com",
+  email: "nexsyrus@nexsyrus.com",
 
   // Website or Email
   website: "www.nexsyrus.com",
@@ -311,7 +311,7 @@ export const SCHOOL_CONFIG = {
   cbseAffiliationNo: "NA",
 
   // School Code (if applicable)
-  schoolCode: "CVS",
+  schoolCode: "NSIMS",
 
   /**
    * Full recognition / affiliation sentence for certificates & PDFs.
@@ -327,21 +327,21 @@ export const SCHOOL_CONFIG = {
 
   /**
    * Colour theme for ribbon / letterhead chrome (SchoolRibbon, etc.).
-   * Adjust `ribbonGradient` stops for your brand; `accent` drives gold trim; `ribbonTagline` sets tagline text.
+   * Extracted from the icon: monochrome black letterform with graduation cap.
    */
   theme: {
-    /** Stripes and soft dividers – gold from logo lettering */
-    accent: '#CFA141',
-    /** Four-stop diagonal ribbon – deep navy (logo circle background) */
-    ribbonGradient: ['#001832', '#002448', '#003060', '#002848'] as const,
+    /** Warm gold accent – stripes, dividers, and trim */
+    accent: '#C9A84C',
+    /** Tagline text – soft warm gold over dark ribbon */
+    ribbonTagline: '#D4C49A',
+    /** Four-stop diagonal ribbon – deep black to charcoal (icon letterform) */
+    ribbonGradient: ['#0D0D0D', '#1A1A1A', '#2D2D2D', '#4A4A4A'] as const,
     /** Optional stops for expo-linear-gradient (length must match ribbonGradient) */
     ribbonGradientLocations: [0, 0.30, 0.65, 1] as const,
-    /** Main title on the ribbon – gold lettering like the logo */
-    ribbonTitle: '#CFA141',
-    /** Tagline under the school name on the ribbon */
-    ribbonTagline: '#FFFFFF',
+    /** Main title on the ribbon – crisp white (icon negative space) */
+    ribbonTitle: '#FFFFFF',
     /** Scrolling marquee dot separator */
-    marqueeSeparator: 'rgba(207,161,65,0.85)',
+    marqueeSeparator: 'rgba(255,255,255,0.85)',
     /** Letterhead / info column body */
     ribbonBody: 'rgba(255,255,255,0.92)',
     ribbonBodyMuted: 'rgba(255,255,255,0.9)',
