@@ -137,9 +137,20 @@ export default function EventDetailsScreen() {
   const subCol = isDark ? '#9CA3AF' : '#64748B';
   const borderCol = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
+  const pageHeader = (
+    <View style={[styles.header, { borderBottomColor: borderCol }]}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityLabel="Go back">
+        <Ionicons name="arrow-back" size={20} color={textCol} />
+      </TouchableOpacity>
+      <Text style={[styles.headerTitle, { color: textCol }]}>Event & Digital Pass</Text>
+      <View style={{ width: 40 }} />
+    </View>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: bg }]} edges={['top']}>
+        {pageHeader}
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color="#4F46E5" />
           <Text style={[styles.centerText, { color: subCol }]}>Loading Event Information...</Text>
@@ -151,6 +162,7 @@ export default function EventDetailsScreen() {
   if (!event) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: bg }]} edges={['top']}>
+        {pageHeader}
         <View style={styles.centerBox}>
           <Text style={[styles.errorTitle, { color: textCol }]}>Event Not Found</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -166,13 +178,7 @@ export default function EventDetailsScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: bg }]} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: borderCol }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={textCol} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textCol }]}>Event & Digital Pass</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      {pageHeader}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Event Card */}

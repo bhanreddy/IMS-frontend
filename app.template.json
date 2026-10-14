@@ -41,6 +41,9 @@
         "backgroundColor": "#E6F4FE",
         "monochromeImage": "./assets/images/icon.png"
       },
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -71,7 +74,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to unlock your staff account with biometrics."
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to verify staff attendance with Face ID."
         }
       ],
       [
@@ -85,7 +88,9 @@
             "./assets/sounds/emergency.wav",
             "./assets/sounds/fee_reminder.wav",
             "./assets/sounds/voice_alert.wav",
-            "./assets/sounds/diary_alert.wav"
+            "./assets/sounds/diary_alert.wav",
+            "./assets/sounds/bus_present.wav",
+            "./assets/sounds/busconfirmation.wav"
           ]
         }
       ],
@@ -96,6 +101,7 @@
       "./plugins/withAndroidSounds.js",
       "./plugins/withAndroidWindowCompatibility.js",
       "./plugins/withAndroidReleaseOptimization.js",
+      "./plugins/withAndroidForegroundAudioOnly.js",
       [
         "expo-build-properties",
         {
@@ -116,7 +122,8 @@
           "locationAlwaysAndWhenInUsePermission": "Allow this driver device to share bus location during an active trip, including while the app is in the background.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true
+          "isAndroidForegroundServiceEnabled": true,
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to verify staff presence on campus for attendance and share school bus location during active trips."
         }
       ]
     ],

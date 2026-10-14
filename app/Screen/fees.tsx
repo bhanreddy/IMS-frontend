@@ -11,6 +11,7 @@ import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { Theme } from '../../src/theme/themes';
 import LogoLoader from '../../src/components/LogoLoader';
+import StudentSubpageHeader from '../../src/components/StudentSubpageHeader';
 import HtmlPreview from '../../src/components/HtmlPreview';
 import { FeeService } from '../../src/services/feeService';
 import { SchoolSettingsService, SchoolSettings } from '../../src/services/schoolSettingsService';
@@ -226,9 +227,12 @@ const FeesScreen = () => {
     </Animated.View>;
   };
   if (loading) {
-    return <View style={styles.loadingContainer}>
-      <LogoLoader size={60} color="#4F46E5" />
-    </View>;
+    return <SafeAreaView style={styles.container}>
+      <StudentSubpageHeader title={t('fees', 'My Fees')} onBack={() => router.back()} />
+      <View style={styles.loadingContainer}>
+        <LogoLoader size={60} color="#4F46E5" />
+      </View>
+    </SafeAreaView>;
   }
   return <SafeAreaView style={styles.container}>
     <StatusBar barStyle="light-content" />

@@ -391,12 +391,12 @@ export const StudentService = {
     /**
      * Get students without active enrollment
      */
-    getUnenrolledStudents: async (academicYearId?: number): Promise<Student[]> => {
+    getUnenrolledStudents: async (academicYearId?: number, options?: { silent?: boolean }): Promise<Student[]> => {
         let url = '/students/unenrolled';
         if (academicYearId) {
             url += `?academic_year_id=${academicYearId}`;
         }
-        return api.get<Student[]>(url);
+        return api.get<Student[]>(url, undefined, options);
     },
 
     /**

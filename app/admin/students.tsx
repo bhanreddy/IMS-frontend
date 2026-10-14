@@ -1014,7 +1014,7 @@ export default function AdminStudentsScreen() {
 
   return (
     <View style={styles.container}>
-      <TourTarget id="screen.admin-students.overview"><AdminHeader
+      <TourTarget id="screen.admin-students.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader
         title={isArchive ? 'Student Archive' : 'Students'}
         showNotification={!isArchive}
         showBackButton={isArchive}

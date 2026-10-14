@@ -527,7 +527,7 @@ interface StatCardItem {
   accentBorder: string;
 }
 
-const DashboardStatCard = memo(({
+const DashboardStatCard = memo(function DashboardStatCard({
   card,
   loading,
   tokens,
@@ -541,7 +541,7 @@ const DashboardStatCard = memo(({
   clock: SharedValue<number>;
   style?: any;
   router: any;
-}) => {
+}) {
   const { cardStyle, iconStyle, washStyle, onPressIn, onPressOut, onHoverIn, onHoverOut } = useDeskCardMotion();
 
   const onPress = useCallback(() => {
@@ -768,7 +768,7 @@ const DashboardStatCard = memo(({
   );
 });
 
-const CollectionPulse = memo(({
+const CollectionPulse = memo(function CollectionPulse({
   invoiced,
   collected,
   pending,
@@ -784,7 +784,7 @@ const CollectionPulse = memo(({
   loading: boolean;
   tokens: DashboardTokens;
   clock: SharedValue<number>;
-}) => {
+}) {
   if (loading) {
     return (
       <SurfaceCard tokens={tokens} padding={16} style={{ marginBottom: 22 }}>
@@ -912,7 +912,7 @@ const resolveActionAccent = (item: QuickActionItem, tokens: DashboardTokens) => 
   };
 };
 
-const QuickJumpChip = memo(({
+const QuickJumpChip = memo(function QuickJumpChip({
   item,
   tokens,
   router,
@@ -920,7 +920,7 @@ const QuickJumpChip = memo(({
   item: QuickActionItem;
   tokens: DashboardTokens;
   router: any;
-}) => {
+}) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const { accentColor, accentSoft, accentBorder } = resolveActionAccent(item, tokens);
@@ -982,7 +982,7 @@ const QuickJumpChip = memo(({
   );
 });
 
-const QuickJumpRow = memo(({
+const QuickJumpRow = memo(function QuickJumpRow({
   actions,
   tokens,
   router,
@@ -990,7 +990,7 @@ const QuickJumpRow = memo(({
   actions: QuickActionItem[];
   tokens: DashboardTokens;
   router: any;
-}) => {
+}) {
   const jumps = QUICK_JUMP_IDS.map((id) => actions.find((a) => a.id === id)).filter(Boolean) as QuickActionItem[];
   if (jumps.length === 0) return null;
 
@@ -1016,7 +1016,7 @@ const QuickJumpRow = memo(({
   );
 });
 
-const ActionRow = memo(({
+const ActionRow = memo(function ActionRow({
   item,
   tokens,
   router,
@@ -1028,7 +1028,7 @@ const ActionRow = memo(({
   router: any;
   width: number;
   featured?: boolean;
-}) => {
+}) {
   const IconLib = item.library;
   const { bg, shadowColor, category } = useMemo(
     () => resolveActionClay(item, tokens.isDark),
@@ -1253,7 +1253,7 @@ const ActionRow = memo(({
   );
 });
 
-const OperationsDesk = memo(({
+const OperationsDesk = memo(function OperationsDesk({
   actions,
   tokens,
   router,
@@ -1263,7 +1263,7 @@ const OperationsDesk = memo(({
   tokens: DashboardTokens;
   router: any;
   deskWidth: number;
-}) => {
+}) {
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState<'all' | ActionGroupId>('all');
   const [measuredDeskW, setMeasuredDeskW] = useState(deskWidth);
@@ -1497,7 +1497,7 @@ const OperationsDesk = memo(({
 });
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
-const AnalyticsSection = memo(({
+const AnalyticsSection = memo(function AnalyticsSection({
   data,
   loading,
   tokens,
@@ -1513,7 +1513,7 @@ const AnalyticsSection = memo(({
   contentW: number;
   isWeb: boolean;
   config?: Record<string, boolean>;
-}) => {
+}) {
   if (loading) {
     return (
       <View style={{ marginBottom: 28, gap: 14 }}>
@@ -1828,7 +1828,7 @@ interface TransactionItem {
   when: string;
 }
 
-const TransactionRow = memo(({
+const TransactionRow = memo(function TransactionRow({
   tx,
   tokens,
   isLast,
@@ -1840,7 +1840,7 @@ const TransactionRow = memo(({
   isLast: boolean;
   router: any;
   compact?: boolean;
-}) => {
+}) {
   const onPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/accounts/receipts');
@@ -1950,7 +1950,7 @@ const TransactionRow = memo(({
   );
 });
 
-const TransactionsSection = memo(({
+const TransactionsSection = memo(function TransactionsSection({
   transactions,
   loading,
   tokens,
@@ -1964,7 +1964,7 @@ const TransactionsSection = memo(({
   clock: SharedValue<number>;
   router: any;
   compact?: boolean;
-}) => {
+}) {
   return (
     <View style={{ marginBottom: 28 }}>
       <SectionHeader
@@ -2556,7 +2556,7 @@ export default function AccountsDashboard() {
       />
       <StatusBar barStyle="light-content" />
 
-      <TourTarget id="screen.accounts-dashboard.overview"><AdminHeader
+      <TourTarget id="screen.accounts-dashboard.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader
         title={t('accounts_dashboard.dashboard_title', 'Dashboard')}
         onMenuPress={() => setIsMenuOpen(true)}
         scrollY={headerScrollY}

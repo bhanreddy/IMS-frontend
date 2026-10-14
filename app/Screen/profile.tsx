@@ -12,6 +12,7 @@ import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { Theme } from '../../src/theme/themes';
 import LogoLoader from '../../src/components/LogoLoader';
+import StudentSubpageHeader from '../../src/components/StudentSubpageHeader';
 import AvatarUploader from '../../src/components/AvatarUploader';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -56,17 +57,23 @@ const ProfileScreen = () => {
     fetchProfile();
   };
   if (loading) {
-    return <View style={styles.loadingContainer}>
-      <LogoLoader size={60} color="#4F46E5" />
-    </View>;
+    return <SafeAreaView style={styles.container}>
+      <StudentSubpageHeader title={t('profile.title', 'My Profile')} onBack={() => router.back()} />
+      <View style={styles.loadingContainer}>
+        <LogoLoader size={60} color="#4F46E5" />
+      </View>
+    </SafeAreaView>;
   }
   if (!student) {
-    return <View style={styles.errorContainer}>
-      <Text style={styles.errorText}>{t('common.error_loading_profile', 'Failed to load profile')}</Text>
-      <TouchableOpacity onPress={fetchProfile} style={styles.retryButton}>
-        <Text style={styles.retryText}>{t('common.retry', 'Retry')}</Text>
-      </TouchableOpacity>
-    </View>;
+    return <SafeAreaView style={styles.container}>
+      <StudentSubpageHeader title={t('profile.title', 'My Profile')} onBack={() => router.back()} />
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{t('common.error_loading_profile', 'Failed to load profile')}</Text>
+        <TouchableOpacity onPress={fetchProfile} style={styles.retryButton}>
+          <Text style={styles.retryText}>{t('common.retry', 'Retry')}</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>;
   }
 
   // Extract enrollment details safely

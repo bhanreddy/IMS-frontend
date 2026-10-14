@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as Crypto from 'expo-crypto';
+import * as Application from 'expo-application';
 import { Platform } from 'react-native';
 import { api, APIError } from './apiClient';
 import { staffBiometricService } from './staffBiometricService';
@@ -57,6 +58,7 @@ export const staffAttendanceV2Client = {
     if (
       local.registrationId &&
       status.device_registration_id === local.registrationId &&
+      local.status !== (status.device_registration_status === 'replaced' ? 'revoked' : status.device_registration_status) &&
       ['pending', 'approved', 'rejected', 'revoked', 'replaced'].includes(status.device_registration_status)
     ) {
       await staffBiometricService.updateRegistrationStatus(
@@ -103,7 +105,7 @@ export const staffAttendanceV2Client = {
         device_model: `${Platform.OS === 'ios' ? 'Apple iPhone' : 'Android Mobile'}`,
         os_name: Platform.OS,
         os_version: String(Platform.Version),
-        app_version: '4.1.8',
+        app_version: Application.nativeApplicationVersion || 'unknown',
         proof_nonce: nonce,
         proof_signature: proofSignature,
       };
@@ -185,11 +187,14 @@ export const staffAttendanceV2Client = {
 
     // Capture fresh foreground location
     let locationFix: Location.LocationObject;
+    let gpsTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      locationFix = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-        timeInterval: 1000,
-      });
+      locationFix = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        new Promise<never>((_, reject) => {
+          gpsTimeout = setTimeout(() => reject(new Error('GPS timed out')), 20_000);
+        }),
+      ]);
     } catch {
       throw new APIError(
         'Unable to acquire GPS reading. Please ensure GPS is enabled and step outside.',
@@ -198,6 +203,8 @@ export const staffAttendanceV2Client = {
         undefined,
         'GPS_UNAVAILABLE'
       );
+    } finally {
+      if (gpsTimeout) clearTimeout(gpsTimeout);
     }
 
     const { latitude, longitude, accuracy } = locationFix.coords;
@@ -291,12 +298,26 @@ export const staffAttendanceV2Client = {
     onProgress?.('Verifying with school attendance server...');
 
     // 5. Submit verification payload to backend
-    const verification = await api.post<AttendanceVerificationResult>('/attendance/v2/verify', {
+    const verificationBody = {
       challenge_id: challengeRes.challengeId,
       payload: signingPayload,
       signature: signatureResult.signature,
       idempotency_key: idempotencyKey,
-    });
+    };
+    let verification: AttendanceVerificationResult;
+    try {
+      verification = await api.post<AttendanceVerificationResult>('/attendance/v2/verify', verificationBody);
+    } catch (error: any) {
+      // The first request may have committed even if its response was lost.
+      // Retry only this signed request; never generate another challenge/key.
+      if (![0, 408, 500, 502, 503, 504].includes(error?.statusCode)) throw error;
+      onProgress?.('Confirming attendance with the server...');
+      verification = await api.post<AttendanceVerificationResult>('/attendance/v2/verify', verificationBody);
+    }
+    if (verification?.success !== true || verification.action !== action || verification.verificationStatus !== 'verified') {
+      throw new APIError('The server did not confirm attendance. Refresh your attendance status before trying again.',
+        502, undefined, undefined, 'ATTENDANCE_NOT_CONFIRMED');
+    }
 
     return verification;
   },

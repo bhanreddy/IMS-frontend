@@ -15,6 +15,7 @@ import {
 } from '../../src/utils/accountsShellTitles';
 import { useTheme } from '../../src/hooks/useTheme';
 import { usePermissions } from '../../src/hooks/usePermissions';
+import { useAuth } from '../../src/hooks/useAuth';
 import { StudentService } from '../../src/services/studentService';
 
 export default function AccountsLayout() {
@@ -25,14 +26,26 @@ export default function AccountsLayout() {
   const router = useRouter();
   const { theme } = useTheme();
   const { hasPermission } = usePermissions();
+  const { user, role, loading: authLoading } = useAuth();
+  const canFetchPendingEnrollments = !authLoading
+    && !!user?.userId
+    && ['accountant', 'admin', 'principal'].includes(role || '')
+    && (pathname === '/accounts' || pathname.startsWith('/accounts/'))
+    && hasPermission('students.view');
   const isWideWeb = Platform.OS === 'web' && windowWidth >= 768;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pendingEnrollmentBadge, setPendingEnrollmentBadge] = useState(0);
 
   useEffect(() => {
+    if (!canFetchPendingEnrollments) {
+      setPendingEnrollmentBadge(0);
+      return;
+    }
     let alive = true;
-    StudentService.getUnenrolledStudents()
+    // This optional badge must not raise a global alert if an in-flight request
+    // finishes after the user switches accounts or leaves the Accounts portal.
+    StudentService.getUnenrolledStudents(undefined, { silent: true })
       .then((rows) => {
         if (alive) setPendingEnrollmentBadge(Array.isArray(rows) ? rows.length : 0);
       })
@@ -42,7 +55,7 @@ export default function AccountsLayout() {
     return () => {
       alive = false;
     };
-  }, [pathname]);
+  }, [pathname, canFetchPendingEnrollments, user?.userId]);
 
   const openMobileNav = useCallback(() => setMobileNavOpen(true), []);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);

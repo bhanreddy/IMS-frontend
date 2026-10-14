@@ -138,6 +138,34 @@ would destroy the saved state the test must verify.
 - The local APK uses the generated debug signing configuration and is for
   local testing only. No EAS build, Play upload, or production rollout was run.
 
+## Foreground audio only
+
+`app.json` and `app.template.json` block
+`android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK`. Expo Audio 1.1.1 declares
+that permission in its library manifest even though the app does not enable
+background playback. `plugins/withAndroidForegroundAudioOnly.js` also removes
+`expo.modules.audio.service.AudioControlsService` during manifest merging, so
+the app does not expose the background playback/lock-screen control service.
+Keep both settings when generating school-specific apps.
+
+Tour narration already sets `shouldPlayInBackground: false`, pauses when the
+app leaves the foreground, and never activates lock-screen controls. Birthday
+audio uses `staysActiveInBackground: false`. Normal in-app playback, voice-note
+recording, notification sounds, and the separate bus location service remain
+available. No authentication or stored-session settings change.
+
+After prebuild, run `:app:processReleaseMainManifest` and check that the merged
+release manifest has neither the media playback permission nor
+`AudioControlsService` (a `tools:node="remove"` marker in the source manifest is
+expected). Do not check only the app's source manifest: dependency manifests
+are merged at build time. Removing these native declarations requires a new
+APK/AAB; it cannot change an already installed binary through an OTA update.
+
+Verified on 2026-10-13: prebuild and `:app:processReleaseMainManifest` passed;
+the merged release manifest has no media playback permission, playback service,
+or `mediaPlayback` service type. The location foreground permission remains.
+All 40 tour narration/provider, audio-owner, and read-aloud tests passed.
+
 ## Release build
 
 From `SchoolIMS-Frontend`, use the existing school-specific build profiles.

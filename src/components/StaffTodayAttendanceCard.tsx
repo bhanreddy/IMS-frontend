@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ export default function StaffTodayAttendanceCard({
   onAttendanceSuccess,
   autoAction,
 }: Props) {
+  const actionInFlight = useRef(false);
+  const consumedAutoAction = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<TodayAttendanceStatus | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -75,17 +77,23 @@ export default function StaffTodayAttendanceCard({
 
   // Handle autoAction parameter if triggered from dashboard
   useEffect(() => {
-    if (autoAction && status && !actionLoading) {
+    if (!autoAction) consumedAutoAction.current = null;
+    if (!isViewingAsAdmin && Platform.OS !== 'web' && autoAction && status && !actionLoading &&
+        consumedAutoAction.current !== autoAction) {
       if (autoAction === 'check_in' && status.can_check_in) {
+        consumedAutoAction.current = autoAction;
         handleCheckIn();
       } else if (autoAction === 'check_out' && status.can_check_out) {
+        consumedAutoAction.current = autoAction;
         handleCheckOut();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAction, status?.can_check_in, status?.can_check_out]);
+  }, [autoAction, isViewingAsAdmin, status?.can_check_in, status?.can_check_out]);
 
   const handleCheckIn = async () => {
+    if (actionInFlight.current || isViewingAsAdmin || Platform.OS === 'web') return;
+    actionInFlight.current = true;
     try {
       setErrorMessage(null);
       setSuccessMessage(null);
@@ -105,12 +113,15 @@ export default function StaffTodayAttendanceCard({
       await loadStatus(true);
       setErrorMessage(err.message || 'Check-in verification failed.');
     } finally {
+      actionInFlight.current = false;
       setActionLoading(false);
       setActionProgress(null);
     }
   };
 
   const handleCheckOut = async () => {
+    if (actionInFlight.current || isViewingAsAdmin || Platform.OS === 'web') return;
+    actionInFlight.current = true;
     try {
       setErrorMessage(null);
       setSuccessMessage(null);
@@ -130,12 +141,15 @@ export default function StaffTodayAttendanceCard({
       await loadStatus(true);
       setErrorMessage(err.message || 'Check-out verification failed.');
     } finally {
+      actionInFlight.current = false;
       setActionLoading(false);
       setActionProgress(null);
     }
   };
 
   const handleRegisterDevice = async () => {
+    if (actionInFlight.current || isViewingAsAdmin || Platform.OS === 'web') return;
+    actionInFlight.current = true;
     try {
       setErrorMessage(null);
       setSuccessMessage(null);
@@ -151,6 +165,7 @@ export default function StaffTodayAttendanceCard({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setErrorMessage(err.message || 'Device registration failed.');
     } finally {
+      actionInFlight.current = false;
       setActionLoading(false);
       setActionProgress(null);
     }
@@ -165,6 +180,8 @@ export default function StaffTodayAttendanceCard({
         {
           text: 'Proceed',
           onPress: async () => {
+            if (actionInFlight.current || isViewingAsAdmin || Platform.OS === 'web') return;
+            actionInFlight.current = true;
             try {
               setErrorMessage(null);
               setSuccessMessage(null);
@@ -177,6 +194,7 @@ export default function StaffTodayAttendanceCard({
             } catch (err: any) {
               setErrorMessage(err.message || 'Device replacement failed.');
             } finally {
+              actionInFlight.current = false;
               setActionLoading(false);
               setActionProgress(null);
             }

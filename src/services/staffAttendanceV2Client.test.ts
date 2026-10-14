@@ -1,5 +1,6 @@
 /* eslint-disable import/first, @typescript-eslint/no-require-imports */
 jest.mock('../constants/school', () => ({ SCHOOL_ID: 12 }));
+jest.mock('expo-application', () => ({ nativeApplicationVersion: '5.1.9' }));
 jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }));
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(), getCurrentPositionAsync: jest.fn(), Accuracy: { High: 4 },
@@ -39,10 +40,11 @@ const registration = { id: 'reg-1', staff_id: 'staff-1', canonical_person_id: 'p
 let status: any;
 let challenge: any;
 let fix: any;
-const receipt = { success: true, action: 'check_in', eventTimestamp: '2026-09-10T04:00:00Z', summary: { status: 'present' } };
+const receipt = { success: true, verificationStatus: 'verified', action: 'check_in', eventTimestamp: '2026-09-10T04:00:00Z', summary: { status: 'present' } };
 
 beforeEach(() => {
   jest.resetAllMocks();
+  receipt.action = 'check_in';
   secure.__store.clear();
   secure.getItemAsync.mockImplementation(async (key: string) => secure.__store.get(key) ?? null);
   secure.setItemAsync.mockImplementation(async (key: string, value: string) => { secure.__store.set(key, value); });
@@ -135,6 +137,7 @@ describe('signed attendance protocol', () => {
   it.each(['check_in', 'check_out'] as const)('signs and submits exactly the same %s payload', async action => {
     await approve();
     challenge.action = action;
+    receipt.action = action;
     const result = await client.performAttendanceAction(action);
     const body = post.mock.calls.find(([path]) => path.endsWith('/verify'))![1];
     expect(body.payload).toEqual({ action, campus_id: 'campus-1', challenge_id: 'challenge-1',
@@ -214,5 +217,47 @@ describe('signed attendance protocol', () => {
     await client.submitException('2026-09-10', 'check_out', 'GPS unavailable');
     expect(post).toHaveBeenCalledWith('/attendance/v2/exceptions', { attendance_date: '2026-09-10', action: 'check_out', reason: 'GPS unavailable' });
     expect(native.signWithBiometric).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('production failure recovery', () => {
+  it('retries a lost verify response with exactly the same signed payload', async () => {
+    await approve();
+    let verifies = 0;
+    post.mockImplementation(async (path: string) => {
+      if (path.endsWith('/challenge')) return challenge;
+      if (++verifies === 1) throw new APIError('Network request failed', 0);
+      return receipt;
+    });
+    await expect(client.performCheckIn()).resolves.toBe(receipt);
+    const calls = post.mock.calls.filter(([path]) => path.endsWith('/verify'));
+    expect(calls).toHaveLength(2);
+    expect(calls[0][1]).toBe(calls[1][1]);
+    expect(native.signWithBiometric).toHaveBeenCalledTimes(1);
+  });
+  it('does not treat an unconfirmed server response as a successful check-in', async () => {
+    await approve();
+    post.mockImplementation(async (path: string) => path.endsWith('/challenge') ? challenge : { success: false });
+    await expect(client.performCheckIn()).rejects.toMatchObject({ code: 'ATTENDANCE_NOT_CONFIRMED' });
+  });
+  it('bounds a GPS request that never resolves and does not start biometric signing', async () => {
+    await approve();
+    jest.useFakeTimers();
+    try {
+      location.getCurrentPositionAsync.mockReturnValue(new Promise(() => {}));
+      const result = client.performCheckIn();
+      const assertion = expect(result).rejects.toMatchObject({ code: 'GPS_UNAVAILABLE' });
+      await jest.advanceTimersByTimeAsync(20_001);
+      await assertion;
+      expect(post).not.toHaveBeenCalled();
+      expect(native.signWithBiometric).not.toHaveBeenCalled();
+    } finally { jest.useRealTimers(); }
+  });
+  it('does not rewrite secure registration storage on unchanged status refreshes', async () => {
+    await approve();
+    await client.getTodayStatus();
+    await client.getTodayStatus();
+    expect(secure.setItemAsync).not.toHaveBeenCalled();
   });
 });

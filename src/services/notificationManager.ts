@@ -418,7 +418,9 @@ class NotificationManager {
       'voice_alert', 'diary_alert', 'attendance_absent_alert', 'bus_present', 'bus_confirmation',
       'notification_default'
     ];
-    const base = channelId.replace('_custom', '').replace('_default', '');
+    const base = knownCategories.includes(channelId)
+      ? channelId
+      : channelId.replace(/_(custom|default)$/, '');
     channelId = knownCategories.includes(base)
       ? `${base}_custom`
       : 'voice_alert_custom';
@@ -430,11 +432,22 @@ class NotificationManager {
       body = t.body;
     }
 
-    // Explicit override for absent student sound
-    let finalSound = remoteMessage.data?.sound
-      ? `${remoteMessage.data.sound}.wav`
+    const payloadSound = remoteMessage.data?.sound;
+    let finalSound = payloadSound
+      ? (/\.(wav|mp3)$/i.test(payloadSound) ? payloadSound : `${payloadSound}.wav`)
       : 'voice_alert.wav';
 
+    // Announcements retain the default tone. Older general-alert payloads
+    // must switch both sound and channel because Android uses channel audio.
+    if (type === 'NOTICE_ADMIN_STUDENT' || type === 'POPUP_ANNOUNCEMENT') {
+      finalSound = 'notification_default.wav';
+      channelId = 'notification_default_custom';
+    } else if (base === 'notification_default' || finalSound === 'notification_default.wav') {
+      finalSound = 'voice_alert.wav';
+      channelId = 'voice_alert_custom';
+    }
+
+    // Preserve dedicated voice alerts.
     if (type === 'ATTENDANCE_ABSENT') {
       finalSound = 'attendance_absent_alert.wav';
       channelId = 'attendance_absent_alert_custom';

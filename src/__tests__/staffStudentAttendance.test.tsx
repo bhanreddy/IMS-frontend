@@ -3,6 +3,7 @@ import React from 'react';
 import { TouchableOpacity, FlatList, Text } from 'react-native';
 import ManageStudents from '../../app/staff/manage-students';
 import SwipeableStudentCard from '../components/SwipeableStudentCard';
+import AppDatePicker from '../components/AppDatePicker';
 import { AttendanceService } from '../services/attendanceService';
 import { persistentQueryCache } from '../services/persistentQueryCache';
 import { attendanceOfflineQueue } from '../services/attendanceOfflineQueue';
@@ -44,6 +45,7 @@ let tree: any;
 async function renderScreen() { await act(async () => { tree = create(<ManageStudents />); }); }
 function button(label: string) { return tree.root.findAllByType(TouchableOpacity).find((node: any) => node.props.accessibilityLabel === label); }
 function cards() { return tree.root.findAllByType(SwipeableStudentCard); }
+function datePicker() { return tree.root.findByType(AppDatePicker); }
 function text() {
   const content = (value: any): string => typeof value === 'string' || typeof value === 'number' ? String(value) : Array.isArray(value) ? value.map(content).join('') : value?.props ? content(value.props.children) : '';
   return tree.root.findAllByType(Text).map((node: any) => content(node.props.children)).join(' ');
@@ -169,4 +171,61 @@ it('keeps edits when the server confirms fewer records than were submitted', asy
   expect(text()).toContain('server confirmed 0 of 1 records');
   expect(text()).not.toContain('Submitted to the server');
   expect(cards()[0].props.student.status).toBe('present');
+});
+
+it('switches to a previous date and back to today without mixing attendance drafts', async () => {
+  await renderScreen(); await markFirst();
+  await act(async () => { datePicker().props.onChange('2026-10-02'); });
+  expect(AttendanceService.getMyClass).toHaveBeenLastCalledWith('2026-10-02', undefined, 'morning');
+  expect(datePicker().props.value).toBe('2026-10-02');
+  expect(text()).toContain('Marking a previous day');
+  expect(cards()[0].props.student.status).toBe('unmarked');
+
+  await act(async () => { button('Jump back to today').props.onPress(); });
+  expect(AttendanceService.getMyClass).toHaveBeenLastCalledWith('2026-10-03', undefined, 'morning');
+  expect(datePicker().props.value).toBe('2026-10-03');
+  expect(text()).not.toContain('Marking a previous day');
+  expect(button('Jump back to today')).toBeUndefined();
+  expect(cards()[0].props.student.status).toBe('present');
+});
+
+it('returns to today during a pending previous-date load and ignores its late response', async () => {
+  await renderScreen();
+  let resolvePrevious!: (value: any) => void;
+  jest.mocked(AttendanceService.getMyClass).mockImplementationOnce(() => new Promise(resolve => { resolvePrevious = resolve; }));
+  await act(async () => { datePicker().props.onChange('2026-10-02'); });
+  expect(text()).toContain('Loading class and checking queued attendance');
+
+  await act(async () => { button('Jump back to today').props.onPress(); });
+  expect(datePicker().props.value).toBe('2026-10-03');
+  expect(cards()).toHaveLength(2);
+  await act(async () => { resolvePrevious({ ...roster, class_name: 'Previous class', students: [] }); });
+  expect(cards()).toHaveLength(2);
+  expect(text()).not.toContain('Previous class');
+});
+
+it.each(['unassigned', 'failed'])('keeps Today reachable when a previous date is %s', async (result) => {
+  await renderScreen();
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  if (result === 'failed') jest.mocked(AttendanceService.getMyClass).mockRejectedValueOnce(new Error('Network failure'));
+  else jest.mocked(AttendanceService.getMyClass).mockResolvedValueOnce(null);
+  try {
+    await act(async () => { datePicker().props.onChange('2026-10-02'); });
+    expect(text()).toContain(result === 'failed' ? 'Could not load attendance' : 'No class assigned');
+    await act(async () => { button('Jump back to today').props.onPress(); });
+    expect(datePicker().props.value).toBe('2026-10-03');
+    expect(cards()).toHaveLength(2);
+  } finally {
+    warn.mockRestore();
+  }
+});
+
+it('does not get stuck loading when an input date caps to the selected day', async () => {
+  await renderScreen();
+  const callsBefore = jest.mocked(AttendanceService.getMyClass).mock.calls.length;
+  await act(async () => { datePicker().props.onChange('2026-10-04'); });
+  expect(datePicker().props.value).toBe('2026-10-03');
+  expect(cards()).toHaveLength(2);
+  expect(text()).not.toContain('Loading class and checking queued attendance');
+  expect(AttendanceService.getMyClass).toHaveBeenCalledTimes(callsBefore);
 });

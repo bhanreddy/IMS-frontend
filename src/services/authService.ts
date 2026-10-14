@@ -421,7 +421,12 @@ async function snapshotLiveAccountToVault(
   account: VaultAccount,
   liveSession: Session | null
 ): Promise<void> {
-  if (!liveSession?.refresh_token) return;
+  if (!liveSession?.refresh_token || liveSession.user?.id !== account.userId) return;
+  if (
+    liveSession.access_token === account.supabaseSession?.access_token &&
+    liveSession.refresh_token === account.supabaseSession?.refresh_token &&
+    liveSession.expires_at === account.supabaseSession?.expires_at
+  ) return;
   const authSession: AuthSession = {
     supabaseSession: liveSession,
     validatedUser: account.validatedUser,
@@ -461,8 +466,8 @@ async function resolveTargetSessionTokens(
   userId: string
 ): Promise<{ accessToken: string; refreshToken: string; needsRecovery: boolean }> {
   let refreshToken =
-    target.supabaseSession?.refresh_token ??
-    (await accountVault.getBackupRefreshTokenForUser(userId)) ??
+    target.supabaseSession?.refresh_token ||
+    (await accountVault.getBackupRefreshTokenForUser(userId)) ||
     '';
   let accessToken = target.supabaseSession?.access_token ?? '';
 
@@ -533,8 +538,7 @@ async function restorePreviousLiveSession(
 
   if (!previousActive) return;
 
-  const restored = await persistSessionFromRefresh(data.session, previousActive.validatedUser);
-  await accountVault.addAccount(accountVault.buildVaultAccount(restored));
+  await persistSessionFromRefresh(data.session, previousActive.validatedUser);
   await accountVault.setActiveAccountId(previousActive.userId);
 }
 
@@ -678,24 +682,27 @@ export const clearAuthState = async (): Promise<void> => {
  * Pulls the target's stored session from the vault, sets it on the live
  * Supabase client (silently recovering an expired access token via its stored
  * refresh token), persists it as the active `auth_session`, updates the vault's
- * active pointer, and kicks off background re-validation.
+ * active pointer. School authorization must pass before the switch commits.
  *
  * INVARIANT 1: never calls clearAuthState()/signIn()/SecureTokenStore.removeItem.
  * Only setItem-based writes are used, so the account being switched AWAY from is
- * never wiped. Token fidelity: if the stored access token was still valid (no
- * SDK rotation), the ORIGINAL stored session bytes are written back verbatim, so
- * a round-trip (A→B→A) leaves A's `auth_session` + single backup byte-identical.
+ * never wiped. Its latest live tokens are saved before switching, and password
+ * and QR recovery remain available for dormant accounts.
  */
 async function doSwitchAccount(
   userId: string
 ): Promise<{ session?: AuthSession; error?: string }> {
   clearStaffPortalSession();
-  const accounts = await accountVault.listAccounts();
+  const [accounts, reg, previousActiveId, live] = await Promise.all([
+    accountVault.listAccounts(),
+    staffBiometricService.getStoredRegistration(),
+    accountVault.getActiveAccountId(),
+    supabase.auth.getSession(),
+  ]);
   const target = accounts.find((a) => a.userId === userId);
   if (!target) return { error: 'Account not found in vault' };
 
   // Guard: If device is registered to another staff person, block switching into this staff account
-  const reg = await staffBiometricService.getStoredRegistration();
   if (
     (reg.status === 'pending' || reg.status === 'approved') &&
     reg.personId &&
@@ -708,12 +715,11 @@ async function doSwitchAccount(
     };
   }
 
-  const previousActiveId = await accountVault.getActiveAccountId();
   const previousActive =
     previousActiveId && previousActiveId !== userId
       ? accounts.find((a) => a.userId === previousActiveId) ?? null
       : null;
-  const { data: { session: previousLiveSession } } = await supabase.auth.getSession();
+  const previousLiveSession = live.data.session;
 
   // Keep the account we're leaving in sync with the live client's latest tokens.
   if (previousActive && previousLiveSession?.refresh_token) {
@@ -728,15 +734,30 @@ async function doSwitchAccount(
   beginInternalSwap();
   try {
     let liveSession: Session | null = null;
+    let validatedUser: ValidatedUser | undefined;
     let setSessionError: string | undefined;
 
     if (!needsRecovery && refreshToken) {
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
+      // Both services independently check the same target token. Explicit
+      // authorization avoids reading the live client while setSession holds
+      // its SDK lock, and excludes the outgoing account's portal context.
+      // Settle both requests before rollback or the next serialized switch.
+      const [established, validation] = await Promise.allSettled([
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+        validateUserForAccountSwitch(accessToken),
+      ]);
+      if (established.status === 'rejected') throw established.reason;
+      const { data, error } = established.value;
       if (!error && data?.session) {
         liveSession = data.session;
+        // If the SDK rotated tokens during setup, validate the new token.
+        if (liveSession.access_token === accessToken) {
+          if (validation.status === 'rejected') throw validation.reason;
+          validatedUser = validation.value;
+        }
       } else {
         setSessionError = error?.message;
       }
@@ -763,11 +784,15 @@ async function doSwitchAccount(
       };
     }
 
+    if (!validatedUser) {
+      validatedUser = await validateUserForAccountSwitch(liveSession.access_token);
+    }
     return await finalizeSwitchedSession(
       liveSession,
       target,
       previousActive,
-      previousLiveSession
+      previousLiveSession,
+      validatedUser
     );
   } catch (e: any) {
     await restorePreviousLiveSession(previousActive, previousLiveSession);
@@ -777,23 +802,29 @@ async function doSwitchAccount(
   }
 }
 
-async function finalizeSwitchedSession(
-  liveSession: Session,
-  target: VaultAccount,
-  previousActive: VaultAccount | null,
-  previousLiveSession: Session | null
-): Promise<{ session?: AuthSession; error?: string }> {
-  const validatedUser = await api.post<ValidatedUser>(
+function validateUserForAccountSwitch(accessToken: string): Promise<ValidatedUser> {
+  return api.post<ValidatedUser>(
     '/auth/validate-school-user',
     {},
     {
-      headers: { Authorization: `Bearer ${liveSession.access_token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
+      omitAuth: true,
       silent: true,
       timeoutMs: 20000,
     }
   );
+}
+
+async function finalizeSwitchedSession(
+  liveSession: Session,
+  target: VaultAccount,
+  previousActive: VaultAccount | null,
+  previousLiveSession: Session | null,
+  validatedUser: ValidatedUser
+): Promise<{ session?: AuthSession; error?: string }> {
   if (
     !validatedUser ||
+    liveSession.user?.id !== target.userId ||
     validatedUser.userId !== target.userId ||
     validatedUser.schoolId !== SCHOOL_ID
   ) {

@@ -42,6 +42,9 @@
         "monochromeImage": "./assets/images/icon-v2.png"
       },
       "useNextNotificationsApi": true,
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -96,7 +99,7 @@
         {
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true,
-          "locationWhenInUsePermission": "This app shares the school bus location with parents while a trip is in progress.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to verify staff presence on campus for attendance and share school bus location during active trips.",
           "locationAlwaysAndWhenInUsePermission": "This app shares the school bus location with parents while a trip is in progress, including when the screen is off."
         }
       ],
@@ -125,7 +128,14 @@
       "./plugins/withManifestMerger.js",
       "./plugins/withAndroidSounds.js",
       "./plugins/withAndroidWindowCompatibility.js",
-      "./plugins/withAndroidReleaseOptimization.js"
+      "./plugins/withAndroidReleaseOptimization.js",
+      "./plugins/withAndroidForegroundAudioOnly.js",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to verify staff attendance with Face ID."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -631,7 +631,7 @@ export default function AdminAttendanceScreen() {
       <View style={[styles.orb1, { backgroundColor: orb1Color }]} />
       <View style={[styles.orb2, { backgroundColor: orb2Color }]} />
 
-      <TourTarget id="screen.admin-attendance.overview"><AdminHeader
+      <TourTarget id="screen.admin-attendance.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader
         title="Staff Attendance"
         showNotification
         scrollY={scrollY}

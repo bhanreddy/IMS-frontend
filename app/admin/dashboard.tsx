@@ -1979,7 +1979,7 @@ export default function AdminDashboard() {
     <TourTarget id="screen.admin-dashboard.workspace" native><View style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <TourTarget id="screen.admin-dashboard.overview"><AdminHeader
+      <TourTarget id="screen.admin-dashboard.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader
         title=""
         hideTitle
         showNotification

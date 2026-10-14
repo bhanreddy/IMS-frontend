@@ -23,10 +23,13 @@ export function useQuickAccountSwitch(onSwitched?: () => void | Promise<void>) {
         accountVault.listAccounts(),
         accountVault.getActiveAccountId(),
       ]);
+      const activeUserId = active ?? user?.userId ?? null;
       setAccounts(accs);
-      setActiveId(active ?? user?.userId ?? null);
+      setActiveId(activeUserId);
+      return { accounts: accs, activeId: activeUserId };
     } catch {
       /* vault read failures are non-fatal */
+      return null;
     }
   }, [user?.userId]);
 
@@ -52,9 +55,12 @@ export function useQuickAccountSwitch(onSwitched?: () => void | Promise<void>) {
           router.replace(getHomeRouteForRole(roleCode) as any);
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Only refresh student UI when staying on the parent/student portal.
+        // Refresh student data after navigation without holding the switcher's
+        // busy state open for another round of dashboard network requests.
         if (isStudentRole(roleCode)) {
-          await onSwitched?.();
+          void Promise.resolve().then(() => onSwitched?.()).catch(() => {
+            /* dashboard queries retry independently of the completed switch */
+          });
         }
         return true;
       } catch (e: any) {
@@ -73,9 +79,11 @@ export function useQuickAccountSwitch(onSwitched?: () => void | Promise<void>) {
   );
 
   const switchToNext = useCallback(async () => {
-    await loadAccounts();
-    const accs = await accountVault.listAccounts();
-    const current = (await accountVault.getActiveAccountId()) ?? user?.userId;
+    if (busyRef.current) return false;
+    const snapshot = await loadAccounts();
+    if (!snapshot) return false;
+    const accs = snapshot.accounts;
+    const current = snapshot.activeId;
     if (accs.length <= 1) {
       Haptics.selectionAsync();
       setSheetOpen(true);
@@ -90,7 +98,7 @@ export function useQuickAccountSwitch(onSwitched?: () => void | Promise<void>) {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     return performSwitch(next.userId);
-  }, [loadAccounts, performSwitch, user?.userId]);
+  }, [loadAccounts, performSwitch]);
 
   const switchTo = useCallback(
     async (userId: string) => {
@@ -104,8 +112,8 @@ export function useQuickAccountSwitch(onSwitched?: () => void | Promise<void>) {
 
   const openSheet = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await loadAccounts();
     setSheetOpen(true);
+    await loadAccounts();
   }, [loadAccounts]);
 
   const closeSheet = useCallback(() => setSheetOpen(false), []);

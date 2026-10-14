@@ -12,7 +12,6 @@ import {
   LayoutAnimation,
   UIManager,
   Modal,
-  ScrollView,
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
@@ -83,17 +82,6 @@ const ACCENT = {
   sky: '#0EA5E9',
 };
 
-/** Soft tint + border for a semantic accent color (used by overview chips). */
-function tintFor(color: string, isDark: boolean): { bg: string; border: string } {
-  const map: Record<string, { bg: string; border: string; darkBg: string; darkBorder: string }> = {
-    [ACCENT.emerald]: { bg: '#ECFDF5', border: '#A7F3D0', darkBg: 'rgba(5,150,105,0.14)', darkBorder: 'rgba(5,150,105,0.3)' },
-    [ACCENT.rose]: { bg: '#FFF1F2', border: '#FECDD3', darkBg: 'rgba(225,29,72,0.14)', darkBorder: 'rgba(225,29,72,0.3)' },
-    [ACCENT.amber]: { bg: '#FFFBEB', border: '#FDE68A', darkBg: 'rgba(217,119,6,0.16)', darkBorder: 'rgba(217,119,6,0.32)' },
-  };
-  const t = map[color] ?? { bg: '#F1F5F9', border: '#E2E8F0', darkBg: 'rgba(255,255,255,0.05)', darkBorder: 'rgba(255,255,255,0.08)' };
-  return isDark ? { bg: t.darkBg, border: t.darkBorder } : { bg: t.bg, border: t.border };
-}
-
 const IS_WEB = Platform.OS === 'web';
 
 const sortByRollNo = (a: StudentUI, b: StudentUI) => {
@@ -121,32 +109,6 @@ const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'warning' = 'light
       break;
   }
 };
-
-// ─── Compact overview stat chip ──────────────────────────────────────────────
-function OverviewChip({
-  label, value, color, icon, isDark,
-}: {
-  label: string; value: number; color: string;
-  icon: React.ComponentProps<typeof Ionicons>['name']; isDark: boolean;
-}) {
-  const tint = tintFor(color, isDark);
-  return (
-    <View style={[overviewChip.wrap, { backgroundColor: tint.bg, borderColor: tint.border }]}>
-      <View style={overviewChip.topRow}>
-        <Ionicons name={icon} size={13} color={color} />
-        <Text style={[overviewChip.value, { color }]}>{value}</Text>
-      </View>
-      <Text style={[overviewChip.label, { color: isDark ? 'rgba(255,255,255,0.6)' : '#64748B' }]}>{label}</Text>
-    </View>
-  );
-}
-
-const overviewChip = StyleSheet.create({
-  wrap: { flex: 1, minWidth: 96, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, borderRadius: 14, borderWidth: 1 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  value: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
-  label: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 3 },
-});
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 export default function ManageStudents() {
@@ -235,7 +197,7 @@ export default function ManageStudents() {
   const unmarked = students.filter((s) => statusOf(s) === 'unmarked').length;
   const marked = present + absent;
   const total = students.length;
-  const completionPct = total > 0 ? Math.round((marked / total) * 100) : 0;
+  const allPresent = total > 0 && present === total;
   const canSubmit = total > 0 && marked > 0 && !queued && !submissionConfirmed;
   const dayHasRecords = students.some(
     (s) => s.morningStatus !== 'unmarked' || s.afternoonStatus !== 'unmarked'
@@ -386,9 +348,11 @@ export default function ManageStudents() {
   }, [requestedSession, routeParams.date, routeParams.contextRequest, todayYMD]);
 
   const handleDateChange = useCallback((next: string) => {
-    if (!next || next === selectedDate || submitting || clearingDay) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(next) || submitting || clearingDay) return;
     // Guard against future dates even if the native picker misbehaves.
     const capped = next > todayYMD ? todayYMD : next;
+    // A capped date may already be selected; do not enter loading without a new request.
+    if (capped === selectedDate) return;
     triggerHaptic('light');
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSearchQuery('');
@@ -642,7 +606,7 @@ export default function ManageStudents() {
         variant="compact"
         isDark={isDark}
         accentColor={theme.colors.primary}
-        placeholder="Select date"
+        placeholder="Attendance date"
         containerStyle={styles.datePickerField}
       />
       {!isToday && (
@@ -668,35 +632,18 @@ export default function ManageStudents() {
         <View style={styles.sessionHint}>
           <Ionicons name="information-circle-outline" size={14} color={theme.colors.textSecondary} />
           <Text style={styles.sessionHintText}>
-            {otherSessionMarked}/{total} marked for {session === 'morning' ? 'afternoon' : 'morning'} · Half + Half = Full Day
+            {otherSessionMarked}/{total} marked for {session === 'morning' ? 'afternoon' : 'morning'}
           </Text>
         </View>
       )}
 
-      {/* Stats — marking progress is separate from submission confirmation. */}
-      {total > 0 && <View style={[styles.statsOuter, styles.surface]}>
-        <View style={styles.statsCardHeader}>
-          <Text style={styles.statsCardTitle}>{marked} of {total} marked</Text>
-          <View style={[styles.completionChip, completionPct === 100 ? styles.chipComplete : styles.chipPending]}>
-            <Text style={[styles.completionChipText, { color: completionPct === 100 ? ACCENT.emerald : ACCENT.amber }]}>
-              {completionPct}%
-            </Text>
-          </View>
-        </View>
-        <View style={styles.statsRow}>
-          <OverviewChip label="Present" value={present} color={ACCENT.emerald} icon="checkmark-circle" isDark={isDark} />
-          <OverviewChip label="Absent" value={absent} color={ACCENT.rose} icon="close-circle" isDark={isDark} />
-          <OverviewChip label="Unmarked" value={unmarked} color={ACCENT.amber} icon="time" isDark={isDark} />
-        </View>
-      </View>}
-
       <View accessibilityLiveRegion="polite" style={[styles.statusPanel, styles.surface]}>
-        <Text style={styles.contextTitle}>{detectedClassLabel ? `Class ${detectedClassLabel}` : 'Class assignment'} · {session === 'morning' ? 'Morning' : 'Afternoon'}</Text>
-        <Text style={styles.statusText}>{!detectedClassId ? (loadError ? 'Attendance unavailable' : 'No class assigned for this session') : !total ? 'No enrolled students' : submitting ? 'Submitting to the server…' : queued ? 'Waiting to sync · saved on this device' : draftCount ? 'Unsubmitted changes' : submissionConfirmed ? 'Submitted to the server' : marked ? 'Loaded attendance records' : 'Ready to mark attendance'}</Text>
-        <Text style={styles.statusHint}>{submissionMessage || (draftCount ? 'Edits are kept while this portal is open. Submit to save them to the server.' : queued ? 'Reconnect and retry sync to confirm these records on the server.' : 'Tap a student card to change status. Submit when the list is ready.')}</Text>
+        {(submitting || queued || draftCount > 0 || submissionConfirmed) && (
+          <Text style={styles.statusText}>{submitting ? 'Submitting…' : queued ? 'Waiting to sync · saved on this device' : draftCount ? 'Unsubmitted changes' : 'Submitted to the server'}</Text>
+        )}
         {!!loadError && <Text style={[styles.statusHint, { color: theme.colors.alertText }]}>{loadError}</Text>}
         <TouchableOpacity accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => void loadStudents()} style={styles.statusAction}>
-          <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>{refreshing ? 'Refreshing and checking queue…' : queued ? 'Retry sync and refresh' : 'Refresh server records'}</Text>
+          <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>{refreshing ? 'Refreshing…' : queued ? 'Retry sync' : 'Refresh'}</Text>
         </TouchableOpacity>
         {total > 0 && (
           <>
@@ -790,13 +737,12 @@ export default function ManageStudents() {
       )}
 
       {/* List Meta */}
-      <Text style={[styles.statusHint, { marginHorizontal: 16, marginTop: 12 }]}>Tap a student to switch present, absent, and unmarked. Swipe right for present or left for absent.</Text>
       <TourTarget id="staff.attendance.review" native><View style={styles.listMeta}>
         <View style={styles.listMetaLeft}>
           <LinearGradient colors={[ACCENT.violet, ACCENT.emerald]} style={styles.sectionAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
           <Text style={styles.listMetaText}>Student List</Text>
         </View>
-        <Text style={styles.studentCountLabel}>{filteredStudents.length} Students</Text>
+        {filteredStudents.length !== total && <Text style={styles.studentCountLabel}>{filteredStudents.length} matching</Text>}
       </View></TourTarget>
     </View>
   );
@@ -810,15 +756,21 @@ export default function ManageStudents() {
 <View style={styles.quickActions}>
         <TouchableOpacity
           disabled={editingDisabled || refreshing}
-          accessibilityState={{ disabled: editingDisabled || refreshing }}
-          style={[styles.quickBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : theme.colors.background, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.shape.borderRadiusMD, opacity: editingDisabled ? 0.5 : 1 }]}
+          accessibilityState={{ disabled: editingDisabled || refreshing, selected: allPresent }}
+          style={[styles.quickBtn, {
+            backgroundColor: allPresent ? ACCENT.emerald : isDark ? 'rgba(5,150,105,0.12)' : '#F0FDF4',
+            borderWidth: 1,
+            borderColor: allPresent ? ACCENT.emerald : isDark ? 'rgba(5,150,105,0.3)' : '#BBF7D0',
+            borderRadius: theme.shape.borderRadiusMD,
+            opacity: editingDisabled ? 0.5 : 1,
+          }]}
           activeOpacity={0.85}
           onPress={() => setAllForSession('present')}
           accessibilityRole="button"
           accessibilityLabel="Mark all students present"
         >
-          <Ionicons name="checkmark-done" size={18} color={theme.colors.primary} />
-          <Text style={[styles.quickBtnText, { color: theme.colors.primary }]}>All Present</Text>
+          <Ionicons name="checkmark-done" size={18} color={allPresent ? '#FFFFFF' : isDark ? '#6EE7B7' : ACCENT.emeraldDeep} />
+          <Text style={[styles.quickBtnText, { color: allPresent ? '#FFFFFF' : isDark ? '#6EE7B7' : ACCENT.emeraldDeep }]}>All Present</Text>
         </TouchableOpacity>
         <TouchableOpacity
           disabled={editingDisabled || refreshing}
@@ -969,7 +921,7 @@ export default function ManageStudents() {
         {!loading && total > 0 && !keyboardVisible && (
           <View style={{ marginBottom: tabBarReserve, paddingBottom: Math.max(insets.bottom, 8), backgroundColor: theme.colors.surface }}>
             <TouchableOpacity accessibilityRole="button" onPress={() => { setStatusFilter('unmarked'); setSearchQuery(''); setFilterChronicAbsent(false); studentListRef.current?.scrollToOffset({ offset: 0, animated: true }); }} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, width: '100%', maxWidth: 900, alignSelf: 'center' }}>
-              <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>{marked}/{total} marked · {unmarked} unmarked · Show unmarked</Text>
+              <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Show unmarked</Text>
             </TouchableOpacity>
             {submissionMessage && <Text accessibilityLiveRegion="polite" style={[styles.statusHint, { paddingHorizontal: 16, width: '100%', maxWidth: 900, alignSelf: 'center' }]}>{submissionMessage}</Text>}
             {width >= 600 || fontScale <= 1.3 ? renderFooter() : (
@@ -1034,7 +986,6 @@ const getStyles = (theme: SchoolTheme, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   surface: { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, borderRadius: theme.shape.borderRadiusLG },
   statusPanel: { marginHorizontal: 16, marginTop: 12, padding: theme.spacing.md, gap: theme.spacing.sm },
-  contextTitle: { color: theme.colors.textStrong, fontSize: theme.typography.fontSizeLG, fontWeight: '700' },
   statusText: { color: theme.colors.textStrong, fontSize: theme.typography.fontSizeMD, fontWeight: '600' },
   statusHint: { color: theme.colors.textSecondary, fontSize: theme.typography.fontSizeSM, lineHeight: 20 },
   statusAction: { minHeight: 36, justifyContent: 'center' },
@@ -1090,7 +1041,8 @@ const getStyles = (theme: SchoolTheme, isDark: boolean) => StyleSheet.create({
   dayMenuHint: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   datePickerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   datePickerLabel: { fontSize: 13, fontWeight: '800', color: theme.colors.textPrimary, letterSpacing: -0.1 },
-  datePickerField: { flex: 0 },
+  // Explicit sizing preserves the field's height on web, where flex: 0 sets a zero basis.
+  datePickerField: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   todayChip: {
     paddingHorizontal: 10,
     paddingVertical: 12,
@@ -1108,15 +1060,6 @@ const getStyles = (theme: SchoolTheme, isDark: boolean) => StyleSheet.create({
   
   sessionHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 20, marginTop: 12 },
   sessionHintText: { flex: 1, fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary },
-
-  statsOuter: { marginHorizontal: 16, marginTop: 14, marginBottom: 8, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, gap: 8 },
-  statsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statsCardTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary, letterSpacing: -0.2 },
-  completionChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  chipComplete: { backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5' },
-  chipPending: { backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' },
-  completionChipText: { fontSize: 13, fontWeight: '800' },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF', marginHorizontal: 16, marginTop: 10, paddingHorizontal: 14, borderRadius: 16, minHeight: 48, paddingVertical: 8, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' },
   searchIcon: { marginRight: 8 },

@@ -43,7 +43,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LogoLoader from '../../src/components/LogoLoader';
 import ScreenLayout from '../../src/components/ScreenLayout';
@@ -1125,7 +1124,6 @@ const HomeScreen = () => {
   const P = palette(theme);
   const { t } = useTranslation();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { user, role } = useAuth();
   const { isEnabled, refresh: refreshFeatures } = useFeatures();
@@ -1217,13 +1215,6 @@ const HomeScreen = () => {
     : 0;
   const attClr = pct >= 85 ? '#10B981' : pct >= 70 ? '#F59E0B' : '#EF4444';
 
-  // ponytail: pinned solid header — light hero bg needs dark chrome, not scrollY=0 transparent+white text
-  const headerScrollY = useSharedValue(60);
-
-  // StudentHeader is position:absolute, so the hero must reserve its full height or it overlaps the card.
-  // ponytail: mirror StudentHeader's own layout (paddingTop max(insets.top,36) + 40 icon + 16 bottom pad); keep in sync if that header changes.
-  const HEADER_HEIGHT = Math.max(insets.top, 36) + 56;
-
   const FRESH = 36 * 60 * 60 * 1000;
   const isFresh = (n: any) => !!n?.created_at && Date.now() - new Date(n.created_at).getTime() < FRESH;
   const freshNotices = notices.filter(isFresh);
@@ -1288,7 +1279,7 @@ const HomeScreen = () => {
     <HomeSvgContext.Provider value={svgMod}>
       <ScreenLayout>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <TourTarget id="screen.home.overview"><StudentHeader scrollY={headerScrollY} /></TourTarget>
+        <TourTarget id="screen.home.overview"><StudentHeader /></TourTarget>
 
         <TourTarget id="screen.home.workspace" native><TourScrollView
           showsVerticalScrollIndicator={false}
@@ -1303,7 +1294,7 @@ const HomeScreen = () => {
           {refreshing && <View style={S.loaderRow}><LogoLoader size={28} /></View>}
 
           {/* ── HERO ── */}
-          <View style={[S.hero, { paddingTop: HEADER_HEIGHT + 6, backgroundColor: '#15245C' }]}>
+          <View style={[S.hero, { paddingTop: 6, backgroundColor: '#15245C' }]}>
             <View
               style={[
                 S.heroOuter,

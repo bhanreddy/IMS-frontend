@@ -88,3 +88,57 @@ test('complaint notifications keep their existing emergency sound', async () => 
     trigger: { channelId: 'emergency_custom' },
   }));
 });
+
+test.each(['foreground', 'background'] as const)(
+  '%s general notifications migrate legacy default sounds to voice alerts',
+  async (source) => {
+    await manager.displayNotification({ data: {
+      type: 'MESSAGE_RECEIVED', channelId: 'notification_default_custom', sound: 'notification_default',
+    } }, source);
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.objectContaining({ sound: 'voice_alert.wav' }),
+      trigger: { channelId: 'voice_alert_custom' },
+    }));
+  },
+);
+
+test.each(['NOTICE_ADMIN_STUDENT', 'POPUP_ANNOUNCEMENT'])(
+  '%s announcements retain the default sound even with an older voice-alert payload',
+  async (type) => {
+    await manager.displayNotification({ data: {
+      type, channelId: 'voice_alert_custom', sound: 'voice_alert',
+    } }, 'foreground');
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.objectContaining({ sound: 'notification_default.wav' }),
+      trigger: { channelId: 'notification_default_custom' },
+    }));
+  },
+);
+
+test.each([
+  ['voice_alert', 'voice_alert.wav'],
+  ['diary_alert', 'diary_alert.wav'],
+  ['attendance_absent_alert', 'attendance_absent_alert.wav'],
+  ['emergency', 'emergency.wav'],
+  ['fee_reminder', 'fee_reminder.wav'],
+  ['bus_present', 'bus_present.wav'],
+  ['bus_confirmation', 'busconfirmation.wav'],
+])('existing %s alerts preserve their channel and full sound filename', async (channel, sound) => {
+  await manager.displayNotification({ data: {
+    channelId: `${channel}_custom`, sound,
+  } }, 'foreground');
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+    content: expect.objectContaining({ sound }),
+    trigger: { channelId: `${channel}_custom` },
+  }));
+});
+
+test('bare default announcement channel resolves without stripping part of its name', async () => {
+  await manager.displayNotification({ data: {
+    type: 'NOTICE_ADMIN_STUDENT', channelId: 'notification_default', sound: 'notification_default.wav',
+  } }, 'foreground');
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({
+    content: expect.objectContaining({ sound: 'notification_default.wav' }),
+    trigger: { channelId: 'notification_default_custom' },
+  }));
+});

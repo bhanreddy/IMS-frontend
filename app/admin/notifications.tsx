@@ -1299,7 +1299,7 @@ export default function NotificationsTriggerPage() {
 
   return (
     <TourTarget id="screen.admin-notifications.workspace" native><View style={styles.container}>
-      <TourTarget id="screen.admin-notifications.overview"><AdminHeader
+      <TourTarget id="screen.admin-notifications.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader
         title="Notifications"
         showBackButton
         showNotification={false}

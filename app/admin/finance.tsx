@@ -429,7 +429,7 @@ export default function AdminFinanceScreen() {
 
   return (
     <TourTarget id="screen.admin-finance.workspace" native><View style={styles.container}>
-      <TourTarget id="screen.admin-finance.overview"><AdminHeader title="Finance & Collection" showNotification scrollY={scrollY} /></TourTarget>
+      <TourTarget id="screen.admin-finance.overview" style={{ zIndex: 100, elevation: 20 }}><AdminHeader title="Finance & Collection" showNotification scrollY={scrollY} /></TourTarget>
       {loading && !refreshing ?
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <LogoLoader size={60} color={theme.colors.primary} />

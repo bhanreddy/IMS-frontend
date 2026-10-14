@@ -17,6 +17,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Haptics from '@/src/utils/haptics';
 import { useTheme } from '@/src/hooks/useTheme';
 import { visitorService, type VisitorRequest } from '@/src/services/visitorService';
+import StudentSubpageHeader from '@/src/components/StudentSubpageHeader';
 
 export default function VisitorPassScreen() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function VisitorPassScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: bgColor }]}>
+        <StudentSubpageHeader title="Visitor Pass" onBack={() => router.back()} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#10B981" />
           <Text style={[styles.loadingText, { color: subColor }]}>Loading your digital pass...</Text>

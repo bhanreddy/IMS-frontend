@@ -15,13 +15,14 @@ import { api } from '../../services/apiClient';
 import * as Haptics from '../../utils/haptics';
 
 interface CampusPolicy {
+  id?: string | null;
   campus_name: string;
-  center_latitude: number;
-  center_longitude: number;
-  radius_meters: number;
-  max_location_age_seconds: number;
-  max_accuracy_meters: number;
-  grace_period_minutes: number;
+  center_latitude: number | string;
+  center_longitude: number | string;
+  radius_meters: number | string;
+  max_location_age_seconds: number | string;
+  max_accuracy_meters: number | string;
+  grace_period_minutes: number | string;
   check_in_start_time: string;
   check_in_end_time: string;
   check_out_start_time: string;
@@ -37,11 +38,13 @@ interface Props {
 
 export default function CampusGeofenceModal({ visible, isDark, onClose }: Props) {
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [policy, setPolicy] = useState<CampusPolicy>({
     campus_name: 'Main Campus',
-    center_latitude: 17.385044,
-    center_longitude: 78.486671,
+    center_latitude: '',
+    center_longitude: '',
     radius_meters: 100,
     max_location_age_seconds: 30,
     max_accuracy_meters: 50,
@@ -50,7 +53,7 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
     check_in_end_time: '11:00:00',
     check_out_start_time: '14:00:00',
     check_out_end_time: '19:00:00',
-    enforcement_mode: 'pilot',
+    enforcement_mode: 'disabled',
   });
 
   useEffect(() => {
@@ -62,21 +65,35 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
   const loadPolicy = async () => {
     try {
       setLoading(true);
+      setLoaded(false);
+      setLoadError(null);
       const res = await api.get<CampusPolicy>('/attendance/v2/admin/policy');
       if (res) {
-        setPolicy(res);
+        setPolicy(res.id === null ? { ...res, center_latitude: '', center_longitude: '' } : res);
+        setLoaded(true);
       }
     } catch (err) {
       console.warn('Failed to fetch campus policy:', err);
+      setLoadError('Could not load the current campus rules. Retry before editing.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    if (!loaded || loading || saving) return;
     try {
+      const numericFields = ['center_latitude', 'center_longitude', 'radius_meters',
+        'max_location_age_seconds', 'max_accuracy_meters', 'grace_period_minutes'] as const;
+      const payload = { ...policy };
+      for (const field of numericFields) {
+        if (String(policy[field]).trim() === '' || !Number.isFinite(Number(policy[field]))) {
+          throw new Error('Enter a valid number in every location and timing field.');
+        }
+        payload[field] = Number(policy[field]);
+      }
       setSaving(true);
-      await api.put('/attendance/v2/admin/policy', policy);
+      await api.put('/attendance/v2/admin/policy', payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Policy Saved', 'Campus geofence and attendance rules updated.');
       onClose();
@@ -111,6 +128,13 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
           {loading ? (
             <View style={styles.loaderBox}>
               <ActivityIndicator size="large" color="#6366F1" />
+            </View>
+          ) : loadError ? (
+            <View style={styles.loaderBox}>
+              <Text style={{ color: textSecondary }}>{loadError}</Text>
+              <TouchableOpacity onPress={loadPolicy} accessibilityRole="button" accessibilityLabel="Retry loading campus rules">
+                <Text style={{ color: '#6366F1', marginTop: 12 }}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
@@ -152,8 +176,8 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                   <TextInput
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
-                    value={String(policy.center_latitude || '')}
-                    onChangeText={(v) => setPolicy({ ...policy, center_latitude: parseFloat(v) || 0 })}
+                    value={String(policy.center_latitude ?? '')}
+                    onChangeText={(v) => setPolicy({ ...policy, center_latitude: v })}
                   />
                 </View>
                 <View style={styles.col}>
@@ -161,8 +185,8 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                   <TextInput
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
-                    value={String(policy.center_longitude || '')}
-                    onChangeText={(v) => setPolicy({ ...policy, center_longitude: parseFloat(v) || 0 })}
+                    value={String(policy.center_longitude ?? '')}
+                    onChangeText={(v) => setPolicy({ ...policy, center_longitude: v })}
                   />
                 </View>
               </View>
@@ -173,8 +197,8 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                   <TextInput
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
-                    value={String(policy.radius_meters || '')}
-                    onChangeText={(v) => setPolicy({ ...policy, radius_meters: parseInt(v, 10) || 100 })}
+                    value={String(policy.radius_meters ?? '')}
+                    onChangeText={(v) => setPolicy({ ...policy, radius_meters: v })}
                   />
                 </View>
                 <View style={styles.col}>
@@ -182,8 +206,8 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                   <TextInput
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
-                    value={String(policy.max_accuracy_meters || '')}
-                    onChangeText={(v) => setPolicy({ ...policy, max_accuracy_meters: parseInt(v, 10) || 50 })}
+                    value={String(policy.max_accuracy_meters ?? '')}
+                    onChangeText={(v) => setPolicy({ ...policy, max_accuracy_meters: v })}
                   />
                 </View>
               </View>
@@ -237,7 +261,7 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
                     value={String(policy.grace_period_minutes ?? '')}
-                    onChangeText={(v) => setPolicy({ ...policy, grace_period_minutes: parseInt(v, 10) || 0 })}
+                    onChangeText={(v) => setPolicy({ ...policy, grace_period_minutes: v })}
                   />
                 </View>
                 <View style={styles.col}>
@@ -246,7 +270,7 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
                     style={[styles.input, { color: textPrimary, borderColor: borderClr }]}
                     keyboardType="numeric"
                     value={String(policy.max_location_age_seconds ?? '')}
-                    onChangeText={(v) => setPolicy({ ...policy, max_location_age_seconds: parseInt(v, 10) || 0 })}
+                    onChangeText={(v) => setPolicy({ ...policy, max_location_age_seconds: v })}
                   />
                 </View>
               </View>
@@ -265,9 +289,9 @@ export default function CampusGeofenceModal({ visible, isDark, onClose }: Props)
               <Text style={{ color: textSecondary }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              disabled={saving}
+              disabled={saving || loading || !loaded}
               onPress={handleSave}
-              style={[styles.saveBtn, { backgroundColor: '#6366F1' }]}
+              style={[styles.saveBtn, { backgroundColor: '#6366F1', opacity: saving || loading || !loaded ? 0.5 : 1 }]}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#FFF" />
