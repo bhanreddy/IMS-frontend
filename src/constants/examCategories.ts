@@ -19,7 +19,7 @@ export const EXAM_CATEGORIES: ExamCategory[] = [
         key: 'slip_test',
         title: 'Slip Tests',
         icon: 'document-text',
-        color: '#3B82F6',
+        color: '#1565C0', // Logo royal blue ribbon
         description: 'Weekly slip tests and unit tests',
         examPrefix: 'ST',
         subExams: ['ST-1', 'ST-2', 'ST-3', 'ST-4', 'ST-5'],
@@ -28,7 +28,7 @@ export const EXAM_CATEGORIES: ExamCategory[] = [
         key: 'fa_results',
         title: 'Formative Assessment',
         icon: 'analytics',
-        color: '#10B981',
+        color: '#1B5E20', // Logo tree green
         description: 'FA-1 to FA-4 Internal Exams',
         examPrefix: 'FA',
         subExams: ['FA-1', 'FA-2', 'FA-3', 'FA-4'],
@@ -37,7 +37,7 @@ export const EXAM_CATEGORIES: ExamCategory[] = [
         key: 'sa_results',
         title: 'Summative Assessment',
         icon: 'school',
-        color: '#F59E0B',
+        color: '#D4AF37', // Logo gold stars & trim
         description: 'Half-yearly and Annual Exams',
         examPrefix: 'SA',
         subExams: ['SA-1', 'SA-2'],
@@ -46,7 +46,7 @@ export const EXAM_CATEGORIES: ExamCategory[] = [
         key: 'special',
         title: 'Special Exams',
         icon: 'star',
-        color: '#8B5CF6',
+        color: '#D42B2B', // Logo red ring
         description: 'Talent tests and special evaluations',
         examPrefix: 'Special',
         subExams: ['Special-1', 'Special-2'],
@@ -55,7 +55,7 @@ export const EXAM_CATEGORIES: ExamCategory[] = [
         key: 'weekend',
         title: 'Weekend Exams',
         icon: 'calendar',
-        color: '#EC4899',
+        color: '#8B1A1A', // Deep maroon ring depth
         description: 'Weekly practice (IIT/NEET)',
         examPrefix: 'W',
         subExams: ['W-1', 'W-2', 'W-3', 'W-4'],
