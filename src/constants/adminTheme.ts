@@ -2,25 +2,25 @@ import { ViewStyle } from "react-native";
 
 export const ADMIN_THEME = {
     colors: {
-        primary: '#D42B2B', // Logo red ring
-        secondary: '#1B5E20', // Logo tree green
-        success: '#2E7D32', // Forest green (logo-adjacent)
+        primary: '#002448', // Deep Navy (logo circle)
+        secondary: '#CFA141', // Gold (logo lettering)
+        success: '#10B981', // Emerald
         warning: '#F59E0B', // Amber
-        danger: '#C62828', // Deep red
-        info: '#1565C0', // Logo blue ribbon
+        danger: '#EF4444', // Rose
+        info: '#003D6B', // Navy blue
         background: {
-            app: '#FFF8F0', // Warm cream
+            app: '#F5F7FA', // Navy-tinted neutral
             surface: '#FFFFFF',
-            subtle: '#FFF5EB', // Warm subtle
+            subtle: '#EEF2F7',
         },
         text: {
-            primary: '#2D2D2D', // Logo near-black
-            secondary: '#5D4037', // Warm brown
-            muted: '#8D6E63', // Muted brown
+            primary: '#062341', // Navy
+            secondary: '#3D5166', // Muted navy
+            muted: '#6B7D8F', // Soft slate
             inverse: '#FFFFFF',
         },
-        border: '#E8D5B7', // Warm beige
-        icon: '#5D4037',
+        border: '#D4DEE8', // Navy-tinted border
+        icon: '#3D5166',
     },
     spacing: {
         xs: 4,
@@ -53,7 +53,7 @@ export const ADMIN_THEME = {
             elevation: 4,
         } as ViewStyle,
         lg: {
-            shadowColor: "#D42B2B", // Colored shadow for emphasis (logo red)
+            shadowColor: "#002448", // Colored shadow for emphasis
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.15,
             shadowRadius: 20,

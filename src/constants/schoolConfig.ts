@@ -25,14 +25,14 @@ import { defaultDarkTheme, defaultLightTheme } from '../theme/types';
 export function schoolColorWithAlpha(hex: string | undefined | null, alpha: number): string {
   'worklet';
   if (hex == null || typeof hex !== 'string') {
-    return `rgba(212,43,43,${alpha})`;
+    return `rgba(207,161,65,${alpha})`;
   }
   let h = hex.trim().replace('#', '');
   if (h.length === 3) {
     h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   }
   if (!/^[0-9a-fA-F]{6}$/.test(h)) {
-    return `rgba(212,43,43,${alpha})`;
+    return `rgba(207,161,65,${alpha})`;
   }
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -54,54 +54,54 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
     ...defaultLightTheme,
     colors: {
       ...defaultLightTheme.colors,
-      // Primary brand color – Logo Red Ring
-      primary: '#D42B2B',
-      primaryLight: '#E57373',
-      primaryDark: '#8B1A1A',
-      // Secondary color – Logo Tree Green
-      secondary: '#1B5E20',
-      // Accent color – Logo Gold Stars & Trim
-      accent: '#D4AF37',
-      // Backgrounds – warm cream neutrals (matching red/gold warmth)
-      background: '#FFF8F0',
+      // Primary brand color – Deep Navy (from logo circle background)
+      primary: '#002448',
+      primaryLight: '#003060',
+      primaryDark: '#001832',
+      // Secondary color – Gold (from logo text, border & icons)
+      secondary: '#CFA141',
+      // Accent color – Gold trim (logo ring & lettering)
+      accent: '#CFA141',
+      // Backgrounds – subtle navy-tinted neutrals
+      background: '#F5F7FA',
       surface: '#FFFFFF',
-      card: '#FFFAF5',
-      // Text colors – warm dark neutrals from logo border
-      textPrimary: '#2D2D2D',
-      textStrong: '#1A1A1A',
-      textSecondary: '#5D4037',
-      textMuted: '#8D6E63',
-      text: '#2D2D2D',
-      textTertiary: '#D4AF37',
-      // Borders – warm beige
-      border: '#E8D5B7',
-      borderLight: '#F5E6D0',
+      card: '#FFFFFF',
+      // Text colors – navy-slate palette
+      textPrimary: '#062341',
+      textStrong: '#001832',
+      textSecondary: '#3D5166',
+      textMuted: '#6B7D8F',
+      text: '#062341',
+      textTertiary: '#6B7D8F',
+      // Borders – navy-tinted
+      border: '#D4DEE8',
+      borderLight: '#E8EEF4',
       // Semantic colors
-      danger: '#C62828',
-      success: '#2E7D32',
+      danger: '#EF4444',
+      success: '#10B981',
       warning: '#F59E0B',
-      info: '#1565C0',
-      notification: '#C62828',
-      // Navigation – red tints from logo
-      navPill: '#FDECEA',
-      navIconActive: '#D42B2B',
-      navIconInactive: '#E57373',
+      info: '#003D6B',
+      notification: '#EF4444',
+      // Navigation – navy pill tints
+      navPill: '#EEF2F7',
+      navIconActive: '#002448',
+      navIconInactive: '#8A96A3',
       // Header/Footer backgrounds (with transparency for glass effect)
-      headerBg: 'rgba(255,248,240, 0.92)',
-      footerBg: 'rgba(255,250,245, 0.94)',
+      headerBg: 'rgba(245,247,250, 0.88)',
+      footerBg: 'rgba(255,255,255, 0.92)',
       // Alert colors
-      alertBg: '#FFF8F0',
-      alertBorder: '#E8D5B7',
-      alertIcon: '#D42B2B',
-      alertText: '#8B1A1A',
+      alertBg: '#FEFCE8',
+      alertBorder: '#FEF08A',
+      alertIcon: '#EAB308',
+      alertText: '#854D0E',
       alertBgDanger: '#FEF2F2',
       alertBorderDanger: '#FECACA',
-      alertIconDanger: '#C62828',
-      alertTextDanger: '#7F1D1D',
-      alertBgInfo: '#E3F2FD',
-      alertBorderInfo: '#BBDEFB',
-      alertIconInfo: '#1565C0',
-      alertTextInfo: '#0D47A1',
+      alertIconDanger: '#EF4444',
+      alertTextDanger: '#991B1B',
+      alertBgInfo: '#EEF4FA',
+      alertBorderInfo: '#B8CDE0',
+      alertIconInfo: '#003D6B',
+      alertTextInfo: '#002448',
     },
     typography: {
       fontFamily: 'System',
@@ -153,9 +153,9 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
         elevation: 6,
       },
       lg: {
-        shadowColor: '#D42B2B',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.12,
         shadowRadius: 24,
         elevation: 12,
       },
@@ -165,54 +165,54 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
     ...defaultDarkTheme,
     colors: {
       ...defaultDarkTheme.colors,
-      // Primary – lighter red for dark mode legibility
-      primary: '#EF5350',
-      primaryLight: '#EF9A9A',
-      primaryDark: '#D42B2B',
-      // Secondary – lighter green
-      secondary: '#66BB6A',
-      // Accent – bright gold for dark backgrounds
-      accent: '#FFD54F',
-      // Dark backgrounds – deep warm-charcoal tones (from logo border)
-      background: '#1A1A1A',
-      surface: '#2D2D2D',
-      card: '#3E2723',
+      // Primary – gold for dark mode legibility on navy surfaces
+      primary: '#CFA141',
+      primaryLight: '#E0B84D',
+      primaryDark: '#B8892E',
+      // Secondary – muted steel blue
+      secondary: '#6B8FAF',
+      // Accent – lighter gold trim
+      accent: '#E0B84D',
+      // Dark backgrounds – deep navy tones (from logo)
+      background: '#000E1A',
+      surface: '#001832',
+      card: '#062341',
       // Light text for dark backgrounds
-      textPrimary: '#FFF8F0',
-      textStrong: '#FFFFFF',
-      textSecondary: '#D7CCC8',
-      textMuted: '#BCAAA4',
-      text: '#FFF8F0',
-      textTertiary: '#FFD54F',
-      // Darker borders – warm brown
-      border: '#5D4037',
-      borderLight: '#6D4C41',
+      textPrimary: '#E8EDF2',
+      textStrong: '#F5F7FA',
+      textSecondary: '#9AAFC2',
+      textMuted: '#6B8399',
+      text: '#E8EDF2',
+      textTertiary: '#6B8399',
+      // Darker borders – navy-ink
+      border: '#1A3450',
+      borderLight: '#243D58',
       // Lighter semantic colors for dark mode
-      danger: '#EF5350',
-      success: '#66BB6A',
+      danger: '#F87171',
+      success: '#34D399',
       warning: '#FBBF24',
-      info: '#42A5F5',
-      notification: '#EF5350',
-      // Navigation – red tint for dark
-      navPill: 'rgba(212,43,43, 0.2)',
-      navIconActive: '#EF5350',
-      navIconInactive: '#D42B2B',
-      // Header/Footer with dark warm glass effect
-      headerBg: 'rgba(26,26,26, 0.92)',
-      footerBg: 'rgba(45,45,45, 0.94)',
+      info: '#6B8FAF',
+      notification: '#F87171',
+      // Navigation – gold tint on navy
+      navPill: 'rgba(207,161,65, 0.12)',
+      navIconActive: '#CFA141',
+      navIconInactive: '#4A6278',
+      // Header/Footer with dark navy glass effect
+      headerBg: 'rgba(0,14,26, 0.88)',
+      footerBg: 'rgba(6,35,65, 0.92)',
       // Alert colors (dark mode)
-      alertBg: 'rgba(212,43,43, 0.12)',
-      alertBorder: 'rgba(239,83,80, 0.3)',
-      alertIcon: '#EF5350',
-      alertText: '#FFF8F0',
-      alertBgDanger: 'rgba(198,40,40, 0.1)',
-      alertBorderDanger: 'rgba(198,40,40, 0.2)',
-      alertIconDanger: '#EF5350',
-      alertTextDanger: '#FFCDD2',
-      alertBgInfo: 'rgba(21,101,192, 0.12)',
-      alertBorderInfo: 'rgba(21,101,192, 0.25)',
-      alertIconInfo: '#42A5F5',
-      alertTextInfo: '#BBDEFB',
+      alertBg: 'rgba(234,179,8, 0.1)',
+      alertBorder: 'rgba(234,179,8, 0.2)',
+      alertIcon: '#FBBF24',
+      alertText: '#FEF08A',
+      alertBgDanger: 'rgba(239,68,68, 0.1)',
+      alertBorderDanger: 'rgba(239,68,68, 0.2)',
+      alertIconDanger: '#F87171',
+      alertTextDanger: '#FECACA',
+      alertBgInfo: 'rgba(107,143,175, 0.12)',
+      alertBorderInfo: 'rgba(107,143,175, 0.25)',
+      alertIconInfo: '#6B8FAF',
+      alertTextInfo: '#B8CDE0',
     },
     typography: {
       fontFamily: 'System',
@@ -264,9 +264,9 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
         elevation: 6,
       },
       lg: {
-        shadowColor: '#D42B2B',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.15,
         shadowRadius: 24,
         elevation: 12,
       },
@@ -276,26 +276,26 @@ export const schoolTheme: { light: SchoolTheme; dark: SchoolTheme } = {
 
 export const SCHOOL_CONFIG = {
   // The official name of the school displayed in headers and reports
-  name: "Chanakya E/M School",
+  name: "Chaitanya Vidyaniketan School Nancharla",
 
-  // Short line under the school name on the header ribbon
-  tagline: "Commited to Genuine Education",
+  // Short line under the school name on the header ribbon (gold text)
+  tagline: "Where learning never ends",
 
   // Motto / core values shown in the first info column of the ribbon (letterhead)
-  motto: "Imagine , Believe , Achieve",
+  motto: "Knowledge is path to success",
 
   // The school logo used in headers and reports
   // Ensure the image exists in assets/images/
   logo: require('../../assets/images/icon.png'),
 
   // Optional: School Address for reports
-  address: "Narayanapet Road, Maddur, Dist Narayanapet, Telangana-509411",
+  address: "Chaitanya Vidyaniketan School ,Nancharla , Nancharla, Dist Mahabubnagar, Telangana-501111",
 
   // Optional: Contact info for reports
-  contact: "9010619786",
+  contact: "9492275900",
 
   // Optional: School email for letterhead / reports
-  email: "chanakyaschool7939@gmail.com",
+  email: "chaitanyavidyanithan@gmail.com",
 
   // Website or Email
   website: "www.nexsyrus.com",
@@ -311,7 +311,7 @@ export const SCHOOL_CONFIG = {
   cbseAffiliationNo: "NA",
 
   // School Code (if applicable)
-  schoolCode: "CSM",
+  schoolCode: "CVS",
 
   /**
    * Full recognition / affiliation sentence for certificates & PDFs.
@@ -319,25 +319,29 @@ export const SCHOOL_CONFIG = {
    */
   recognitionLine: "",
 
-  recognitionNo: "192/A1/PVT/2026",
+  /**
+   * Optional RC / recognition number for bonafide & TC letterheads.
+   * Example: "1234/DEO/VKB/2020". Leave empty to omit — never shown as "NA".
+   */
+  recognitionNo: "",
 
   /**
    * Colour theme for ribbon / letterhead chrome (SchoolRibbon, etc.).
-   * Extracted from the logo: red outer ring, dark-green tree, gold stars, blue ribbon.
+   * Adjust `ribbonGradient` stops for your brand; `accent` drives gold trim; `ribbonTagline` sets tagline text.
    */
   theme: {
-    /** Gold stripes, dividers, and trim (logo gold stars & accents) */
-    accent: '#D4AF37',
-    /** Tagline text – warm gold */
-    ribbonTagline: '#FFE082',
-    /** Four-stop diagonal ribbon – red ring → deep maroon → dark green tree depth */
-    ribbonGradient: ['#5D101D', '#8B1A1A', '#D42B2B', '#1B5E20'] as const,
+    /** Stripes and soft dividers – gold from logo lettering */
+    accent: '#CFA141',
+    /** Four-stop diagonal ribbon – deep navy (logo circle background) */
+    ribbonGradient: ['#001832', '#002448', '#003060', '#002848'] as const,
     /** Optional stops for expo-linear-gradient (length must match ribbonGradient) */
     ribbonGradientLocations: [0, 0.30, 0.65, 1] as const,
-    /** Main title on the ribbon */
-    ribbonTitle: '#FFFFFF',
+    /** Main title on the ribbon – gold lettering like the logo */
+    ribbonTitle: '#CFA141',
+    /** Tagline under the school name on the ribbon */
+    ribbonTagline: '#FFFFFF',
     /** Scrolling marquee dot separator */
-    marqueeSeparator: 'rgba(255,255,255,0.85)',
+    marqueeSeparator: 'rgba(207,161,65,0.85)',
     /** Letterhead / info column body */
     ribbonBody: 'rgba(255,255,255,0.92)',
     ribbonBodyMuted: 'rgba(255,255,255,0.9)',
