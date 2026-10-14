@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Geetanjali High School Maddur",
-    "slug": "geetanjalihighschoolmaddur",
+    "name": "Vikas Model School Balampet",
+    "slug": "vikasmodelschoolbalampet",
     "version": "5.1.9",
     "platforms": [
       "android",
       "ios",
       "web"
     ],
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/images/icon-v2.png",
     "scheme": "schoolims",
     "userInterfaceStyle": "light",
@@ -16,15 +16,14 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.nexsyrussims.geetanjalihighschool",
+      "bundleIdentifier": "com.nexsyrussims.vikasmodelschool",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "fetch",
-          "remote-notification",
-          "location"
+          "remote-notification"
         ]
       },
       "entitlements": {
@@ -32,9 +31,9 @@
       }
     },
     "android": {
-      "package": "com.nexsyrussims.geetanjalihighschool",
+      "package": "com.nexsyrussims.vikasmodelschool",
       "jsEngine": "hermes",
-      "versionCode": 5,
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-v2.png",
@@ -42,39 +41,26 @@
         "monochromeImage": "./assets/images/icon-v2.png"
       },
       "useNextNotificationsApi": true,
-      "blockedPermissions": [
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ],
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "VIBRATE",
         "POST_NOTIFICATIONS",
         "WAKE_LOCK",
-        "RECEIVE_BOOT_COMPLETED",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
-      "favicon": "./assets/images/icon-v2.png"
+      "favicon": "./assets/images/icon.png"
     },
     "notification": {
-      "icon": "./assets/images/icon-v2.png",
+      "icon": "./assets/images/icon.png",
       "color": "#3535A8"
     },
     "plugins": [
       [
         "expo-build-properties",
         {
-          "android": {
-            "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "# Expo Record options (including SecureStore) use this annotation at runtime.\n# Backport of expo/expo#51206 for Expo Modules Core 3.0.30.\n-keep @interface expo.modules.kotlin.records.Field { *; }"
-          },
           "ios": {
             "useFrameworks": "static",
             "deploymentTarget": "15.1",
@@ -82,6 +68,10 @@
               "RNFBApp",
               "RNFBMessaging"
             ]
+          },
+          "android": {
+            "enableMinifyInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false
           }
         }
       ],
@@ -92,15 +82,6 @@
           "image": "./assets/images/icon.png",
           "backgroundColor": "#FFFFFF",
           "resizeMode": "contain"
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true,
-          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to verify staff presence on campus for attendance and share school bus location during active trips.",
-          "locationAlwaysAndWhenInUsePermission": "This app shares the school bus location with parents while a trip is in progress, including when the screen is off."
         }
       ],
       "expo-secure-store",
@@ -115,7 +96,6 @@
             "./assets/sounds/emergency.wav",
             "./assets/sounds/fee_reminder.wav",
             "./assets/sounds/voice_alert.wav",
-            "./assets/sounds/diary_alert.wav",
             "./assets/sounds/bus_present.wav",
             "./assets/sounds/busconfirmation.wav"
           ]
@@ -126,16 +106,7 @@
       "@react-native-community/datetimepicker",
       "@maplibre/maplibre-react-native",
       "./plugins/withManifestMerger.js",
-      "./plugins/withAndroidSounds.js",
-      "./plugins/withAndroidWindowCompatibility.js",
-      "./plugins/withAndroidReleaseOptimization.js",
-      "./plugins/withAndroidForegroundAudioOnly.js",
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to verify staff attendance with Face ID."
-        }
-      ]
+      "./plugins/withAndroidSounds.js"
     ],
     "experiments": {
       "typedRoutes": true
@@ -150,7 +121,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5e99bce0-6c29-4767-9f70-10ea0ea9582f"
+        "projectId": "431387a6-0e21-4d25-bf0f-5fdd3ad56585"
       }
     },
     "owner": "nexsyrus"
