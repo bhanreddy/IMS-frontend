@@ -25,6 +25,18 @@ Edit `scripts/school-release.config.json`:
 - `preserveSourceVersion: true` keeps the master `app.json`'s `expo.version` while
   applying each school's app configuration. Android version codes use the school's
   existing EAS remote version and `autoIncrement: true`.
+- Each school has an `expected` identity: owner, Expo project ID, Android package,
+  and school ID. These are checked against the SSD app/profile files before any
+  release work. Update these deliberately when moving or reconfiguring a school.
+
+Account-specific files extend this shared configuration and restrict the batch to
+one account. They contain only `extends` and `account`; school settings and login
+usernames remain in the shared file. Paths continue to resolve relative to the
+shared file. An account file cannot be overridden to release another account.
+
+- `scripts/school-release.nexsyrus.json`: GHS, Global, Samskruthe, Slate, VMS.
+- `scripts/school-release.nexsyrus1.json`: Bhashayam, Chaitanya, NMMS, Chanakya.
+- `scripts/school-release.bhan_reddy.json`: Default/demo.
 
 Signing credentials must already be configured for each school's EAS project;
 noninteractive builds stop if credentials or access are missing. To configure them
@@ -47,9 +59,29 @@ This validates local inputs for the selected schools without changing login,
 creating release folders, accessing GitHub, running prebuild, or submitting builds.
 It cannot verify network access or remote signing credentials.
 
+Preview checks the PNG signatures of the effective source and SSD assets. A JPEG
+renamed to `.png` fails Android resource compilation; convert the file to PNG
+before releasing. SSD overlays take precedence over source assets during this check.
+
 ## Run
 
-For the `bhan_reddy` account, use the dedicated command:
+Each account has its own command. All commands preview by default:
+
+```bash
+npm run release:nexsyrus
+npm run release:nexsyrus1
+npm run release:bhan-reddy
+```
+
+Append `-- --execute` to push and submit builds for that account:
+
+```bash
+npm run release:nexsyrus -- --execute
+npm run release:nexsyrus1 -- --execute
+npm run release:bhan-reddy -- --execute
+```
+
+For example, the `bhan_reddy` command:
 
 ```bash
 # Preview only
@@ -202,6 +234,10 @@ steps. Do not combine `--resume` with `--config`, `--schools` or `--account`. Fo
 account-scoped run, resume using the generic command above rather than the npm
 account shortcut. To fix the login
 mapping of an existing run, edit `config.accounts` in its `state.json`.
+
+For an EAS build that was accepted and then failed during compilation, fix the
+source/SSD inputs and start a new release run. Resume skips submitted schools and
+retains their frozen assets, so it will not rebuild them with your corrections.
 
 If a process was killed and left `running.lock`, inspect the PID/hostname in that
 file and remove it only after verifying that process is no longer active.

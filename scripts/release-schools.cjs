@@ -91,6 +91,22 @@ function profileFor(eas, name, visited = new Set()) {
   const parent = own.extends ? profileFor(eas, own.extends, visited) : {};
   return { ...parent, ...own, env: { ...parent.env, ...own.env }, android: { ...parent.android, ...own.android } };
 }
+function validatePngAssets(config, mapped, schoolKey) {
+  // Validate the effective files: SSD overlays replace matching source assets.
+  const files = new Map(sourceFiles(config.sourceDir).filter(f => /\.png$/i.test(f))
+    .map(f => [f, inside(config.sourceDir, f)]));
+  for (const { from, to } of mapped) if (/\.png$/i.test(to)) files.set(to, from);
+  const signature = Buffer.from('89504e470d0a1a0a', 'hex');
+  for (const [to, from] of files) {
+    const header = Buffer.alloc(8);
+    const fd = fs.openSync(from, 'r');
+    let bytes;
+    try { bytes = fs.readSync(fd, header, 0, header.length, 0); }
+    finally { fs.closeSync(fd); }
+    assert(bytes === signature.length && header.equals(signature),
+      `${schoolKey}: ${to} is named .png but does not contain PNG data (${from}). Convert it to PNG; renaming a JPEG is insufficient.`);
+  }
+}
 function inspectSchool(config, school) {
   assert(/^[a-z0-9][a-z0-9_-]*$/i.test(school.key), `Invalid school key: ${school.key}`);
   assert(config.accounts[school.account], `Unknown account group: ${school.account}`);
@@ -111,6 +127,7 @@ function inspectSchool(config, school) {
     }
   }
   assert(mapped.some(f => f.to === 'app.json') && mapped.some(f => f.to === 'eas.json'), `${school.key}: app.json and eas.json overlays required`);
+  validatePngAssets(config, mapped, school.key);
   const app = json(mapped.find(f => f.to === 'app.json').from).expo;
   const eas = json(mapped.find(f => f.to === 'eas.json').from);
   const profile = profileFor(eas, school.profile);
@@ -125,6 +142,12 @@ function inspectSchool(config, school) {
   const env = { ...diskEnv, ...profile.env };
   assert(/^\d+$/.test(env.EXPO_PUBLIC_SCHOOL_ID || '') && Number(env.EXPO_PUBLIC_SCHOOL_ID) > 0 &&
     env.EXPO_PUBLIC_SCHOOL_CODE && env.EXPO_PUBLIC_SCHOOL_NAME, `${school.key}: invalid school identity in profile/env`);
+  const identity = { owner: app.owner, projectId: app.extra.eas.projectId,
+    androidPackage: app.android.package, schoolId: String(env.EXPO_PUBLIC_SCHOOL_ID) };
+  for (const [field, expected] of Object.entries(school.expected || {})) {
+    assert(Object.hasOwn(identity, field), `${school.key}: unknown expected identity field ${field}`);
+    assert(identity[field] === String(expected), `${school.key}: ${field} differs from the configured identity; check the SSD files and school mapping`);
+  }
   const mismatches = Object.keys(profile.env).filter(k => k in diskEnv && String(profile.env[k]) !== diskEnv[k]);
   // EAS profile values win for both local prebuild and cloud build.
   const gsPath = mapped.find(f => f.to === (app.android.googleServicesFile || './google-services.json').replace(/^\.\//, ''))?.from ||
@@ -134,12 +157,25 @@ function inspectSchool(config, school) {
     `${school.key}: no matching Android package in Firebase configuration`);
   return { ...school, folderPath: folder, app, env, mapped, mismatches };
 }
-function loadConfig(file) {
+function loadConfig(file, visited = new Set()) {
+  file = path.resolve(file);
+  assert(!visited.has(file), 'Release configuration inheritance cycle');
+  visited.add(file);
   const config = json(file);
-  const base = path.dirname(path.resolve(file));
+  const base = path.dirname(file);
+  if (config.extends) {
+    assert(typeof config.extends === 'string', 'Config extends must be a filename');
+    assert(Object.keys(config).every(key => ['extends', 'account'].includes(key)), 'Account configs may only contain extends and account; edit school settings in the shared config');
+    const parent = loadConfig(path.resolve(base, config.extends), visited);
+    assert(!parent.account || !config.account || parent.account === config.account, 'Cannot override the account scope of a parent config');
+    const account = config.account || parent.account;
+    assert(account && Object.hasOwn(parent.accounts, account), `Unknown account group in config: ${account}`);
+    return { ...parent, account };
+  }
   for (const name of ['sourceDir', 'ssdRoot', 'outputRoot']) config[name] = path.resolve(base, config[name]);
   assert(config.outputRoot !== config.sourceDir && !config.outputRoot.startsWith(`${config.sourceDir}${path.sep}`), 'outputRoot must be outside the frontend source');
   assert(new Set(config.schools.map(s => s.key)).size === config.schools.length, 'Duplicate school keys');
+  if (config.account) assert(Object.hasOwn(config.accounts, config.account), `Unknown account group in config: ${config.account}`);
   return config;
 }
 function snapshot(config, root, schools) {
@@ -275,6 +311,9 @@ async function main(argv = process.argv.slice(2)) {
     assert(state.digest === snapshotDigest(root), 'Release snapshot changed; refuse to resume');
   } else {
     config = loadConfig(path.resolve(opt.config || path.join(__dirname, 'school-release.config.json')));
+    assert(!config.account || !opt.account || config.account === opt.account,
+      `This config is scoped to ${config.account}; cannot select account ${opt.account}`);
+    opt.account ||= config.account;
     if (opt.account) assert(Object.hasOwn(config.accounts, opt.account), `Unknown account group: ${opt.account}`);
     const selected = opt.schools?.split(',');
     if (selected) for (const key of selected) {

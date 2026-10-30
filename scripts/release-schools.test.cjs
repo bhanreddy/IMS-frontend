@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { parseEnv, profileFor, childEnv, parseBuilds } = require('./release-schools.cjs');
+const { parseEnv, profileFor, childEnv, parseBuilds, loadConfig, inspectSchool } = require('./release-schools.cjs');
 const runner = path.join(__dirname, 'release-schools.cjs');
 
 function write(file, content, executable = false) {
@@ -113,10 +113,37 @@ test('dry run performs no external commands or creates release workspaces', t =>
   assert.equal(fs.existsSync(path.join(f.root, 'runs')), false);
   assert.equal(fs.existsSync(f.env.MOCK_BUILD_CALLS), false);
 });
+test('PNG validation follows overlay precedence and blocks mislabeled assets before release', t => {
+  const f = fixture(t);
+  const relative = 'assets/images/icon.png';
+  const sourceIcon = path.join(f.source, relative);
+  const overlayIcon = path.join(f.config.ssdRoot, 'school', relative);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
+  fs.mkdirSync(path.dirname(sourceIcon), { recursive: true });
+  fs.writeFileSync(sourceIcon, jpeg);
+  assert.throws(() => inspectSchool(f.config, f.config.schools[0]), /does not contain PNG data/);
+  fs.mkdirSync(path.dirname(overlayIcon), { recursive: true });
+  fs.writeFileSync(overlayIcon, png);
+  f.config.overlays.push({ from: 'assets', to: 'assets' });
+  inspectSchool(f.config, f.config.schools[0]); // The valid overlay replaces the invalid source.
+  fs.writeFileSync(sourceIcon, png);
+  fs.writeFileSync(overlayIcon, jpeg);
+  write(f.configFile, f.config);
+  for (const args of [[], ['--execute']]) {
+    const result = spawnSync(process.execPath, [runner, '--config', f.configFile, ...args], { env: f.env, encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /assets\/images\/icon\.png.*does not contain PNG data/);
+  }
+  assert.equal(fs.existsSync(path.join(f.root, 'runs')), false);
+  assert.equal(fs.existsSync(f.env.MOCK_BUILD_CALLS), false);
+});
 test('full release preserves source, pushes overlay, submits once, resumes without duplicates', t => {
   const f = fixture(t);
+  const accountConfig = path.join(f.root, 'accounts', 'group.json');
+  write(accountConfig, { extends: '../config.json', account: 'group' });
   const before = run('git', ['-C', f.source, 'status', '--porcelain']);
-  const result = spawnSync(process.execPath, [runner, '--config', f.configFile, '--account', 'group', '--execute'], { env: f.env, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [runner, '--config', accountConfig, '--execute'], { env: f.env, encoding: 'utf8' });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const dir = path.join(f.root, 'runs', fs.readdirSync(path.join(f.root, 'runs'))[0]);
   const state = JSON.parse(fs.readFileSync(path.join(dir, 'state.json')));
@@ -203,4 +230,68 @@ test('unknown account and explicit schools outside account fail before execution
   }
   assert.equal(fs.existsSync(path.join(f.root, 'runs')), false);
   assert.equal(fs.existsSync(f.env.MOCK_BUILD_CALLS), false);
+});
+test('account config paths resolve against the shared config and scope cannot be overridden', t => {
+  const f = fixture(t);
+  const child = path.join(f.root, 'accounts', 'group.json');
+  f.config.sourceDir = './source'; f.config.ssdRoot = './ssd'; f.config.outputRoot = './runs';
+  f.config.accounts.other = { username: 'someone' };
+  f.config.schools.push({ ...f.config.schools[0], key: 'unrelated', account: 'other', folder: 'not-mounted' });
+  write(f.configFile, f.config);
+  write(child, { extends: '../config.json', account: 'group' });
+  const resolved = loadConfig(child);
+  assert.equal(resolved.sourceDir, f.source);
+  assert.equal(resolved.ssdRoot, path.join(f.root, 'ssd'));
+  assert.equal(resolved.outputRoot, path.join(f.root, 'runs'));
+  const preview = run(process.execPath, [runner, '--config', child], { env: f.env });
+  assert.match(preview, /Account scope: group \(1 school\)/);
+  assert.doesNotMatch(preview, /unrelated:/);
+  const refused = spawnSync(process.execPath, [runner, '--config', child, '--account', 'other', '--execute'], { env: f.env, encoding: 'utf8' });
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /cannot select account other/);
+  assert.equal(fs.existsSync(path.join(f.root, 'runs')), false);
+});
+test('account configs reject invalid groups, inheritance cycles and ambiguous overrides', t => {
+  const f = fixture(t);
+  const child = path.join(f.root, 'account.json');
+  write(child, { extends: './config.json', account: 'typo' });
+  assert.throws(() => loadConfig(child), /Unknown account group/);
+  write(child, { extends: './account.json', account: 'group' });
+  assert.throws(() => loadConfig(child), /inheritance cycle/);
+  write(child, { extends: './config.json', account: 'group', schools: [] });
+  assert.throws(() => loadConfig(child), /only contain extends and account/);
+});
+test('pinned identities reject wrong owners, project IDs, Android packages and school IDs', t => {
+  const f = fixture(t);
+  const valid = { owner: 'owner', projectId: 'project-id', androidPackage: 'com.test.school', schoolId: '7' };
+  inspectSchool(f.config, { ...f.config.schools[0], expected: valid });
+  for (const field of Object.keys(valid)) {
+    assert.throws(() => inspectSchool(f.config, { ...f.config.schools[0], expected: { ...valid, [field]: 'wrong' } }),
+      new RegExp(`${field} differs`));
+  }
+});
+test('checked-in account configs cover each school once with unique pinned identities', () => {
+  const shared = loadConfig(path.join(__dirname, 'school-release.config.json'));
+  const groups = { nexsyrus: ['ghs', 'global', 'samskruthe', 'slate', 'vms'],
+    nexsyrus1: ['bhashayam', 'chaitanya', 'nmms', 'chanakya'], bhan_reddy: ['default'] };
+  const all = [];
+  for (const [account, keys] of Object.entries(groups)) {
+    const config = loadConfig(path.join(__dirname, `school-release.${account}.json`));
+    assert.equal(config.account, account);
+    assert.equal(config.accounts[account].username, account);
+    assert.equal(config.accounts[account].tokenEnv, null);
+    assert.equal(config.sourceDir, path.dirname(__dirname));
+    const schools = config.schools.filter(s => s.account === account);
+    assert.deepEqual(schools.map(s => s.key), keys);
+    for (const s of schools) {
+      assert.equal(s.expected.owner, account);
+      assert.match(s.expected.projectId, /^[0-9a-f-]{36}$/);
+      assert.equal(s.profile, `school-${s.expected.schoolId}-production`);
+      assert.ok(s.expected.androidPackage);
+    }
+    all.push(...schools);
+  }
+  assert.equal(all.length, shared.schools.length);
+  for (const field of ['key', 'folder', 'repo']) assert.equal(new Set(all.map(s => s[field])).size, all.length);
+  for (const field of ['projectId', 'androidPackage', 'schoolId']) assert.equal(new Set(all.map(s => s.expected[field])).size, all.length);
 });
