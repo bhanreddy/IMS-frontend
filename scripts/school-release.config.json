@@ -1,0 +1,32 @@
+{
+  "sourceDir": "..",
+  "ssdRoot": "/Volumes/PortableSSD",
+  "outputRoot": "../../.school-releases",
+  "groupByAccount": true,
+  "preserveSourceVersion": true,
+  "accounts": {
+    "nexsyrus": { "username": "nexsyrus", "tokenEnv": null },
+    "nexsyrus1": { "username": "nexsyrus1", "tokenEnv": null },
+    "bhan_reddy": { "username": "bhan_reddy", "tokenEnv": null }
+  },
+  "overlays": [
+    { "from": "app.json", "to": "app.json" },
+    { "from": "eas.json", "to": "eas.json" },
+    { "from": "constants", "to": "src/constants" },
+    { "from": "assets", "to": "assets" },
+    { "from": "wrangler.jsonc", "to": "wrangler.jsonc", "optional": true },
+    { "from": "google-services.json", "to": "google-services.json", "optional": true }
+  ],
+  "schools": [
+    { "key": "ghs", "folder": "GHS File", "repo": "https://github.com/bhanreddy/ghs-maddur-nexsyrus.git", "account": "nexsyrus", "profile": "school-17-production", "branch": null },
+    { "key": "global", "folder": "Global School File", "repo": "https://github.com/bhanreddy/globalschool-nexsyrus.git", "account": "nexsyrus", "profile": "school-14-production", "branch": null },
+    { "key": "samskruthe", "folder": "Samskruthe File", "repo": "https://github.com/bhanreddy/Samskruthe-school-nawabpet-nexsyrus.git", "account": "nexsyrus", "profile": "school-13-production", "branch": null },
+    { "key": "slate", "folder": "Slate School File", "repo": "https://github.com/bhanreddy/slateschool.git", "account": "nexsyrus", "profile": "school-12-production", "branch": null },
+    { "key": "vms", "folder": "VMS File", "repo": "https://github.com/bhanreddy/VMS-nexsyrus-balampet.git", "account": "nexsyrus", "profile": "school-16-production", "branch": null },
+    { "key": "bhashayam", "folder": "Bhashayam High School File", "repo": "https://github.com/bhanreddy/bvs-mahammadabad-nexsyrus.git", "account": "nexsyrus1", "profile": "school-18-production", "branch": null },
+    { "key": "chaitanya", "folder": "Chaitanya School Nancharla File", "repo": "https://github.com/bhanreddy/chaitanya-nancharla-nexsyrus.git", "account": "nexsyrus1", "profile": "school-15-production", "branch": null },
+    { "key": "nmms", "folder": "NMMS goka File", "repo": "https://github.com/bhanreddy/new-master-minds-gokafasalwad.git", "account": "nexsyrus1", "profile": "school-19-production", "branch": null },
+    { "key": "chanakya", "folder": "chanakya maddur File", "repo": "https://github.com/bhanreddy/chanakyamaddur-nexsyrus.git", "account": "nexsyrus1", "profile": "school-20-production", "branch": null },
+    { "key": "default", "folder": "Default File", "repo": "https://github.com/bhanreddy/IMS-frontend.git", "account": "bhan_reddy", "profile": "school-1-production", "branch": null }
+  ]
+}

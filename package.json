@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build": "npx expo export -p web",
+    "release:bhan-reddy": "node scripts/release-schools.cjs --account bhan_reddy",
     "lint": "expo lint",
     "test": "node scripts/run-tests.cjs",
     "version:patch": "node ./scripts/bump-version.js patch",
