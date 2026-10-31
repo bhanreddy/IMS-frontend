@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "build": "npx expo export -p web",
     "release:bhan-reddy": "node scripts/release-schools.cjs --config scripts/school-release.bhan_reddy.json",
+    "push:bhan-reddy": "node scripts/release-schools.cjs --config scripts/school-release.bhan_reddy.json --git-only",
     "release:nexsyrus": "node scripts/release-schools.cjs --config scripts/school-release.nexsyrus.json",
     "release:nexsyrus1": "node scripts/release-schools.cjs --config scripts/school-release.nexsyrus1.json",
     "lint": "expo lint",
