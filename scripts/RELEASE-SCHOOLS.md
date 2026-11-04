@@ -75,6 +75,16 @@ npm run push:bhan-reddy
 npm run push:bhan-reddy -- --execute
 ```
 
+For the `nexsyrus1` schools (Bhashayam, Chaitanya, NMMS, and Chanakya), use:
+
+```bash
+# Preview
+npm run push:nexsyrus1
+
+# Apply school files, commit and push; no Expo or EAS commands
+npm run push:nexsyrus1 -- --execute
+```
+
 This uses the existing school/account mapping and preserves repository history.
 It skips dependency installation, Expo login/logout, project access checks, Android
 prebuild and EAS build submission. Only GitHub authentication is needed. The master
